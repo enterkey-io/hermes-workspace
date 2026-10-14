@@ -60,6 +60,9 @@ def main():
             return result.stdout
         enabled = subprocess.run(["hermes", "plugins", "enable", "bot-web"], capture_output=True, text=True, timeout=30)
         assert enabled.returncode == 0, enabled.stderr[-1000:]
+        doctor = json.loads(cli("doctor"))
+        assert doctor["supported"] and doctor["revision"] in manifest.get("hermes_revisions", [manifest["hermes_revision"]])
+        assert not (home / "bot-web/connection.json").exists(), "Doctor must not configure the installation"
         setup_output = cli("setup", "--bridge-url", bridge_url, "--app-origin", app_origin, "--port", str(port))
         config = home / "bot-web/connection.json"
         settings = json.loads(config.read_text())

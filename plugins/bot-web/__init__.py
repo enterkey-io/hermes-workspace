@@ -3,14 +3,21 @@
 
 def register(ctx):
     def setup(parser):
-        parser.add_argument("action", choices=["serve", "setup", "approve", "revoke"])
+        parser.add_argument("action", choices=["doctor", "serve", "setup", "approve", "revoke"])
         parser.add_argument("code", nargs="?")
         parser.add_argument("--bridge-url")
         parser.add_argument("--app-origin", action="append")
         parser.add_argument("--port", type=int, default=8788)
 
     def run(args):
-        if args.action == "serve":
+        if args.action == "doctor":
+            import json
+            from .compatibility import inspect_native_adapter
+            report = inspect_native_adapter()
+            print(json.dumps(report, indent=2))
+            if not report["supported"]:
+                raise SystemExit(2)
+        elif args.action == "serve":
             from .server import serve
             serve()
         elif args.action == "setup":

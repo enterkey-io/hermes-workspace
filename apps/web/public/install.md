@@ -6,7 +6,7 @@ These instructions are for the owner's existing Hermes agent. The application is
 
 ## What to deliver for this test
 
-The web app is already running at the origin of this installation page. **Keep using that web app for this test**, unless the owner explicitly chooses a different web host. Configure their separate Hermes installation to accept browser connections from this exact web origin. Return both:
+Use the existing web app URL supplied in the owner's request. If this guide is opened inside that app, its origin is the web origin. A GitHub guide URL is not the app URL. **Keep using that web app for this test**, unless the owner explicitly chooses a different web host. Configure their separate Hermes installation to accept browser connections from this exact web origin. Return both:
 
 - **Web app URL:** the existing web app the owner opens.
 - **Hermes connection address:** a separate trusted HTTPS endpoint the owner's browser can reach.
@@ -21,14 +21,14 @@ The owner stays on the web app's original URL. Browser pairing and bot traffic g
 
 ## Step 1 — Get the packages and inspect Hermes
 
-The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The first version is [v0.2.0-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.0-preview.1), a preview. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
+The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The first version is [v0.2.1-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.1-preview.1), a preview. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
 
-- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1/workspace-manifest.json)
-- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1/SHA256SUMS)
-- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1/workspace-plugin-preview.zip)
-- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1/workspace-web-preview.zip)
-- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1/workspace-site-preview.zip)
-- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-manifest.json)
+- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/SHA256SUMS)
+- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-plugin-preview.zip)
+- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-web-preview.zip)
+- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-site-preview.zip)
+- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-source-preview.zip)
 
 The running development preview also mirrors these paths on its own origin for the same-tailnet test. Use that origin only when the owner supplied the preview URL, never infer it from a GitHub page:
 
@@ -42,7 +42,7 @@ Download over trusted HTTPS. Check each archive's size and SHA-256 against the m
 
 Discover the existing Hermes executable/Python runtime, actual `HERMES_HOME`/profile, installed version/build, native managed bots and their existing Bot Chats, and the host's service supervisor/private HTTPS arrangement. Do not dump keys, `.env` or full configuration into conversation. Olares, Kubernetes, a particular OS, or a particular model provider is not required.
 
-The current adapter is tested only with Hermes **0.21.0** at revision **29112bef099274229cadff79cdff7bf7b99c4b77**. It verifies the native integration files and refuses untested builds. Do not downgrade or patch Hermes to satisfy this preview. Check FastAPI/Uvicorn are present in Hermes's existing runtime. If no native managed bot/initialized Bot Chat exists, explain that prerequisite and let the owner choose it through Hermes's existing tools; do not create substitute chat state.
+The adapter recognizes two tested native gateway bundles: **29112bef099274229cadff79cdff7bf7b99c4b77** (Hermes 0.21.0) and **af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a** (the source reported as Hermes 0.21.7 in the Docker installation). The latter intentionally declares distribution metadata **0.0.0**; that label is not a rejection reason. Matching a complete tested gateway fingerprint set determines compatibility. Unknown/mixed gateway files are refused; the version string alone never grants support. Do not downgrade or patch Hermes to satisfy this preview. Check FastAPI/Uvicorn are present in Hermes's existing runtime. If no native managed bot/initialized Bot Chat exists, explain that prerequisite and let the owner choose it through Hermes's existing tools; do not create substitute chat state.
 
 ## Step 2 — Keep or deploy the web app
 
@@ -50,7 +50,7 @@ For this test, set `APP_ORIGIN` to the exact HTTPS origin of the existing app su
 
 For an owner who wants a new installation, deploy the **complete static site** or **web package** independently to the HTTPS host they choose. The package's root contains `index.html`, `assets/`, `_headers`, `install.html`, `connection.json` and `version.json`. It contains no Hermes runtime, operator key or user data. Use the final web origin as `APP_ORIGIN`; a temporary preview hostname does not authorize the final domain.
 
-Required hosting capabilities: trusted HTTPS, static HTML/JS/CSS/JSON serving at the site root, equivalent supplied security headers, and a way to replace/roll back a deployment. No Hermes runtime, model/GPU, database or backend function is required on the web host. Source builds use Node 26.0.0/npm 11.12.1 and Python 3; prebuilt static hosting needs none of that tooling at runtime. If no provider is preferred, suggest [Cloudflare Pages](https://developers.cloudflare.com/pages/get-started/direct-upload/) or [DigitalOcean static hosting](https://docs.digitalocean.com/products/app-platform/how-to/manage-static-sites/), and respect the owner's budget/account choice before purchasing anything. [Hosting requirements and choices](https://github.com/enterkey-io/hermes-workspace/blob/v0.2.0-preview.1/docs/HOSTING.md) keep provider links separate from connection code; current links are not affiliate links.
+Required hosting capabilities: trusted HTTPS, static HTML/JS/CSS/JSON serving at the site root, equivalent supplied security headers, and a way to replace/roll back a deployment. No Hermes runtime, model/GPU, database or backend function is required on the web host. Source builds use Node 26.0.0/npm 11.12.1 and Python 3; prebuilt static hosting needs none of that tooling at runtime. If no provider is preferred, suggest [Cloudflare Pages](https://developers.cloudflare.com/pages/get-started/direct-upload/) or [DigitalOcean static hosting](https://docs.digitalocean.com/products/app-platform/how-to/manage-static-sites/), and respect the owner's budget/account choice before purchasing anything. [Hosting requirements and choices](https://github.com/enterkey-io/hermes-workspace/blob/v0.2.1-preview.1/docs/HOSTING.md) keep provider links separate from connection code; current links are not affiliate links.
 
 - **Cloudflare Pages:** upload the extracted static site as a Pages project, or use its source with build command `npm run build` and output `apps/web/dist`. Apply the included `_headers`. Do not create Workers/functions, databases, a Hermes proxy, account storage or secret bindings. The hosting provider serves software assets only.
 - **DigitalOcean or another server:** serve those files using the owner's normal HTTPS static server, with equivalent security headers from `_headers`. The included `serve-static.mjs` can run with `node /path/to/extracted-web/serve-static.mjs`; it binds only `127.0.0.1:8080` by default and needs the host's HTTPS reverse proxy. No Hermes installation is needed on this machine.
@@ -76,13 +76,14 @@ A user can instead choose their own authenticated public HTTPS reverse proxy. Pr
 
 ## Step 4 — Install only the plugin on Hermes
 
-The plugin is required for this preview's tested Hermes build. Hermes supports platform/channel plugins for external messaging systems; this preview instead exposes native Bot Mode's canonical-session/room interfaces directly. It is a real plugin and native Bot Mode adapter, but **not yet a registered messaging channel** in `hermes gateway setup`. Do not claim Telegram-style channel registration, proactive channel notifications or cron delivery are implemented. [The channel assessment](https://github.com/enterkey-io/hermes-workspace/blob/v0.2.0-preview.1/docs/HERMES_INTEGRATION.md) records that boundary and the follow-up contract.
+The plugin is required for this preview's tested Hermes build. Hermes supports platform/channel plugins for external messaging systems; this preview instead exposes native Bot Mode's canonical-session/room interfaces directly. It is a real plugin and native Bot Mode adapter, but **not yet a registered messaging channel** in `hermes gateway setup`. Do not claim Telegram-style channel registration, proactive channel notifications or cron delivery are implemented. [The channel assessment](https://github.com/enterkey-io/hermes-workspace/blob/v0.2.1-preview.1/docs/HERMES_INTEGRATION.md) records that boundary and the follow-up contract.
 
 Place the extracted `bot-web` directory in `<actual HERMES_HOME>/plugins/bot-web`. Preserve an unrelated or existing installation/configuration instead of overwriting it blindly. Use the correct existing Hermes executable and home/profile context for every command:
 
 ```sh
 hermes plugins enable bot-web
 hermes bot-web --help
+hermes bot-web doctor
 hermes bot-web setup --bridge-url "$BRIDGE_URL" --app-origin "$APP_ORIGIN" --port 8788
 hermes bot-web serve
 ```
@@ -92,6 +93,8 @@ hermes bot-web serve
 Setup creates `<HERMES_HOME>/bot-web/connection.json` in a private directory with mode 0600, generates an independent administrator credential, and never prints it. Web files and `--web-dir` are **not needed** on Hermes. Configuration has schema 2; setup refuses to overwrite an existing configuration. No Hermes stores or core files should change.
 
 If the earlier combined-host preview was installed, migrate only this integration: stop its service, preserve the previous plugin and private configuration in a local mode-0700 backup outside every web-served directory, then install the corrected plugin. Move the old configuration into that backup and run the new setup with the independently chosen `BRIDGE_URL` and `APP_ORIGIN`, preserving its local port where practical. Keep its backup configuration mode 0600 and never print its credential. Reuse the existing HTTPS route when suitable; do not replace unrelated services. Restart the corrected bridge and pair again. Leave Hermes's bot/history stores untouched, and retain the backup for rollback if verification fails. Do not publish the old web-host configuration or keep serving it as the required entry point.
+
+The doctor command reads package metadata and native source fingerprints only; it makes no model calls and does not touch private configuration. Confirm it reports supported=true and the expected matched revision before setup. If not, return its JSON as compatibility evidence without editing its pins or downgrading Hermes.
 
 First verify in the foreground, then supervise this API-only service using the existing host mechanism and correct runtime/home context. It binds loopback `127.0.0.1:8788`; the owner's HTTPS route forwards to it. Ensure the service survives the agent terminal ending and restarts normally. Its persistent native gateway uses Hermes's existing agents, stores and provider configuration.
 
@@ -116,4 +119,8 @@ Also state the required private-access method (if any), service restart status a
 
 ## Keeping the installation updated
 
-Record the installed release/tag, component versions, verified package digests and deployment/rollback method privately. The agent can check GitHub releases on the owner's request or their chosen local schedule, download the chosen tag's matching packages, verify them, preserve private plugin configuration, replace the static deployment/plugin code and test pairing/roster again. **A fork is not required for ordinary installations.** Fork only for intentional custom source changes or a provider workflow that requires it. Follow [the complete update and rollback procedure](https://github.com/enterkey-io/hermes-workspace/blob/v0.2.0-preview.1/docs/UPDATES.md). This preview has no unattended automatic updater; GitHub availability is needed for updates, not normal app operation.
+Record the installed release/tag, component versions, verified package digests and deployment/rollback method privately. The agent can check GitHub releases on the owner's request or their chosen local schedule, download the chosen tag's matching packages, verify them, preserve private plugin configuration, replace the static deployment/plugin code and test pairing/roster again. **A fork is not required for ordinary installations.** Fork only for intentional custom source changes or a provider workflow that requires it. Follow [the complete update and rollback procedure](https://github.com/enterkey-io/hermes-workspace/blob/v0.2.1-preview.1/docs/UPDATES.md). This preview has no unattended automatic updater; GitHub availability is needed for updates, not normal app operation.
+
+## Docker host without a Tailscale interface
+
+A Tailscale interface in the Hermes pod is not required when an existing owner-controlled ingress or SSH path can expose the loopback bridge privately. For the owner's proposed Mac reverse-SSH/Tailscale Serve test route, follow [the container connection recipe](https://github.com/enterkey-io/hermes-workspace/blob/v0.2.1-preview.1/docs/CONTAINER_CONNECTION.md). Preserve the web app's existing route, use another unused private HTTPS port for the bridge, keep the reverse SSH listener on Mac loopback, and verify Host/Origin and the complete browser path. Conversations remain persisted in Hermes; traffic transits the chosen proxy. No Mac route is required by the product or introduced on the owner's machine automatically by these instructions.

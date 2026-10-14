@@ -223,7 +223,9 @@ async def exercise(root, home, port, *, seed_only=False):
             "native_message_agent_injection": "pass", "owner_scoped_routines": "pass",
             "native_teammate_delivery": "pass", "native_room_driver_execution": "pass",
             "native_denied_approval": "pass", "native_stop": "pass",
-            "model_turns": Model.turns, "hermes_version": "0.21.0", "evidence": "real-runtime-local"}))
+            "model_turns": Model.turns, "hermes_version": gateway.build["version"],
+            "revision": gateway.build["revision"], "distribution_version": gateway.build["distribution_version"],
+            "evidence": "real-runtime-local"}))
     finally:
         await gateway.stop()
 

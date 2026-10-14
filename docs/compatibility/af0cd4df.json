@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-14",
+  "source_repository": "https://github.com/enterkey-io/hermes-agent",
+  "revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
+  "reported_hermes_version": "0.21.7",
+  "distribution_version": "0.0.0",
+  "python": "3.14.7",
+  "test_platform": "macOS arm64",
+  "hermes_core_modified": false,
+  "fixtureOnly": true,
+  "deterministicLocalModel": true,
+  "native": {
+    "canonical_continuity": "pass",
+    "native_teammate_delivery": "pass",
+    "native_room_driver": "pass",
+    "routine_ownership_listing": "pass",
+    "approval_denial": "pass",
+    "stop": "pass",
+    "synthetic_model_turns": 17
+  },
+  "browser": {
+    "separate_https_origins": true,
+    "tests_passed": 6,
+    "test_certificate_exception": true,
+    "approval_notifications_and_stop": "pass"
+  },
+  "python_boundary_tests": 27,
+  "typescript_tests": 44,
+  "packaged_install": {
+    "doctor_metadata_0_0_0": "pass",
+    "setup_serve_approve_revoke_native_roster": "pass",
+    "model_turns": 0
+  },
+  "legacy_native_regression": {
+    "revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+    "result": "pass"
+  },
+  "notProven": [
+    "live owner Docker container",
+    "owner SSH/tailnet browser route",
+    "full public-to-home production network certification"
+  ]
+}

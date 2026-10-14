@@ -8,7 +8,7 @@
 | Built web app → plugin across local HTTPS origins   | Six actual browser tests pass, including proof-bound pairing, denied origins, privacy/storage, loss handling, native approvals/Stop | Test certificate exception; no public-network deployment |
 | Stock Hermes dashboard → independent public web app | Earlier runtime/source checks still demonstrate tested origin/auth restrictions                                                     | The plugin does not alter or bypass these guards         |
 
-The adapter verifies the hashes of its internal native gateway integration files and refuses untested builds. The CLI registration is a supported Hermes plugin extension; starting the room service is a version-specific internal lifecycle adapter. Normal canonical resume is essential: the upstream observer-only lazy mode is unsuitable for an interactive Bot Chat and was rejected after native approval testing.
+The adapter matches complete tested native gateway fingerprint bundles and refuses unknown or mixed bundles. Distribution metadata is advisory; the tested af0cd4df source declares 0.0.0 by design. `hermes bot-web doctor` reports this without reading private configuration or making model calls. The CLI registration is a supported Hermes plugin extension; starting the room service is a version-specific internal lifecycle adapter. Normal canonical resume is essential: the upstream observer-only lazy mode is unsuitable for an interactive Bot Chat and was rejected after native approval testing.
 
 Runtime gate details are in `integration-evidence.json`. Routine ownership/listing passed; routine execution, public Cloudflare-to-home reachability/certificate trust and compaction under pressure still require release evidence. `npm run compatibility:gate` intentionally returns nonzero until the full hosted-release contract is proven.
 
@@ -40,3 +40,11 @@ The next required investigation is a supported external-web-client contract for 
 - `runtime-auth-evidence.json`: local actual-handler results; synthetic data only.
 
 Run `npm run compatibility:gate` before claiming a working hosted Bot Mode product. Its nonzero exit is intentional while the required acceptance gates remain unresolved.
+
+## 0.2.1 Docker-source revalidation
+
+`af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a` from the public `enterkey-io/hermes-agent` fork (reported as Hermes 0.21.7) passed the full native fixture, six separate-origin browser tests and the packaged CLI doctor/setup/serve/approval/revocation/roster smoke. Its real distribution metadata is 0.0.0; no version override or native source patch was used. The previous 29112bef build also passed native regression tests.
+
+The new engine emits approval server requests while retaining authoritative approval.pending/respond RPCs. The adapter translates the notification and reconnect replay into session-scoped browser approval refreshes; exact native pending request validation still governs responses, with only Once/Deny. Unsupported secret/sudo/desktop requests receive an explicit unsupported-method response; no answer or generic browser responder is invented.
+
+Tests ran in isolated macOS Python 3.14/3.12 environments against exact source; the owner's live Docker installation, SSH tunnel, ingress and browser path still require the installing agent's checks. See af0cd4df.json for recorded evidence.

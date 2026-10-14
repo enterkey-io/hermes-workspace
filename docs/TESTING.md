@@ -22,6 +22,16 @@ uv pip install --python /tmp/bot-web-test-python/bin/python -e '/path/to/disposa
 /tmp/bot-web-test-python/bin/python scripts/fixture/native_smoke.py
 ```
 
+The additional tested Docker-source revision is `af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a` from `enterkey-io/hermes-agent`. For that isolated checkout, use a separate Python 3.14 environment and its own declared dependencies:
+
+```sh
+uv venv /tmp/bot-web-af0-python --python 3.14
+uv pip install --python /tmp/bot-web-af0-python/bin/python -e '/path/to/disposable/af0-hermes[web]'
+/tmp/bot-web-af0-python/bin/python scripts/fixture/native_smoke.py
+```
+
+Its distribution version is intentionally `0.0.0`. The fixture reports the matched tested revision, metadata and version instead of hardcoding 0.21.0. Use this same environment for the API/browser and installer tests below to exercise the Docker-source contract. These tests run the exact source on the development host, not the owner's live Linux container. Production instructions use the owner's existing runtime; they do not install another Hermes or change its package metadata.
+
 The native fixture clears inherited environment variables before importing Hermes, creates its own temporary `HERMES_HOME`, creates synthetic managed bots and canonical chats through native APIs, starts a local OpenAI-compatible deterministic model and runs the actual plugin/gateway. It verifies normal canonical continuity, native `message_agent` delivery into a teammate's Bot Chat, native room member output, profile-owned routine listing, denial preserving a synthetic file and an interrupted turn returning idle. Native histories and routine/room stores are temporary.
 
 Approval mode is explicitly manual in the fixture, so a deterministic model cannot cause smart auto-approval to masquerade as a human approval round trip. The test action targets only a directory created inside the fixture's disposable root. Hermes performs its real approval check, the test denies it, and the fixture verifies that the protected synthetic file remains.
@@ -86,7 +96,7 @@ Run the extracted web package’s `serve-static.mjs` from a working directory ou
 To repeat the installation smoke against an explicit public GitHub release instead of the local mirror, use:
 
 ```sh
-/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1
+/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1
 ```
 
 It uses the same isolated home and zero-model-turn checks. The URL selects immutable-version-named assets; it never reads the owner’s Hermes installation.

@@ -4,13 +4,13 @@ An independent interface to **actual Hermes Bot Mode**. The open-source web app 
 
 A small integration plugin supplies the native Bot Mode API required by the current preview. Only that plugin runs on the Hermes host; it does not serve the web app, replace agents or modify Hermes core. The [channel assessment](docs/HERMES_INTEGRATION.md) distinguishes this native API adapter from a registered Telegram-style messaging channel, which remains follow-up work. Later native Mac/Windows/iOS apps can use the same client contract. No personal Hermes server was modified or public Cloudflare deployment created.
 
-Source: [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). Versioned packages: [v0.2.0-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.0-preview.1). The product name remains undecided; the repository name is descriptive.
+Source: [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). Versioned packages: [v0.2.1-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.1-preview.1). The product name remains undecided; the repository name is descriptive.
 
 ## Try an existing web app
 
 Give your Hermes agent the app's `/install` or `/install.html` page. The [agent guide](docs/AGENT_INSTALL.md) explicitly keeps the existing web app on its current host and installs/configures only the integration on Hermes. It returns a separately labeled Hermes HTTPS connection address. Choose **Connect my Hermes** in the original web app, enter that address, request browser access, and send the displayed code to your agent for local approval. You never enter an administrator/API key, and the app never redirects to the bridge.
 
-[Owner instructions](docs/SETUP.md) explain the handoff. [Current architecture and review](docs/ARCHITECTURE.md) describe the boundaries and corrections to the earlier combined-host assumption. The preview adapter verifies Hermes 0.21.0 at revision `29112bef099274229cadff79cdff7bf7b99c4b77` and refuses untested native integration files.
+[Owner instructions](docs/SETUP.md) explain the handoff. [Current architecture and review](docs/ARCHITECTURE.md) describe the boundaries and corrections to the earlier combined-host assumption. The adapter recognizes tested native source bundles for Hermes 0.21.0 (`29112bef`) and the reported 0.21.7 Docker source (`af0cd4df`). Package metadata such as `0.0.0` is advisory; unknown gateway fingerprints still fail closed. Run `hermes bot-web doctor` for a read-only report.
 
 ## Build and host your own web app
 

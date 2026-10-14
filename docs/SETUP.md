@@ -30,13 +30,13 @@ Browser credentials expire after one hour and are held only in tab memory. Refre
 
 ## Preview requirements and limits
 
-The current adapter is pinned to Hermes 0.21.0 revision `29112bef099274229cadff79cdff7bf7b99c4b77`. It refuses untested native integration files. Your agent should not downgrade Hermes or patch core files. The plugin is needed by this preview because the tested stock interfaces do not expose the required separate-origin Bot Mode contract; future supported native APIs can replace it.
+The current adapter supports tested gateway bundles at `29112bef` (Hermes 0.21.0) and `af0cd4df` (the Docker source reported as 0.21.7). It accepts that build’s intentional `0.0.0` package metadata when its gateway files match. Your agent runs `hermes bot-web doctor` to check the actual native surface; unknown files remain unsupported. Your agent should not downgrade Hermes or patch core files. The plugin is needed by this preview because the tested stock interfaces do not expose the required separate-origin Bot Mode contract; future supported native APIs can replace it.
 
 Existing managed bots and their native Bot Chats must already exist. The app supports those conversations, streaming/tool activity, exact approvals and Stop, existing room history/send, and routine listing. Bot creation, uploads, routine editing/execution, room creation/recovery, later Hermes versions and full production network/browser certification remain release work.
 
 ## Downloads and updates
 
-The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.0-preview.1) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
+The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.1-preview.1) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
 
 Your agent should record which version it installed and follow [the update/rollback procedure](UPDATES.md) when you request an update or choose a checking schedule on your own Hermes. Updates replace software files while preserving your private settings and Hermes conversations. There is no automatic background updater in this preview.
 

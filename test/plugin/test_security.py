@@ -158,6 +158,7 @@ class NativeFailureTests(unittest.IsolatedAsyncioTestCase):
         launch = AsyncMock(return_value=object())
         with patch.dict(os.environ, {"HERMES_BOT_WEB_TOKEN": "synthetic-secret", "HERMES_BOT_WEB_ORIGINS": ORIGIN,
                                      "MODEL_API_KEY": "synthetic-provider"}), patch(
+                "bot_web.native.check_native_adapter", return_value={"server_requests":False}), patch(
                 "bot_web.native.asyncio.create_subprocess_exec", launch), patch.object(
                 gateway, "_read", AsyncMock()), patch.object(
                 gateway, "call", AsyncMock(side_effect=[{}, {"driver": True}])):
