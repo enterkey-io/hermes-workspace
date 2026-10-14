@@ -10,11 +10,13 @@ You can use an existing hosted copy, or have your agent install your own copy on
 
    > Please connect this existing web app to my Hermes following these instructions. Keep the web app where it is. Install only the integration plugin on my Hermes host if needed, configure access from the web app's exact origin, and give me the separate HTTPS Hermes connection address. Keep administrator credentials on my Hermes host.
 
-2. Your agent checks your Hermes version, installs/configures the native integration, and establishes a private connection address your device can reach. It returns **two clearly labeled addresses**: the web app you already use and the Hermes connection address.
+2. Your agent checks your Hermes version, installs/configures the native integration, prepares native Bot Mode, and establishes a private connection address your device can reach. It reuses existing bots and initializes their native Bot Chats. If your request authorizes a starter bot when none exist, it creates one using your existing model settings. It returns **two clearly labeled addresses**: the web app you already use and the Hermes connection address, plus which checks passed or remain pending.
 3. Return to the **original web app**. Click **Connect my Hermes**, enter the connection address, and click **Request browser access**. You do not enter an API key.
 4. Send the displayed code to your Hermes agent. It approves that browser locally. Your existing bots and Bot Chats appear here; the page does not redirect to your Hermes server.
 
 Codes last five minutes. If yours expires, click **Request browser access** again and send the new code to your agent.
+
+An empty bot list means the connected Hermes home returned no managed Bot Mode bots; you may still have ordinary agent profiles. Your agent should handle [native Bot Mode setup](BOT_MODE_SETUP.md) during installation. Once it finishes, select **Refresh bots**. If the app instead says **Live updates disconnected**, that is a separate connection problem: have the agent check the authenticated event stream through the real connection route. Pairing and a successful preflight do not prove the stream works.
 
 If Hermes is on your tailnet/VPN, connect your device to that network first. Your browser may ask to allow local-network access. The web host itself does not join the VPN or relay your traffic.
 
@@ -40,7 +42,7 @@ Existing managed bots and their native Bot Chats must already exist. The app sup
 
 ## Downloads and updates
 
-The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.1-preview.1) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
+The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.2-preview.1) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
 
 Your agent should record which version it installed and follow [the update/rollback procedure](UPDATES.md) when you request an update or choose a checking schedule on your own Hermes. Updates replace software files while preserving your private settings and Hermes conversations. There is no automatic background updater in this preview.
 

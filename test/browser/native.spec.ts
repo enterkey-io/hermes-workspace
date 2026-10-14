@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-async function connect(page: Page) {
+async function pair(page: Page, waitForWorkspace = true) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Connect my Hermes', exact: true }).click();
   await page.getByLabel('Hermes connection address').fill('https://127.0.0.1:8788');
@@ -12,7 +12,11 @@ async function connect(page: Page) {
     data: { code },
   });
   expect(approval.status()).toBe(200);
-  await expect(page.getByRole('navigation', { name: 'Bots' })).toBeVisible();
+  if (waitForWorkspace) await expect(page.getByRole('navigation', { name: 'Bots' })).toBeAttached();
+}
+
+async function connect(page: Page) {
+  await pair(page);
   await page.getByRole('button', { name: 'Alpha Bot Chat' }).click();
   await expect(page.getByRole('heading', { name: 'Alpha', exact: true })).toBeVisible();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
@@ -139,11 +143,77 @@ test('unapproved web origin cannot request pairing or authenticate', async ({ pa
 
 test('lost event stream blocks further sends', async ({ page }) => {
   await page.route('**/v1/events', (route) => route.abort());
-  await connect(page);
-  await page.getByLabel('Message', { exact: true }).fill('Must not be submitted');
+  await pair(page);
   await expect(page.getByRole('button', { name: 'Send message' })).toBeDisabled();
   await expect(page.getByRole('alert')).toContainText('Disconnect and reconnect');
-  await page.getByRole('button', { name: 'Disconnect' }).click();
+  await expect(page.getByRole('alert')).toContainText('live updates stopped (REQUEST_FAILED)');
+  await expect(page.getByRole('heading', { name: 'Live updates are disconnected.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Alpha Bot Chat' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Disconnect and reconnect', exact: true }).click();
+});
+
+test('empty native roster explains setup and refreshes after the agent initializes a bot', async ({
+  page,
+}) => {
+  let initialized = false;
+  await page.route('**/v1/rpc', async (route) => {
+    const operation = route.request().postDataJSON().operation;
+    if (operation === 'bots.list' && !initialized)
+      await route.fulfill({ json: { result: { bots: [] } } });
+    else if (operation === 'rooms.list') await route.fulfill({ json: { result: { rooms: [] } } });
+    else await route.continue();
+  });
+  await pair(page);
+  await expect(page.getByRole('heading', { name: 'Set up your first bot.' })).toBeVisible();
+  await expect(page.getByText(/Initialize its native Bot Chat/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send message' })).toBeDisabled();
+  await page.screenshot({ path: 'artifacts/empty-roster-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: 'artifacts/empty-roster-mobile.png' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  initialized = true;
+  await page.getByRole('button', { name: 'Refresh bots', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Alpha Bot Chat' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Alpha Bot Chat' }).click();
+  await expect(page.getByRole('heading', { name: 'Alpha', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
+});
+
+test('uninitialized Bot Chats cannot be opened as if they were ready', async ({ page }) => {
+  let opens = 0;
+  await page.route('**/v1/rpc', async (route) => {
+    const operation = route.request().postDataJSON().operation;
+    if (operation === 'bots.list')
+      await route.fulfill({
+        json: {
+          result: { bots: [{ profile: 'alpha', name: 'Alpha', canonical: false }] },
+        },
+      });
+    else if (operation === 'rooms.list') await route.fulfill({ json: { result: { rooms: [] } } });
+    else {
+      if (operation === 'bot.open') opens++;
+      await route.continue();
+    }
+  });
+  await pair(page);
+  await expect(page.getByRole('heading', { name: 'Your bots need a Bot Chat.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Alpha Bot Chat needs setup' })).toBeDisabled();
+  expect(opens).toBe(0);
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
+});
+
+test('a failed roster request never becomes an empty connected workspace', async ({ page }) => {
+  await page.route('**/v1/rpc', async (route) => {
+    if (route.request().postDataJSON().operation === 'bots.list') await route.abort();
+    else await route.continue();
+  });
+  await pair(page, false);
+  await expect(page.getByRole('alert')).toContainText('request failed');
+  await expect(page.getByRole('navigation', { name: 'Bots' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Set up your first bot.' })).toHaveCount(0);
 });
 
 test('accepted send with lost acknowledgment cannot be blindly retried', async ({ page }) => {

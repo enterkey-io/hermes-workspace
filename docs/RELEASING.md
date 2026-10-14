@@ -2,7 +2,7 @@
 
 Maintainers publish source and packages in `enterkey-io/hermes-workspace`. Normal users install from explicit tags; they do not need to fork.
 
-1. Update `release.json`, root package version/lockfile, plugin metadata and guide download references together. Keep the release channel honest; a preview is not full public-production certification.
+1. Update `release.json`, root package version/lockfile and guide download references together. Change plugin metadata/handshake version only when that component changes; `bridge_version` records the required component version separately from the web release. State which components need updating. Keep the release channel honest; a preview is not full public-production certification.
 2. Run Node checks, Python boundary tests, separate-origin browser/native tests and downloaded-package installation against disposable Hermes. Preserve compatibility evidence and unresolved gates.
 3. Run `npm run package`. Inspect positive-allowlist archives and staged repository files for private configuration, credentials, endpoints, screenshots, fixture state, caches and local workspace metadata.
 4. Commit the reviewed source and create/push the explicit release tag. Do not overwrite an existing published tag/version or change its assets silently; publish a new version for fixes.

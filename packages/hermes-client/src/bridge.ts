@@ -101,10 +101,15 @@ export class BotBridgeClient {
       const url = endpointUrl(this.#endpoint, 'v1/events');
       const response = await this.#fetch(url, this.#options(controller, 'GET'));
       this.#check(response, url);
-      if (!response.body) throw new ClientError('INVALID_RESPONSE');
+      if (
+        !response.body ||
+        response.headers.get('Content-Type')?.split(';')[0]?.trim() !== 'application/x-ndjson'
+      )
+        throw new ClientError('INVALID_RESPONSE');
       reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8', { fatal: true });
       let pending = '';
+      let ready = false;
       while (true) {
         const chunk = await reader.read();
         this.#lifetime.assertCurrent(generation);
@@ -120,12 +125,16 @@ export class BotBridgeClient {
           if (!line) continue;
           const raw = record(JSON.parse(line));
           if (typeof raw.type !== 'string') throw new ClientError('INVALID_RESPONSE');
+          if (!ready && raw.type !== 'bridge.ready') throw new ClientError('INVALID_RESPONSE');
+          if (ready && raw.type === 'bridge.ready') throw new ClientError('INVALID_RESPONSE');
+          ready = true;
           onEvent(raw as unknown as BridgeEvent);
         }
       }
       throw new ClientError('DISCONNECTED');
     } catch (error) {
       this.#lifetime.assertCurrent(generation);
+      if (controller.signal.aborted) throw new ClientError('REQUEST_TIMEOUT');
       throw safeError(error);
     } finally {
       clearTimeout(idle);

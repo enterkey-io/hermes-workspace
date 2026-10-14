@@ -44,6 +44,7 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const [streamState, setStreamState] = useState<'opening' | 'live' | 'lost'>('opening');
   const [error, setError] = useState('');
   const [nav, setNav] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
@@ -68,6 +69,7 @@ export function App() {
     setRunning(false);
     setBusy(false);
     setBlocked(false);
+    setStreamState('opening');
     setError('');
   }
   useEffect(() => () => current.current?.disconnect(), []);
@@ -84,9 +86,17 @@ export function App() {
 
   async function receive(connection: BotBridgeClient, event: BridgeEvent) {
     if (current.current !== connection) return;
+    if (event.type === 'bridge.ready') {
+      setStreamState('live');
+      setBlocked(false);
+      setActivity('Ready');
+      return;
+    }
     const target = selected.current;
     if (event.type === 'bridge.resync') {
       setBlocked(true);
+      setStreamState('lost');
+      setActivity('Live updates disconnected');
       setError('Event continuity was lost. Disconnect and reconnect before sending again.');
       return;
     }
@@ -119,27 +129,48 @@ export function App() {
     if (event.type === 'error') setError('Hermes reported an error. Refresh before retrying.');
   }
 
+  async function loadRoster(connection: BotBridgeClient) {
+    const roster = object(await connection.invoke('bots.list', {}));
+    const managed = rows(roster.bots).map((b) => ({
+      profile: text(b.profile),
+      name: text(b.name),
+      description: text(b.description),
+      canonical: b.canonical === true,
+    }));
+    const nativeRooms = object(await connection.invoke('rooms.list', {}));
+    const loadedRooms = rows(nativeRooms.rooms);
+    if (current.current !== connection) return;
+    setBots(managed);
+    setRooms(loadedRooms);
+  }
+
+  async function reloadRoster() {
+    if (!client || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await loadRoster(client);
+    } catch (error) {
+      if (current.current === client) fail(error);
+    } finally {
+      if (current.current === client) setBusy(false);
+    }
+  }
+
   async function connect(endpoint: string, token: string) {
     setBusy(true);
     setError('');
+    setStreamState('opening');
+    setActivity('Connecting live updates…');
+    setBlocked(true);
     let connection: BotBridgeClient | undefined;
     try {
       connection = new BotBridgeClient(normalizeEndpoint(endpoint, import.meta.env.DEV), token);
       current.current = connection;
       await connection.connect();
-      const roster = object(await connection.invoke('bots.list', {}));
-      const managed = rows(roster.bots).map((b) => ({
-        profile: text(b.profile),
-        name: text(b.name),
-        description: text(b.description),
-        canonical: b.canonical === true,
-      }));
-      const nativeRooms = object(await connection.invoke('rooms.list', {}));
+      await loadRoster(connection);
       if (current.current !== connection) return;
-      setBots(managed);
-      setRooms(rows(nativeRooms.rooms));
       setClient(connection);
-      setBlocked(false);
       const established = connection;
       void connection
         .events((event) => {
@@ -148,7 +179,11 @@ export function App() {
         .catch((error) => {
           if (current.current === established) {
             setBlocked(true);
-            setError(`${safeError(error).message} Disconnect and reconnect before sending again.`);
+            setStreamState('lost');
+            setActivity('Live updates disconnected');
+            setError(
+              `Browser access was approved and the bot list loaded, but live updates stopped (${safeError(error).code}). Your Hermes agent needs to check the /v1/events stream through your connection route. Disconnect and reconnect before sending again.`,
+            );
           }
         });
     } catch (error) {
@@ -162,7 +197,7 @@ export function App() {
   }
 
   async function open(bot: Bot) {
-    if (!client) return;
+    if (!client || streamState !== 'live' || !bot.canonical) return;
     const generation = ++selectGeneration.current;
     selected.current = undefined;
     setSelection(undefined);
@@ -451,7 +486,7 @@ export function App() {
                   : 'bot'
               }
               onClick={() => void open(bot)}
-              disabled={busy}
+              disabled={busy || streamState !== 'live' || !bot.canonical}
             >
               <span className="avatar" aria-hidden>
                 {bot.name.slice(0, 1).toUpperCase()}
@@ -459,15 +494,20 @@ export function App() {
               <span>
                 <strong>{bot.name}</strong>
                 <small>
-                  {bot.description || (bot.canonical ? 'Bot Chat' : 'Open in Hermes first')}
+                  {!bot.canonical ? 'Bot Chat needs setup' : bot.description || 'Bot Chat'}
                 </small>
               </span>
             </button>
           ))}
         </nav>
         {!bots.length && (
-          <p className="empty-note">No managed bots found. Set up Bot Mode in Hermes first.</p>
+          <p className="empty-note">
+            Hermes returned no managed bots. Ask your agent to finish Bot Mode setup.
+          </p>
         )}
+        <button disabled={busy || streamState !== 'live'} onClick={() => void reloadRoster()}>
+          Refresh bots
+        </button>
         <p className="section-label">
           ROOMS <span>{rooms.length}</span>
         </p>
@@ -480,7 +520,7 @@ export function App() {
                   ? 'selected room'
                   : 'room'
               }
-              disabled={busy}
+              disabled={busy || streamState !== 'live'}
               onClick={() => openRoom(room)}
             >
               # <span>{text(room.name) || text(room.room_id)}</span>
@@ -491,7 +531,12 @@ export function App() {
           <p className="empty-note">Your existing Hermes rooms will appear here.</p>
         )}
         <div className="connection">
-          <span className="connection-dot" /> Personal Hermes{' '}
+          <span className={`connection-dot ${streamState}`} />
+          {streamState === 'live'
+            ? 'Connected to Hermes'
+            : streamState === 'lost'
+              ? 'Live updates disconnected'
+              : 'Connecting live updates…'}{' '}
           <button onClick={disconnect}>Disconnect</button>
         </div>
       </aside>
@@ -522,21 +567,63 @@ export function App() {
             </button>
           )}
         </header>
-        {(error || blocked) && (
+        {(error || (blocked && streamState !== 'opening')) && (
           <div className="error banner" role="alert">
             {error || 'Event continuity was lost. Disconnect and reconnect before sending again.'}
+            {streamState === 'lost' && (
+              <button onClick={disconnect}>Disconnect and reconnect</button>
+            )}
           </div>
         )}
         <div className="transcript" role="log" aria-live="polite">
           {!selection && (
             <div className="welcome">
-              <p className="eyebrow">CONNECTED TO YOUR HERMES</p>
-              <h2>Who’s up next?</h2>
-              <p>
-                Choose a bot for its ongoing conversation,
-                <br />
-                or open a room to work together.
+              <p className="eyebrow">
+                {streamState === 'live'
+                  ? 'CONNECTED TO YOUR HERMES'
+                  : streamState === 'lost'
+                    ? 'CONNECTION NEEDS ATTENTION'
+                    : 'STARTING LIVE UPDATES'}
               </p>
+              {streamState !== 'live' ? (
+                <>
+                  <h2>
+                    {streamState === 'lost' ? 'Live updates are disconnected.' : 'Connecting…'}
+                  </h2>
+                  <p>
+                    {streamState === 'lost'
+                      ? 'Pairing and the initial lists worked. The live connection needs to work before you can chat.'
+                      : 'Browser access is approved. Waiting for the live connection before you can chat.'}
+                  </p>
+                </>
+              ) : !rooms.length && !bots.some((bot) => bot.canonical) ? (
+                <>
+                  <h2>{bots.length ? 'Your bots need a Bot Chat.' : 'Set up your first bot.'}</h2>
+                  <p>
+                    {bots.length
+                      ? 'Hermes returned your bots, but their native Bot Chats are not initialized.'
+                      : 'The connection works. Hermes returned no bots managed by Bot Mode; ordinary agent profiles may still exist.'}
+                  </p>
+                  <p>
+                    Send your Hermes agent: “Finish native Bot Mode setup for this web app. Check
+                    the Hermes home used by the bridge. Reuse my managed bots, or create one starter
+                    bot if none exist, using my existing model settings. Initialize its native Bot
+                    Chat without sending a model prompt, preserve existing chats, and verify it
+                    appears in the bridge roster.”
+                  </p>
+                  <p>When your agent finishes, select Refresh bots.</p>
+                  <a href="/install">Agent setup instructions</a>
+                </>
+              ) : (
+                <>
+                  <h2>Who’s up next?</h2>
+                  <p>
+                    Choose a bot for its ongoing conversation,
+                    <br />
+                    or open a room to work together.
+                  </p>
+                </>
+              )}
             </div>
           )}
           {selection && !messages.length && !stream && (
@@ -578,7 +665,7 @@ export function App() {
               aria-label="Message"
               placeholder={selection ? `Message ${title}…` : 'Choose a bot or room to begin'}
               value={draft}
-              disabled={!selection || busy}
+              disabled={!selection || busy || blocked}
               maxLength={16000}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {

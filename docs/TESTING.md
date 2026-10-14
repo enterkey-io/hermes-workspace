@@ -10,7 +10,7 @@ npm run check
 python -m unittest discover -s test/plugin -p 'test_*.py'
 ```
 
-Use a separate Python 3.12 environment with `test/plugin/requirements.txt` for the Python boundary tests, or the isolated Hermes environment below. CI authors these Node/Python checks with read-only repository permissions. Remote CI has not been run yet.
+Use a separate Python 3.12 environment with `test/plugin/requirements.txt` for the Python boundary tests, or the isolated Hermes environment below. CI runs these Node/Python checks with read-only repository permissions. Prior published preview checks passed remotely; each change still needs its own validation.
 
 ## Isolated real Hermes environment
 
@@ -32,7 +32,9 @@ uv pip install --python /tmp/bot-web-af0-python/bin/python -e '/path/to/disposab
 
 Its distribution version is intentionally `0.0.0`. The fixture reports the matched tested revision, metadata and version instead of hardcoding 0.21.0. Use this same environment for the API/browser and installer tests below to exercise the Docker-source contract. These tests run the exact source on the development host, not the owner's live Linux container. Production instructions use the owner's existing runtime; they do not install another Hermes or change its package metadata.
 
-The native fixture clears inherited environment variables before importing Hermes, creates its own temporary `HERMES_HOME`, creates synthetic managed bots and canonical chats through native APIs, starts a local OpenAI-compatible deterministic model and runs the actual plugin/gateway. It verifies normal canonical continuity, native `message_agent` delivery into a teammate's Bot Chat, native room member output, profile-owned routine listing, denial preserving a synthetic file and an interrupted turn returning idle. Native histories and routine/room stores are temporary.
+The native fixture clears inherited environment variables before importing Hermes, creates its own temporary `HERMES_HOME`, seeds synthetic managed bots/canonical chats, starts a local OpenAI-compatible deterministic model and runs the actual plugin/gateway. It verifies normal canonical continuity, native `message_agent` delivery into a teammate's Bot Chat, native room member output, profile-owned routine listing, denial preserving a synthetic file and an interrupted turn returning idle. Native histories and routine/room stores are temporary.
+
+To verify first-time installation rather than seeded bots, run `scripts/fixture/bot_mode_setup_smoke.py` with either isolated Hermes interpreter. It starts with zero managed bots, calls native `profiles.create`/`profiles.configure` and `session.create`/`session.title`, confirms the resulting bot is exposed by the real adapter, and reuses its canonical chat. It checks that no model turn was submitted. It never writes session database rows directly or reads a personal Hermes home.
 
 Approval mode is explicitly manual in the fixture, so a deterministic model cannot cause smart auto-approval to masquerade as a human approval round trip. The test action targets only a directory created inside the fixture's disposable root. Hermes performs its real approval check, the test denies it, and the fixture verifies that the protected synthetic file remains.
 
@@ -67,7 +69,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-An already installed test Chromium can instead be selected through `BOT_WEB_TEST_CHROMIUM=/absolute/path/to/test-chromium`. The six tests use `https://127.0.0.1:5443` for the independently hosted web app (including connection and conversations) and `https://127.0.0.1:8788` for the separate API-only real Hermes bridge. The page stays on port 5443 after approval; the bridge serves no web app. An unapproved origin is also tested for pairing/preflight denial. Browser access requires code approval; no API-key field is present. No API response is simulated in the happy-path/control tests. Loss tests deliberately abort the event stream or drop the acknowledgment after forwarding a real accepted send. All requests to the static host are GETs without a body, credential or query string. Pairing/API/events and requests carrying contents/authorization go only to the bridge origin. Storage remains empty, browser cookies are unused, and reload forgets the endpoint.
+An already installed test Chromium can instead be selected through `BOT_WEB_TEST_CHROMIUM=/absolute/path/to/test-chromium`. The nine tests use `https://127.0.0.1:5443` for the independently hosted web app (including connection and conversations) and `https://127.0.0.1:8788` for the separate API-only real Hermes bridge. The page stays on port 5443 after approval; the bridge serves no web app. An unapproved origin is also tested for pairing/preflight denial. Browser access requires code approval; no API-key field is present. No API response is simulated in the happy-path/control tests. Additional onboarding cases deliberately return an empty roster or an uninitialized bot, then verify setup instructions, disabled unavailable chats and roster refresh; a failed list request must not become an empty connected workspace. Loss tests deliberately abort the event stream or drop the acknowledgment after forwarding a real accepted send. All requests to the static host are GETs without a body, credential or query string. Pairing/API/events and requests carrying contents/authorization go only to the bridge origin. Storage remains empty, browser cookies are unused, and reload forgets the endpoint.
 
 The Playwright configuration ignores certificate errors **only in these tests**, because this certificate is self-signed. Production code has no certificate bypass. Thus these results prove separate-origin browser CORS/auth and native execution in an isolated HTTPS topology, not trusted public certificate setup or every public-to-private network policy. Stop the two fixture processes afterwards; their temporary state is removed on orderly shutdown. Screenshots contain synthetic test messages only and are excluded from source archives.
 
@@ -96,7 +98,7 @@ Run the extracted web package’s `serve-static.mjs` from a working directory ou
 To repeat the installation smoke against an explicit public GitHub release instead of the local mirror, use:
 
 ```sh
-/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1
+/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1
 ```
 
 It uses the same isolated home and zero-model-turn checks. The URL selects immutable-version-named assets; it never reads the owner’s Hermes installation.

@@ -16,7 +16,7 @@ export function FirstRun({
   const [copied, setCopied] = useState(false);
   const active = useRef<AbortController | undefined>(undefined);
   const installUrl = `https://raw.githubusercontent.com/${release.repository}/main/docs/AGENT_INSTALL.md`;
-  const agentMessage = `Please connect the web app at ${location.origin} to my existing Hermes, following ${installUrl}. Keep the web app on its current host. Install the published integration plugin on my Hermes host, allow exactly this web origin, and give me the private HTTPS connection address. Keep administrator credentials on the Hermes host and do not modify Hermes core. Record the installed version and update/rollback method using the guide.`;
+  const agentMessage = `Please connect the web app at ${location.origin} to my existing Hermes, following ${installUrl}. Keep the web app on its current host. Install the published integration plugin on my Hermes host, allow exactly this web origin, and give me the private HTTPS connection address. Verify native Bot Mode is ready: reuse existing managed bots and initialize their native Bot Chats; if no managed bots exist, create one starter bot using my existing model settings without sending a model prompt. Preserve existing profiles and chats. Keep administrator credentials on the Hermes host and do not modify Hermes core. Verify the live event stream as well as pairing and the roster. Record the installed version and update/rollback method using the guide.`;
 
   useEffect(() => {
     const controller = new AbortController();

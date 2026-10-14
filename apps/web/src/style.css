@@ -250,6 +250,12 @@ nav {
   background: #99c7af;
   border-radius: 50%;
 }
+.connection-dot.opening {
+  background: #c9b87c;
+}
+.connection-dot.lost {
+  background: #e58e83;
+}
 .connection button {
   font-size: 10px;
   border: 0;

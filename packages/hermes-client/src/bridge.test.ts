@@ -61,7 +61,7 @@ describe('direct Bot Mode bridge', () => {
 
   it('decodes native events split across UTF-8 chunks', async () => {
     const encoded = new TextEncoder().encode(
-      '{"type":"message.delta","session_id":"live","payload":{"text":"🤖"}}\n',
+      '{"type":"bridge.ready"}\n{"type":"message.delta","session_id":"live","payload":{"text":"🤖"}}\n',
     );
     const body = new ReadableStream({
       start(controller) {
@@ -72,7 +72,9 @@ describe('direct Bot Mode bridge', () => {
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(connectedResponse())
-      .mockResolvedValueOnce(new Response(body));
+      .mockResolvedValueOnce(
+        new Response(body, { headers: { 'Content-Type': 'application/x-ndjson' } }),
+      );
     const client = new BotBridgeClient(endpoint, token, fetcher);
     const observer = vi.fn();
     await client.connect();
@@ -82,6 +84,65 @@ describe('direct Bot Mode bridge', () => {
       session_id: 'live',
       payload: { text: '🤖' },
     });
+  });
+
+  it('rejects a proxy HTML page or an event stream without the readiness handshake', async () => {
+    for (const response of [
+      new Response('<html>Sign in</html>', { headers: { 'Content-Type': 'text/html' } }),
+      new Response('{"type":"bridge.heartbeat"}\n', {
+        headers: { 'Content-Type': 'application/x-ndjson' },
+      }),
+    ]) {
+      const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(connectedResponse())
+        .mockResolvedValueOnce(response);
+      const client = new BotBridgeClient(endpoint, token, fetcher);
+      await client.connect();
+      const observer = vi.fn();
+      await expect(client.events(observer)).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+      expect(observer).not.toHaveBeenCalled();
+    }
+  });
+
+  it('identifies a timed-out stream handshake without exposing private errors', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(connectedResponse())
+        .mockImplementationOnce(
+          (_input, options) =>
+            new Promise<Response>((_resolve, reject) => {
+              options?.signal?.addEventListener('abort', () => reject(new Error(token)));
+            }),
+        );
+      const client = new BotBridgeClient(endpoint, token, fetcher);
+      await client.connect();
+      const rejected = expect(client.events(vi.fn())).rejects.toMatchObject({
+        code: 'REQUEST_TIMEOUT',
+      });
+      await vi.advanceTimersByTimeAsync(35_001);
+      await rejected;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not accept a second ready frame that could clear a blocked workspace', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(connectedResponse())
+      .mockResolvedValueOnce(
+        new Response('{"type":"bridge.ready"}\n{"type":"bridge.ready"}\n', {
+          headers: { 'Content-Type': 'application/x-ndjson' },
+        }),
+      );
+    const client = new BotBridgeClient(endpoint, token, fetcher);
+    await client.connect();
+    const observer = vi.fn();
+    await expect(client.events(observer)).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+    expect(observer).toHaveBeenCalledTimes(1);
   });
 
   it('rejects late responses after disconnect and submits a bounded lease close', async () => {

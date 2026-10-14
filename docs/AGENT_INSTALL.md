@@ -21,14 +21,16 @@ The owner stays on the web app's original URL. Browser pairing and bot traffic g
 
 ## Step 1 — Get the packages and inspect Hermes
 
-The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The current software release is [v0.2.1-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.1-preview.1), a preview. The [maintained installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md) receives instruction corrections between software releases. Packages remain pinned to one immutable release; do not install executable code from a moving branch. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
+The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The current software release is [v0.2.2-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.2-preview.1), a preview. The [maintained installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md) receives instruction corrections between software releases. Packages remain pinned to one immutable release; do not install executable code from a moving branch. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
 
-- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-manifest.json)
-- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/SHA256SUMS)
-- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-plugin-preview.zip)
-- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-web-preview.zip)
-- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-site-preview.zip)
-- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.1-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-manifest.json)
+- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/SHA256SUMS)
+- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-plugin-preview.zip)
+- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-web-preview.zip)
+- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-site-preview.zip)
+- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-source-preview.zip)
+
+This web release uses the unchanged bot-web **0.2.1** integration/protocol. An existing working 0.2.1 plugin does not need replacing for these web/setup improvements. Keep the current bridge configuration and routes; new installations use the plugin archive from the selected release.
 
 The running development preview also mirrors these paths on its own origin for the same-tailnet test. Use that origin only when the owner supplied the preview URL, never infer it from a GitHub page:
 
@@ -42,7 +44,11 @@ Download over trusted HTTPS. Check each archive's size and SHA-256 against the m
 
 Discover the existing Hermes executable/Python runtime, actual `HERMES_HOME`/profile, installed version/build, native managed bots and their existing Bot Chats, and the host's service supervisor/private HTTPS arrangement. Do not dump keys, `.env` or full configuration into conversation. Olares, Kubernetes, a particular OS, or a particular model provider is not required.
 
-The adapter recognizes two tested native gateway bundles: **29112bef099274229cadff79cdff7bf7b99c4b77** (Hermes 0.21.0) and **af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a** (the source reported as Hermes 0.21.7 in the Docker installation). The latter intentionally declares distribution metadata **0.0.0**; that label is not a rejection reason. Matching a complete tested gateway fingerprint set determines compatibility. Unknown/mixed gateway files are refused; the version string alone never grants support. Do not downgrade or patch Hermes to satisfy this preview. Check FastAPI/Uvicorn are present in Hermes's existing runtime. If no native managed bot/initialized Bot Chat exists, explain that prerequisite and let the owner choose it through Hermes's existing tools; do not create substitute chat state.
+The adapter recognizes two tested native gateway bundles: **29112bef099274229cadff79cdff7bf7b99c4b77** (Hermes 0.21.0) and **af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a** (the source reported as Hermes 0.21.7 in the Docker installation). The latter intentionally declares distribution metadata **0.0.0**; that label is not a rejection reason. Matching a complete tested gateway fingerprint set determines compatibility. Unknown/mixed gateway files are refused; the version string alone never grants support. Do not downgrade or patch Hermes to satisfy this preview. Check FastAPI/Uvicorn are present in Hermes's existing runtime.
+
+### Prepare native Bot Mode before the owner handoff
+
+Checking this prerequisite is the installing agent's job. Ordinary agent profiles are not automatically managed bots. Verify that the bridge's intended Hermes home contains at least one managed Bot Mode bot with an initialized canonical Bot Chat. Reuse existing bots/chats. If none exist and the owner's request authorizes a starter bot (the app's copied setup message does), create one using their existing model/provider settings and initialize its native Bot Chat without a model prompt. Do not require a separate Desktop installation just for this step. Follow [the native Bot Mode setup procedure](https://github.com/enterkey-io/hermes-workspace/blob/main/docs/BOT_MODE_SETUP.md), including the home/profile check, native creation/title operations and idempotent reuse. If authorization or native setup is missing, report that specific pending step; do not call a zero-bot installation ready to use.
 
 ## Step 2 — Keep or deploy the web app
 
@@ -113,9 +119,9 @@ Before claiming success, verify:
 3. An OPTIONS request to `$BRIDGE_URL/v1/pairing/request` with Origin `$APP_ORIGIN`, method POST and requested header Content-Type returns 204 and **that exact** Access-Control-Allow-Origin. An unapproved origin is denied. This checks CORS, not owner approval or full browser reachability.
 4. On the owner's device, with any required VPN connected, the owner opens the original web app, selects **Connect my Hermes**, enters `BRIDGE_URL`, and selects **Request browser access**. A five-minute code appears. No credential exists before local approval. If the code expires, request access again and approve only the newly displayed code; never extend expiry or bypass pairing to finish setup.
 5. Approve only the code the owner sends, using `hermes bot-web approve CODE --app-origin "$APP_ORIGIN"`. The browser receives an origin-bound one-hour credential held in tab memory; it never receives the administrator key.
-6. The real managed bot roster appears while the address bar remains on the original web app. Bot/history/API/event requests go to `BRIDGE_URL`; no contents or credentials are sent to the static host. Separately verify whether the service/route survive your setup session ending and document restart durability as described above.
+6. At least one real managed bot with an initialized Bot Chat appears while the address bar remains on the original web app. Verify authenticated `/v1/events` returns 200 with NDJSON, an immediate `bridge.ready` frame and ongoing heartbeats through the actual HTTPS route. The app must not show a healthy connection if that stream fails. Bot/history/API/event requests go to `BRIDGE_URL`; no contents or credentials are sent to the static host. After agent-side initialization, the owner can select **Refresh bots**. Separately verify whether the service/route survive your setup session ending and document restart durability as described above.
 
-Report three independent statuses: **infrastructure checks**, **owner browser pairing/roster**, and **restart durability**. For example: HTTP checks passed; owner pairing pending; temporary background processes, not restart-safe. This is a useful handoff, not proof of a completed owner browser test.
+Report independent statuses for **infrastructure checks**, **native Bot Mode readiness**, **owner browser pairing/roster**, **live stream**, and **restart durability**. For example: HTTP checks passed; one initialized managed bot; owner pairing pending; authenticated HTTPS stream not yet tested; temporary background processes, not restart-safe. This is a useful handoff, not proof of a completed owner browser test.
 
 Do not spend model tokens, send test messages, execute tools or run routines without the owner's permission. Pairing and read-only roster verification suffice for installation. If you cannot operate the owner's browser, say which checks you completed and have them perform steps 4–6; do not invent a pass. They can disconnect to revoke that tab's grant, or run `hermes bot-web revoke` locally to revoke all current browser grants. Refresh starts a new memory-only session.
 
@@ -123,7 +129,7 @@ Do not spend model tokens, send test messages, execute tools or run routines wit
 
 > Open **[actual web app URL]**, then choose **Connect my Hermes**. Use **[actual Hermes connection address]** and click **Request browser access**. Send me its code and I’ll approve it. Codes last five minutes; if one expires, request a fresh code and send that one. The web app stays on its current host; your bots and history remain in Hermes.
 
-Also state the required private-access method (if any), the three verification statuses, and any restart limitation in plain language. For a background-only pod test, say: “You can test now. Restarting the gateway/pod will interrupt the bridge and tunnel until they are relaunched; permanent startup is not configured.” Include a private local recovery procedure in the deployment record. Do not send an operator token, private configuration file or credential-bearing URL. Keep private endpoint addresses, tunnel identities and local configuration out of public repositories, release artifacts and our shared web deployment.
+Also state the required private-access method (if any), each verification status, and any restart limitation in plain language. For a background-only pod test, say: “You can test now. Restarting the gateway/pod will interrupt the bridge and tunnel until they are relaunched; permanent startup is not configured.” Include a private local recovery procedure in the deployment record. Do not send an operator token, private configuration file or credential-bearing URL. Keep private endpoint addresses, tunnel identities and local configuration out of public repositories, release artifacts and our shared web deployment.
 
 ## Keeping the installation updated
 
