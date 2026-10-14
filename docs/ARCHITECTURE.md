@@ -54,6 +54,8 @@ The native adapter itself remains useful: real managed bots, normal canonical re
 
 ## Acceptance and remaining scope
 
+The [one-agent installation contract](INSTALLATION_CONTRACT.md) is a separate required launch gate. The installer must complete native readiness, independent hosting, connection configuration and durable service recovery before the normal owner handoff. Server-setting entry, developer-mediated repairs and renewed agent involvement on ordinary refresh/reconnect are preview limitations, not launch behavior. The current manual code/address handoff and memory-only grant lifecycle need a tested enrollment/discovery design; security and the prohibition on vendor user-data storage remain binding. Partial native or seeded-fixture tests cannot certify this owner experience.
+
 The separate-origin browser suite, Python security/configuration suite and downloaded-package CLI smoke are the acceptance checks for this correction. Record completed run results in `PROGRESS.md` and `docs/compatibility/integration-evidence.json`. The fixtures use unmodified pinned Hermes, disposable homes and a deterministic local model. They do not touch the owner's server or production provider.
 
 User testing uses the existing private web preview with a bridge installed on the user's separate Hermes server. That personal installation and browser approval still need the owner's Hermes agent; this development machine has no credentials/access to configure it. The guide makes this handoff explicit and reports checks awaiting the owner rather than inventing success.

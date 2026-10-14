@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "evidenceLevel": "unverified",
+  "contract": "docs/INSTALLATION_CONTRACT.md",
+  "gates": {
+    "single-installation-agent": "unverified",
+    "fresh-native-bot-setup": "unverified",
+    "idempotent-existing-install": "unverified",
+    "independent-hosts-trusted-tls": "unverified",
+    "owner-first-use-without-server-configuration": "unverified",
+    "reopen-and-reconnect-without-agent": "unverified",
+    "restart-recovery": "unverified",
+    "installed-update-and-rollback": "unverified",
+    "privacy-and-probe-isolation": "unverified"
+  },
+  "partialEvidence": [
+    "Native first-bot creation and canonical initialization/reuse pass in isolated homes on both supported source revisions",
+    "Separate-origin native browser tests pass with a test certificate exception",
+    "Downloaded-package CLI installation passes in a disposable seeded home with zero model turns",
+    "Heartbeat and per-probe cleanup regression tests pass"
+  ],
+  "remaining": [
+    "A complete clean-install acceptance run driven by one installation agent",
+    "Owner first-use connection discovery without manual server settings",
+    "A secure owner-device reconnect/enrollment design beyond the preview's memory-only grants",
+    "Verified permanent supervision and restart recovery across supported deployment targets",
+    "Installed update/rollback and interruption recovery evidence"
+  ]
+}
