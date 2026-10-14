@@ -82,3 +82,11 @@ This downloads the published ZIPs and manifest, verifies hashes, installs into a
 ## Standalone static package check
 
 Run the extracted web package’s `serve-static.mjs` from a working directory outside the repository. Verify its homepage/connection configuration and static headers, and confirm POST/data/API routes are unavailable. A deployment may use `artifacts/site` to include installer downloads too. The web server needs only Node for this local convenience server; a static provider needs no Node runtime or npm dependencies. It does not need Hermes or a bridge credential.
+
+To repeat the installation smoke against an explicit public GitHub release instead of the local mirror, use:
+
+```sh
+/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.0-preview.1
+```
+
+It uses the same isolated home and zero-model-turn checks. The URL selects immutable-version-named assets; it never reads the owner’s Hermes installation.
