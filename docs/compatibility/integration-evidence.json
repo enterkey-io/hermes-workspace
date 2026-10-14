@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-14",
+  "revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+  "variant": "independently-hosted-web-and-api-only-hermes-plugin",
+  "topology": "localhost-development",
+  "evidenceLevel": "browser-pass",
+  "gates": {
+    "hosted-origin-auth": "unverified",
+    "managed-roster": "real-runtime-pass",
+    "canonical-continuity": "real-runtime-pass",
+    "native-teammate-delivery": "real-runtime-pass",
+    "native-room-driver": "real-runtime-pass",
+    "bot-owned-routines": "unverified",
+    "runtime-controls": "browser-pass"
+  },
+  "passed": [
+    "local separate-origin HTTPS bearer auth and strict CORS",
+    "normal native canonical resume and basic continuity",
+    "native message_agent tool injection and delivery to beta Bot Chat",
+    "native room driver member output",
+    "owner-scoped routine listing",
+    "native approval denial and stopping",
+    "browser memory/storage boundary",
+    "blocked sends after stream loss or uncertain acknowledgment",
+    "desktop/mobile rendering",
+    "normal plugin registration",
+    "verifier-bound owner-approved browser pairing without API-key entry",
+    "private automatic setup and actual CLI approve/revoke",
+    "downloaded package manifest integrity and real installer handoff (zero model turns)",
+    "public introduction and static agent-readable setup page",
+    "six real browser tests on separate HTTPS origins with code pairing and native chat/controls",
+    "static host receives only GET asset/config/document requests without credentials, request bodies or query parameters",
+    "unapproved origin denied for pairing and preflight",
+    "setup separates bridge Host from allowed application origins and needs no web files on Hermes"
+  ],
+  "notProven": [
+    "public Cloudflare-to-home reachability",
+    "production certificate trust",
+    "canonical compaction under pressure",
+    "routine execution and schedule persistence",
+    "later Hermes revisions",
+    "real native-device applications"
+  ],
+  "fixtureOnly": true,
+  "deterministicLocalModel": true,
+  "certificateExceptionOnlyInTests": true,
+  "personalInfrastructureUsed": false,
+  "vendorDataBackend": false,
+  "browserTests": 6,
+  "pythonTests": 20
+}

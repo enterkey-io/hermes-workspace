@@ -1,0 +1,43 @@
+{
+  "revisions": [
+    {
+      "revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+      "evidenceLevel": "source-only",
+      "checks": {
+        "dashboardCorsRestrictedToLoopback": true,
+        "websocketTicketRequiresSession": true,
+        "nativeAuthorizeUsesLoopbackRedirect": true,
+        "managedProfilesRpc": true,
+        "nativeGroupRpc": true,
+        "nativeTeammateTool": true
+      },
+      "productCertified": false
+    },
+    {
+      "revision": "1fd18277267152893a8a24792b79213e7ca3f899",
+      "evidenceLevel": "source-only",
+      "checks": {
+        "dashboardCorsRestrictedToLoopback": true,
+        "websocketTicketRequiresSession": true,
+        "nativeAuthorizeUsesLoopbackRedirect": true,
+        "managedProfilesRpc": true,
+        "nativeGroupRpc": true,
+        "nativeTeammateTool": true
+      },
+      "productCertified": false
+    },
+    {
+      "revision": "53df274b08f2bbbe82bb67bb50c7571952e95809",
+      "evidenceLevel": "source-only",
+      "checks": {
+        "dashboardCorsRestrictedToLoopback": true,
+        "websocketTicketRequiresSession": true,
+        "nativeAuthorizeUsesLoopbackRedirect": true,
+        "managedProfilesRpc": true,
+        "nativeGroupRpc": true,
+        "nativeTeammateTool": true
+      },
+      "productCertified": false
+    }
+  ]
+}

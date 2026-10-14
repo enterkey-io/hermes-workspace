@@ -1,0 +1,3 @@
+name: bot-web
+version: 0.2.0
+description: API-only native Bot Mode integration for independently hosted clients.

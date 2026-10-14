@@ -1,0 +1,194 @@
+import asyncio
+import importlib.util
+from pathlib import Path
+import sys
+import unittest
+from unittest.mock import AsyncMock, patch
+import os
+
+import httpx
+
+ROOT = Path(__file__).resolve().parents[2]
+spec = importlib.util.spec_from_file_location("bot_web", ROOT / "plugins/bot-web/__init__.py",
+    submodule_search_locations=[str(ROOT / "plugins/bot-web")])
+module = importlib.util.module_from_spec(spec)
+sys.modules["bot_web"] = module
+spec.loader.exec_module(module)
+from bot_web.server import create_app
+from bot_web.operations import BotOperations, InvalidOperation
+from bot_web.native import NativeGateway, NativeError
+
+TOKEN = "s" * 43
+ORIGIN = "https://app.example.test"
+HOST = "hermes.example.test"
+
+
+class Native:
+    def __init__(self):
+        self.calls = []
+        self.listeners = set()
+
+    async def call(self, method, params):
+        self.calls.append((method, params))
+        if method == "profiles.list":
+            return {"bot_mode_protocol": True, "profiles": [
+                {"name": "alpha", "ui_meta": {"hermes-bots": {"title": "Alpha"}},
+                 "canonical_session": {"id": "root-alpha"}},
+                {"name": "ordinary", "ui_meta": {}}]}
+        if method == "session.resume":
+            return {"session_id": "live-alpha", "messages": []}
+        if method == "approval.pending":
+            return {"approvals": [{"request_id": "alpha-request"}]}
+        return {}
+
+
+class BoundaryTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.native = Native()
+        self.app = create_app(TOKEN, {ORIGIN}, {HOST}, self.native)
+        self.http = httpx.AsyncClient(transport=httpx.ASGITransport(app=self.app), base_url=f"https://{HOST}")
+        self.headers = {"Origin": ORIGIN, "Authorization": "Bearer " + TOKEN}
+
+    async def asyncTearDown(self):
+        await self.http.aclose()
+
+    async def connected(self):
+        response = await self.http.post("/v1/connect", headers=self.headers)
+        return {**self.headers, "X-Bot-Connection": response.json()["connection"]}
+
+    async def test_preflight_requires_exact_origin_but_not_bearer(self):
+        response = await self.http.options("/v1/rpc", headers={"Origin": ORIGIN,
+            "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "authorization, content-type, x-bot-connection"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.headers["access-control-allow-origin"], ORIGIN)
+        self.assertNotIn("access-control-allow-credentials", response.headers)
+
+    async def test_evil_and_null_origins_rejected_without_native_calls(self):
+        for origin in ("null", "https://app.example.test.evil", "http://app.example.test", ""):
+            response = await self.http.post("/v1/connect", headers={**self.headers, "Origin": origin})
+            self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.native.calls, [])
+
+    async def test_missing_invalid_auth_rejected(self):
+        for authorization in ("", "Bearer wrong", "Basic " + TOKEN):
+            response = await self.http.post("/v1/connect", headers={**self.headers, "Authorization": authorization})
+            self.assertEqual(response.status_code, 401)
+
+    async def test_dns_rebinding_host_and_query_credentials_rejected(self):
+        response = await self.http.post("/v1/connect", headers={**self.headers, "Host": "attacker.test"})
+        self.assertEqual(response.status_code, 403)
+        response = await self.http.post("/v1/connect?token=" + TOKEN, headers=self.headers)
+        self.assertEqual(response.status_code, 403)
+
+    async def test_oversize_body_and_duplicate_auth_rejected(self):
+        response = await self.http.post("/v1/rpc", content=b"x" * 65537, headers=self.headers)
+        self.assertEqual(response.status_code, 413)
+        response = await self.http.post("/v1/connect", headers=[("Origin", ORIGIN),
+            ("Authorization", "Bearer " + TOKEN), ("Authorization", "Bearer " + TOKEN)])
+        self.assertEqual(response.status_code, 400)
+
+    async def test_raw_rpc_and_hidden_native_fields_not_forwarded(self):
+        headers = await self.connected()
+        for operation, params in [("profiles.configure", {"name": "alpha"}),
+            ("bots.list", {"profile": "ordinary"}), ("bot.open", {"profile": "../alpha"}),
+            ("chat.send", {"session_id": "live-alpha", "text": "hi", "_hosted_task": {}})]:
+            response = await self.http.post("/v1/rpc", json={"operation": operation, "params": params}, headers=headers)
+            self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.native.calls, [])
+
+    async def test_native_open_and_session_connection_isolation(self):
+        first = await self.connected()
+        second = await self.connected()
+        opened = await self.http.post("/v1/rpc", json={"operation": "bot.open", "params": {"profile": "alpha"}}, headers=first)
+        self.assertEqual(opened.status_code, 200)
+        self.assertIn(("session.resume", {"profile": "alpha", "session_id": "root-alpha"}), self.native.calls)
+        response = await self.http.post("/v1/rpc", json={"operation": "chat.send", "params": {"session_id": "live-alpha", "text": "hi"}}, headers=second)
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(any(method == "prompt.submit" for method, _ in self.native.calls))
+
+    async def test_disconnect_invalidates_lease(self):
+        headers = await self.connected()
+        response = await self.http.delete("/v1/connect", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        response = await self.http.post("/v1/rpc", json={"operation": "bots.list", "params": {}}, headers=headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.native.calls, [])
+
+    async def test_bounded_connection_count(self):
+        for _ in range(8):
+            await self.connected()
+        response = await self.http.post("/v1/connect", headers=self.headers)
+        self.assertEqual(response.status_code, 429)
+
+
+class ApprovalTests(unittest.IsolatedAsyncioTestCase):
+    async def test_exact_session_request_and_once_or_deny_only(self):
+        gateway = Native()
+        ops = BotOperations(gateway)
+        await ops.invoke("bot.open", {"profile": "alpha"})
+        for request_id, choice in [("other-session-request", "once"), ("alpha-request", "always")]:
+            with self.assertRaises(InvalidOperation):
+                await ops.invoke("chat.approve", {"session_id": "live-alpha", "request_id": request_id, "choice": choice})
+        self.assertFalse(any(method == "approval.respond" for method, _ in gateway.calls))
+        await ops.invoke("chat.approve", {"session_id": "live-alpha", "request_id": "alpha-request", "choice": "once"})
+        self.assertIn(("approval.respond", {"session_id": "live-alpha", "request_id": "alpha-request", "choice": "once"}), gateway.calls)
+
+    async def test_room_approval_is_bound_to_native_pending_generation(self):
+        class RoomNative(Native):
+            async def call(self, method, params):
+                if method == "groups.state":
+                    return {"driver_status": {"pending_actions": [{"kind": "approval", "member_id": "alpha",
+                        "task_id": "task-1", "execution_generation": 3, "request_id": "room-request"}]}}
+                return await super().call(method, params)
+        gateway = RoomNative()
+        ops = BotOperations(gateway)
+        params = {"room_id": "room-1", "member_id": "alpha", "task_id": "task-1", "execution_generation": 2,
+                  "request_id": "room-request", "choice": "once"}
+        with self.assertRaises(InvalidOperation):
+            await ops.invoke("room.approve", params)
+        self.assertFalse(any(method == "groups.approve" for method, _ in gateway.calls))
+        params["execution_generation"] = 3
+        await ops.invoke("room.approve", params)
+        self.assertIn(("groups.approve", params), gateway.calls)
+
+
+class NativeFailureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_bridge_credential_is_not_in_native_agent_environment(self):
+        gateway = NativeGateway()
+        launch = AsyncMock(return_value=object())
+        with patch.dict(os.environ, {"HERMES_BOT_WEB_TOKEN": "synthetic-secret", "HERMES_BOT_WEB_ORIGINS": ORIGIN,
+                                     "MODEL_API_KEY": "synthetic-provider"}), patch(
+                "bot_web.native.asyncio.create_subprocess_exec", launch), patch.object(
+                gateway, "_read", AsyncMock()), patch.object(
+                gateway, "call", AsyncMock(side_effect=[{}, {"driver": True}])):
+            await gateway.start()
+            await gateway.reader
+        env = launch.call_args.kwargs["env"]
+        self.assertFalse(any(key.startswith("HERMES_BOT_WEB_") for key in env))
+        self.assertEqual(env["MODEL_API_KEY"], "synthetic-provider")
+
+    async def test_dead_native_reader_cannot_accept_more_mutations(self):
+        class Output:
+            async def readline(self):
+                raise ValueError("Oversized frame")
+        class Process:
+            stdout = Output()
+            returncode = None
+            terminated = False
+            def terminate(self):
+                self.terminated = True
+        gateway = NativeGateway()
+        gateway.process = Process()
+        gateway.healthy = True
+        queue = asyncio.Queue(maxsize=1)
+        gateway.listeners.add(queue)
+        await gateway._read()
+        self.assertFalse(gateway.healthy)
+        self.assertTrue(gateway.process.terminated)
+        self.assertEqual(await queue.get(), {"type": "bridge.resync"})
+        with self.assertRaises(NativeError):
+            await gateway.call("prompt.submit", {"session_id": "live", "text": "must not submit"})
+
+
+if __name__ == "__main__":
+    unittest.main()

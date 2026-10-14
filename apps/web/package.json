@@ -1,0 +1,10 @@
+{
+  "name": "@hermes-client/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hermes-client/core": "0.0.1",
+    "@hermes-client/protocol": "0.0.1"
+  }
+}

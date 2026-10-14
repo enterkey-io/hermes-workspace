@@ -1,0 +1,50 @@
+{
+  "name": "hermes-bot-mode-app",
+  "version": "0.2.0-preview.1",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "python3 scripts/build-guide.py && tsc --noEmit && vite build --config vite.client.config.ts && vite build --config vite.web.config.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build",
+    "lint": "eslint .",
+    "format": "prettier --write packages apps scripts *.config.* README.md docs test .github .prettierrc.json tsconfig.json package.json",
+    "format:check": "prettier --check packages apps scripts *.config.* README.md docs test .github .prettierrc.json tsconfig.json package.json",
+    "compatibility:audit": "node scripts/audit-hermes-source.mjs",
+    "compatibility:gate": "npm run build --silent && node scripts/check-compatibility.mjs",
+    "dev": "vite --config vite.web.config.ts",
+    "preview": "vite preview --config vite.web.config.ts --host 127.0.0.1",
+    "test:plugin": "python3 -m unittest discover -s test/plugin -p \"test_*.py\"",
+    "test:native": "python3 scripts/fixture/native_smoke.py",
+    "serve": "node scripts/serve-static.mjs",
+    "package": "npm run build && python3 scripts/package.py"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.0",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "10.12.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  },
+  "packageManager": "npm@11.12.1"
+}

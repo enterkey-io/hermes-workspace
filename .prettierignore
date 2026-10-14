@@ -1,0 +1,9 @@
+node_modules
+**/dist
+package-lock.json
+WEB_APP_PLAN.md
+IMPLEMENTATION_PLAN.md
+docs/compatibility/*.json
+apps/web/public/install.html
+apps/web/public/install.md
+apps/web/public/connection.json

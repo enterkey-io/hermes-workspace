@@ -1,0 +1,55 @@
+{
+  "revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+  "evidenceLevel": "real-runtime-http-probe",
+  "checks": [
+    {
+      "case": "normal-fixture-password-sign-in",
+      "status": 200
+    },
+    {
+      "case": "public-style-hosted-origin-unauthenticated-preflight",
+      "status": 401,
+      "originAllowed": false
+    },
+    {
+      "case": "public-style-hosted-origin-authenticated-http-origin-probe",
+      "status": 400,
+      "originAllowed": false
+    },
+    {
+      "case": "localhost-development-origin-unauthenticated-preflight",
+      "status": 401,
+      "originAllowed": false
+    },
+    {
+      "case": "localhost-development-origin-authenticated-http-origin-probe",
+      "status": 200,
+      "originAllowed": true
+    },
+    {
+      "case": "authenticated-ws-ticket",
+      "status": 200
+    },
+    {
+      "case": "native-https-callback",
+      "status": 400
+    },
+    {
+      "case": "unauthenticated-ws-ticket",
+      "status": 401
+    }
+  ],
+  "productCertified": false,
+  "hostedBotModeStatus": "blocked",
+  "probeLimitations": [
+    "Authenticated HTTP probes supply a synthetic cookie explicitly; this does not prove a browser can obtain or send a cross-site cookie."
+  ],
+  "notExercised": [
+    "browser-tls",
+    "managed-roster",
+    "canonical-continuity",
+    "native-teammate-delivery",
+    "native-room-driver",
+    "bot-owned-routines"
+  ]
+}
