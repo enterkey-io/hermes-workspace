@@ -14,7 +14,11 @@ You can use an existing hosted copy, or have your agent install your own copy on
 3. Return to the **original web app**. Click **Connect my Hermes**, enter the connection address, and click **Request browser access**. You do not enter an API key.
 4. Send the displayed code to your Hermes agent. It approves that browser locally. Your existing bots and Bot Chats appear here; the page does not redirect to your Hermes server.
 
+Codes last five minutes. If yours expires, click **Request browser access** again and send the new code to your agent.
+
 If Hermes is on your tailnet/VPN, connect your device to that network first. Your browser may ask to allow local-network access. The web host itself does not join the VPN or relay your traffic.
+
+Your agent should tell you what it verified, what still needs your browser, and whether startup after a restart is configured. “Running in the background” may be enough to test, but does not mean it will recover after a server or container restart. For a temporary installation, get the restart limitation and recovery steps from your agent. Opening the Hermes connection address directly may show 403; return to the web app and connect there.
 
 ## If you want your own web deployment
 

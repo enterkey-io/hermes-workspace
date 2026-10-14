@@ -48,3 +48,9 @@ Run `npm run compatibility:gate` before claiming a working hosted Bot Mode produ
 The new engine emits approval server requests while retaining authoritative approval.pending/respond RPCs. The adapter translates the notification and reconnect replay into session-scoped browser approval refreshes; exact native pending request validation still governs responses, with only Once/Deny. Unsupported secret/sudo/desktop requests receive an explicit unsupported-method response; no answer or generic browser responder is invented.
 
 Tests ran in isolated macOS Python 3.14/3.12 environments against exact source; the owner's live Docker installation, SSH tunnel, ingress and browser path still require the installing agent's checks. See af0cd4df.json for recorded evidence.
+
+## Owner-agent installation report
+
+On 14 October, the owner forwarded their agent's successful installation report for plugin 0.2.1 on the actual af0cd4df container. The agent reported matching all five fingerprints, private configuration mode 0600, an independently selected loopback port after finding an occupied default, and successful HTTP checks through the real private HTTPS/SSH route. Allowed-origin preflight returned 204 with the exact origin; unapproved-origin and unauthenticated requests returned 403; the independently hosted web app returned 200. Existing web and other ingress routes were preserved.
+
+This is **owner-agent-reported deployment evidence**, not an independent test by the development agent. Owner browser pairing and native roster verification remain pending. The bridge and tunnel run as background processes; permanent restart supervision is not configured, and a gateway/pod restart requires relaunch. It does not certify a public Cloudflare-to-home deployment or full browser Bot Mode operation. The sanitized report is recorded in [owner-install-report.json](owner-install-report.json); earlier fixture records retain their original scope.

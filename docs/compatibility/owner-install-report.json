@@ -1,0 +1,34 @@
+{
+  "recorded_date": "2026-10-14",
+  "source": "User-forwarded report from the owner's installation agent",
+  "independently_verified_by_development_agent": false,
+  "scope": "Reported installation and HTTPS ingress checks; not a completed owner browser test",
+  "plugin_version": "0.2.1",
+  "reported_matched_revision": "af0cd4df",
+  "reported_checks": {
+    "plugin_installed_and_enabled": "pass",
+    "doctor_supported": true,
+    "gateway_fingerprints_matching": 5,
+    "private_config_mode": "0600",
+    "administrator_credential_not_printed": true,
+    "bridge_loopback_port": 8798,
+    "default_port_8788": "Occupied by an unrelated MCP socket; preserved",
+    "transport": "Private Tailscale HTTPS ingress through an existing SSH reverse tunnel to the container's loopback bridge",
+    "allowed_origin_preflight": "204 with exact allowed origin",
+    "unapproved_origin": "403 denied",
+    "unauthenticated_get": "403, no page or roster exposed",
+    "independently_hosted_web_app": "200; existing app and other ingress routes preserved"
+  },
+  "owner_browser": {
+    "pairing": "pending",
+    "native_roster": "pending",
+    "native_bot_mode_interaction": "not reported"
+  },
+  "restart_durability": {
+    "status": "Temporary background processes; permanent supervisor not configured",
+    "survives_conversation_end": "Reported yes",
+    "survives_gateway_or_pod_restart": "Reported no; bridge and tunnel need relaunch",
+    "recovery_tested": false
+  },
+  "public_record_privacy": "Private URLs, hostnames, addresses, SSH identities, credentials and owner content omitted"
+}

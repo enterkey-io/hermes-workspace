@@ -10,3 +10,5 @@ Maintainers publish source and packages in `enterkey-io/hermes-workspace`. Norma
 6. Download the public assets again and verify hashes, installer links and package identity. Record the actual repository, release/tag and validation result. Do not label unsigned previews as signed/provenance-attested releases.
 
 The source CI workflow runs checks without deployment keys or access to personal Hermes. Release publishing is currently a maintainer action; automatic publishing/updating is not implemented.
+
+Installation guidance can be corrected on `main` between releases. The app's copied agent message links to that maintained guide, whose software downloads must still name one explicit release tag. Refresh the development site's generated guide with `npm run build`; this does not update release ZIPs. Keep published tags, assets and checksums unchanged. Documentation corrections reach packaged sites when their owners update the documentation or deploy the next release; never imply every existing copy was automatically updated.
