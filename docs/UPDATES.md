@@ -4,7 +4,7 @@
 
 No. Normal installations consume versioned releases from `https://github.com/enterkey-io/hermes-workspace`. A fork is useful only for local source modifications or a hosting-provider workflow that needs a repository under the owner's account. GitHub does not update a fork or merge upstream changes on the owner's behalf.
 
-Use an explicit release tag and its checked packages. Avoid tracking `main`, blindly running `git pull`, overwriting a modified working tree, or using an unversioned download URL as an update policy. The current version is **v0.2.2-preview.1**, a prerelease; the production-certification gate remains closed. GitHub's `releases/latest` skips prereleases, so it is not the correct selector for this preview.
+Use an explicit release tag and its checked packages. Avoid tracking `main`, blindly running `git pull`, overwriting a modified working tree, or using an unversioned download URL as an update policy. The current version is **v0.2.3-preview.1**, a prerelease; the production-certification gate remains closed. GitHub's `releases/latest` skips prereleases, so it is not the correct selector for this preview.
 
 ## Record what was installed
 
@@ -46,7 +46,7 @@ Do not pipe downloaded installation code into a shell. Ask the owner about an in
 - **Hermes plugin:** stop only the integration service when idle, back up its previous plugin code locally, and replace only that plugin's code with the verified version. Keep `<HERMES_HOME>/bot-web/connection.json` and Hermes's native stores untouched. Do not rerun setup or rotate the operator key for an ordinary code update. Apply a configuration migration only when that release documents one, with a private backup and rollback procedure. Restart using the same runtime, home/profile and supervisor.
 - **Both:** install a release pair whose manifest/protocol supports the combination. Re-pair the browser after a bridge restart; grants are intentionally ephemeral. Keep the old pair available for rollback.
 
-Verify the web page still loads on its original origin, the bridge allows that exact origin while rejecting another, local code approval works, and the real managed roster/history appears while the browser stays on the web host. Do not invent a pass for an owner's browser you cannot control. If validation fails, restore the previous web deployment/plugin code and any documented configuration backup; do not touch Hermes conversation stores.
+Verify the web page still loads on its original origin, the bridge allows that exact origin while rejecting another, local code approval works, and the real managed roster/history appears while the browser stays on the web host. Watch the authenticated event stream for at least 50 seconds: expect immediate readiness and heartbeats around every 15 seconds, including when no bot is selected. Clean up only each probe's own lease with DELETE `/v1/connect`; global `hermes bot-web revoke` is not probe cleanup. Do not invent a pass for an owner's browser you cannot control. If validation fails, restore the previous web deployment/plugin code and any documented configuration backup; do not touch Hermes conversation stores.
 
 ## Source customizations
 

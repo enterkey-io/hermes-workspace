@@ -20,6 +20,7 @@ from .pairing import BrowserPairing
 
 MAX_BODY = 65536
 LEASE_SECONDS = 1800
+HEARTBEAT_SECONDS = 15
 
 
 def configuration():
@@ -158,7 +159,7 @@ def create_app(token, origins, hosts, gateway=None):
         clients[connection] = {"touched": time.monotonic(), "streaming": False,
                                "inflight": 0, "sessions": set(), "principal": request.scope["bot.principal"]}
         build = getattr(native, "build", None) or {}
-        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": "0.2.1",
+        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": "0.2.3",
                 "hermes_version": build.get("version"), "hermes_revision": build.get("revision")}
 
     @app.delete("/v1/connect")
@@ -205,18 +206,28 @@ def create_app(token, origins, hosts, gateway=None):
         queue = asyncio.Queue(maxsize=256)
         native.listeners.add(queue)
         connection = request.headers["x-bot-connection"]
+        def active():
+            return (clients.get(connection) is client
+                    and time.monotonic() - client["touched"] <= LEASE_SECONDS
+                    and pairing.alive(client["principal"]))
         async def stream():
             try:
                 # Flush headers immediately and acknowledge an authenticated stream.
                 yield '{"type":"bridge.ready"}\n'
-                while clients.get(connection) is client and pairing.alive(client["principal"]):
-                    if time.monotonic() - client["touched"] > LEASE_SECONDS:
-                        break
-                    try:
-                        event = await asyncio.wait_for(queue.get(), timeout=15)
-                    except TimeoutError:
+                next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
+                while active():
+                    # Filtered native traffic must not restart the browser's heartbeat clock.
+                    remaining = next_heartbeat - time.monotonic()
+                    if remaining <= 0:
                         yield '{"type":"bridge.heartbeat"}\n'
+                        next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
                         continue
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=remaining)
+                    except TimeoutError:
+                        continue
+                    if not active():
+                        break
                     if event.get("type") == "bridge.resync":
                         yield json.dumps(event) + "\n"
                         break

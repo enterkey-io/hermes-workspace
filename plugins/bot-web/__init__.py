@@ -3,7 +3,8 @@
 
 def register(ctx):
     def setup(parser):
-        parser.add_argument("action", choices=["doctor", "serve", "setup", "approve", "revoke"])
+        parser.add_argument("action", choices=["doctor", "serve", "setup", "approve", "revoke"],
+            help="revoke invalidates ALL browser access; it is not diagnostic connection cleanup")
         parser.add_argument("code", nargs="?")
         parser.add_argument("--bridge-url")
         parser.add_argument("--app-origin", action="append")

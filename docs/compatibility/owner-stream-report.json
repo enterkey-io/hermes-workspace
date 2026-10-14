@@ -1,0 +1,39 @@
+{
+  "recorded_date": "2026-10-14",
+  "source": "User-forwarded diagnostic report from the owner's Hermes agent",
+  "independently_verified_on_owner_host_by_development_agent": false,
+  "installed_plugin_version": "0.2.1",
+  "reported_hermes_revision": "af0cd4df",
+  "reported_results": {
+    "intended_home_and_default_profile": "Verified by owner agent",
+    "private_configuration_mode": "0600",
+    "managed_bot_count": 0,
+    "initialized_bot_chat_count": 0,
+    "loopback_and_https_roster_agree": true,
+    "loopback_stream": {
+      "http_status": 200,
+      "ready_latency_ms_approximate": 1,
+      "observation_seconds": 50,
+      "heartbeat_frames_observed": 0,
+      "ended_by": "Probe client timeout"
+    },
+    "https_stream": {
+      "http_status": 200,
+      "ready_latency_ms_approximate": 35,
+      "observation_seconds": 50,
+      "heartbeat_frames_observed": 0,
+      "ended_by": "Probe client timeout"
+    },
+    "global_revocation_during_probe_cleanup": "Reported; owner browser grants invalidated",
+    "owner_bots_created_or_models_run": false
+  },
+  "assessment": {
+    "empty_roster": "Confirmed prerequisite missing; ordinary agent profiles are not managed Bot Mode bots",
+    "stream_liveness": "Failed; silent sockets exceed the web client's 35-second idle deadline",
+    "earlier_outage_as_cause": "Owner agent's hypothesis, not established by this report",
+    "development_reproduction": "Native events filtered from a browser can starve the old queue-idle heartbeat scheduler",
+    "owner_upgrade_verification": "Pending; fixed code must be installed and its 50-second stream check repeated",
+    "fresh_owner_pairing": "Required after reported global revocation and any bridge restart"
+  },
+  "privacy": "Private home paths, endpoints, hostnames, SSH identities, credentials and bot content omitted"
+}

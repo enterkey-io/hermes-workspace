@@ -155,6 +155,7 @@ test('lost event stream blocks further sends', async ({ page }) => {
 test('empty native roster explains setup and refreshes after the agent initializes a bot', async ({
   page,
 }) => {
+  test.setTimeout(75_000);
   let initialized = false;
   await page.route('**/v1/rpc', async (route) => {
     const operation = route.request().postDataJSON().operation;
@@ -173,6 +174,11 @@ test('empty native roster explains setup and refreshes after the agent initializ
     true,
   );
   await page.screenshot({ path: 'artifacts/empty-roster-mobile.png' });
+  // Stay idle beyond the client's 35-second deadline: native background events must
+  // not prevent bridge heartbeats even while no bot session belongs to this browser.
+  await page.waitForTimeout(40_000);
+  await expect(page.getByRole('heading', { name: 'Set up your first bot.' })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 1000 });
   initialized = true;
   await page.getByRole('button', { name: 'Refresh bots', exact: true }).click();

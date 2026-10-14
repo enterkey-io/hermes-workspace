@@ -4,7 +4,7 @@ An independent interface to **actual Hermes Bot Mode**. The open-source web app 
 
 A small integration plugin supplies the native Bot Mode API required by the current preview. Only that plugin runs on the Hermes host; it does not serve the web app, replace agents or modify Hermes core. The [channel assessment](docs/HERMES_INTEGRATION.md) distinguishes this native API adapter from a registered Telegram-style messaging channel, which remains follow-up work. Later native Mac/Windows/iOS apps can use the same client contract. No personal Hermes server was modified or public Cloudflare deployment created.
 
-Source: [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). Versioned packages: [v0.2.2-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.2-preview.1). The product name remains undecided; the repository name is descriptive.
+Source: [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). Versioned packages: [v0.2.3-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.3-preview.1). The product name remains undecided; the repository name is descriptive.
 
 ## Try an existing web app
 

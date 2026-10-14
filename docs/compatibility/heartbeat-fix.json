@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-14",
+  "bridge_version": "0.2.3",
+  "hermes_revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
+  "fixture_only": true,
+  "hermes_core_modified": false,
+  "python_boundary_tests_passed": 31,
+  "typescript_tests_passed": 47,
+  "asgi_regressions": {
+    "filtered_native_events_do_not_starve_heartbeats": "pass; failed before fix",
+    "idle_heartbeat": "pass",
+    "closed_lease_no_pending_delivery": "pass",
+    "operator_probe_close_preserves_owner_grant": "pass"
+  },
+  "actual_native_fixture_https_probe": {
+    "observation_seconds": 50,
+    "ready_latency_ms": 54,
+    "heartbeat_elapsed_seconds": [15.06, 30.06, 45.06],
+    "cleanup": "Only the probe's own operator lease was deleted; no global revocation"
+  },
+  "browser": {
+    "tests_passed": 9,
+    "empty_roster_idle_seconds": 40,
+    "client_idle_deadline_seconds": 35,
+    "empty_roster_remained_connected": true,
+    "fixture_certificate_exception": true
+  },
+  "native_regression": {
+    "canonical_continuity": "pass",
+    "native_teammate_delivery": "pass",
+    "room_driver": "pass",
+    "owner_scoped_routine_listing": "pass",
+    "approval_denial": "pass",
+    "stop": "pass",
+    "deterministic_local_model_turns": 17
+  },
+  "not_proven": [
+    "Fixed plugin installation and stream verification on the owner's host",
+    "Owner-managed bot initialization and fresh browser pairing",
+    "Full production public-to-home network certification"
+  ]
+}

@@ -2,6 +2,8 @@
 
 This step runs on the owner's existing Hermes, independently of web hosting. A working bridge with zero managed bots is not a usable Bot Mode installation. Ordinary Hermes agent profiles are not automatically managed Bot Mode bots. The installer must check readiness before handing the owner a connection address.
 
+The owner does not need Hermes Desktop or its Bots tab to complete this step. Their Hermes agent can perform the local native operations below. “Bot creation is not implemented in the browser app” does not mean agent-side native setup is unavailable or should be postponed.
+
 ## Reuse first; create only within the owner's request
 
 Use the exact executable, runtime, Hermes home and profile context intended for the bridge service. Query native `profiles.list` with `include_sessions: true`. Managed bots have a `ui_meta["hermes-bots"]` object; initialized chats have `canonical_session.id`. Report counts and readiness without publishing profile names, history or private configuration. If bots exist elsewhere, fix the service's home/profile context rather than creating replacements in an empty home.
@@ -24,5 +26,13 @@ This is based on the tested native handlers and Desktop Bot Mode's creation flow
 ## Finish the connection test
 
 Verify the authenticated event stream as well as the lists: `/v1/events` must return 200 with `application/x-ndjson`, emit `bridge.ready` immediately, and then keep sending heartbeat frames at roughly 15-second intervals. Use the exact allowed app Origin, an authorized credential in the Authorization header, and the connection lease in X-Bot-Connection. Compare the container loopback path with the real HTTPS URL if streaming fails. Inspect only status, media type and control frames for this diagnosis; keep credentials and bot content out of reports. A successful preflight or pairing request does not prove streaming works. Preserve TLS trust and origin/Host checks; do not move credentials into URLs or weaken authentication to troubleshoot.
+
+Watch for at least 50 seconds, including when no bot session is open. A 200 response followed by an open but silent socket is a failed liveness check: the web client times out after 35 seconds without data. Plugin 0.2.1 could starve heartbeats when unrelated native events kept its queue busy but were filtered out of the browser's session scope. Plugin 0.2.3 schedules heartbeats independently of those events. Missing heartbeats on both loopback and HTTPS must be investigated on the bridge/runtime side before blaming the tunnel or an earlier outage. Do not disable the browser's idle deadline or relax session filtering to hide the problem.
+
+## Clean up probes without disconnecting the owner
+
+Keep each diagnostic probe's connection lease private. In a `finally` block, close its stream/HTTP reader and send authenticated **DELETE `/v1/connect`** using that probe's own X-Bot-Connection, Origin and credential. An operator probe must close its own operator lease. This frees a slot without revoking unrelated browser grants; retain their TLS/Host/origin protections. If a probe failed before obtaining a lease, close its transport only. Avoid parallel unnecessary probes that exhaust the eight-connection limit.
+
+**Do not use `hermes bot-web revoke` or POST `/v1/pairing/revoke` as probe cleanup.** They invalidate all browser grants and leases, even if `--app-origin` is supplied. Use global revocation only for an owner-requested all-device sign-out or access response. If it was run accidentally, tell the owner that their grant was invalidated and that fresh pairing is required; a browser error afterward does not prove a broken tunnel. If unknown stale probes fill all slots, stop and report that specific issue instead of silently clearing the owner's access.
 
 Once the owner pairs, they can select **Refresh bots** after agent-side setup; another installation is not necessary. Report infrastructure checks, Bot Mode readiness, owner browser pairing/roster, live stream and restart durability separately. Do not send model prompts or execute tools just to initialize or verify setup.

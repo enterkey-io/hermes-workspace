@@ -42,7 +42,7 @@ Existing managed bots and their native Bot Chats must already exist. The app sup
 
 ## Downloads and updates
 
-The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.2-preview.1) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
+The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.3-preview.1) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
 
 Your agent should record which version it installed and follow [the update/rollback procedure](UPDATES.md) when you request an update or choose a checking schedule on your own Hermes. Updates replace software files while preserving your private settings and Hermes conversations. There is no automatic background updater in this preview.
 

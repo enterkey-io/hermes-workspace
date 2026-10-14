@@ -21,16 +21,16 @@ The owner stays on the web app's original URL. Browser pairing and bot traffic g
 
 ## Step 1 — Get the packages and inspect Hermes
 
-The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The current software release is [v0.2.2-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.2-preview.1), a preview. The [maintained installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md) receives instruction corrections between software releases. Packages remain pinned to one immutable release; do not install executable code from a moving branch. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
+The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The current software release is [v0.2.3-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.3-preview.1), a preview. The [maintained installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md) receives instruction corrections between software releases. Packages remain pinned to one immutable release; do not install executable code from a moving branch. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
 
-- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-manifest.json)
-- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/SHA256SUMS)
-- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-plugin-preview.zip)
-- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-web-preview.zip)
-- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-site-preview.zip)
-- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.3-preview.1/workspace-manifest.json)
+- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.3-preview.1/SHA256SUMS)
+- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.3-preview.1/workspace-plugin-preview.zip)
+- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.3-preview.1/workspace-web-preview.zip)
+- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.3-preview.1/workspace-site-preview.zip)
+- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.3-preview.1/workspace-source-preview.zip)
 
-This web release uses the unchanged bot-web **0.2.1** integration/protocol. An existing working 0.2.1 plugin does not need replacing for these web/setup improvements. Keep the current bridge configuration and routes; new installations use the plugin archive from the selected release.
+This release includes bot-web **0.2.3**, which fixes a live-stream heartbeat defect in 0.2.1. Update the plugin code using the update procedure; preserve the private configuration, configured loopback port, web origin and HTTPS/tunnel routes. Do not rerun setup or rotate the operator credential for this code update. Restart only the bridge when idle, then pair again; a bridge restart clears its in-memory browser grants. Web and Hermes hosting remain independent.
 
 The running development preview also mirrors these paths on its own origin for the same-tailnet test. Use that origin only when the owner supplied the preview URL, never infer it from a GitHub page:
 
@@ -119,11 +119,13 @@ Before claiming success, verify:
 3. An OPTIONS request to `$BRIDGE_URL/v1/pairing/request` with Origin `$APP_ORIGIN`, method POST and requested header Content-Type returns 204 and **that exact** Access-Control-Allow-Origin. An unapproved origin is denied. This checks CORS, not owner approval or full browser reachability.
 4. On the owner's device, with any required VPN connected, the owner opens the original web app, selects **Connect my Hermes**, enters `BRIDGE_URL`, and selects **Request browser access**. A five-minute code appears. No credential exists before local approval. If the code expires, request access again and approve only the newly displayed code; never extend expiry or bypass pairing to finish setup.
 5. Approve only the code the owner sends, using `hermes bot-web approve CODE --app-origin "$APP_ORIGIN"`. The browser receives an origin-bound one-hour credential held in tab memory; it never receives the administrator key.
-6. At least one real managed bot with an initialized Bot Chat appears while the address bar remains on the original web app. Verify authenticated `/v1/events` returns 200 with NDJSON, an immediate `bridge.ready` frame and ongoing heartbeats through the actual HTTPS route. The app must not show a healthy connection if that stream fails. Bot/history/API/event requests go to `BRIDGE_URL`; no contents or credentials are sent to the static host. After agent-side initialization, the owner can select **Refresh bots**. Separately verify whether the service/route survive your setup session ending and document restart durability as described above.
+6. At least one real managed bot with an initialized Bot Chat appears while the address bar remains on the original web app. Watch authenticated `/v1/events` for at least 50 seconds: it must return 200 with NDJSON, an immediate `bridge.ready` frame and heartbeats roughly every 15 seconds through the actual HTTPS route, even with no bot selected. A silently open socket is not sufficient; the browser disconnects after 35 seconds without data. The app must not show a healthy connection if that stream fails. Bot/history/API/event requests go to `BRIDGE_URL`; no contents or credentials are sent to the static host. After agent-side initialization, the owner can select **Refresh bots**. Separately verify whether the service/route survive your setup session ending and document restart durability as described above.
 
 Report independent statuses for **infrastructure checks**, **native Bot Mode readiness**, **owner browser pairing/roster**, **live stream**, and **restart durability**. For example: HTTP checks passed; one initialized managed bot; owner pairing pending; authenticated HTTPS stream not yet tested; temporary background processes, not restart-safe. This is a useful handoff, not proof of a completed owner browser test.
 
 Do not spend model tokens, send test messages, execute tools or run routines without the owner's permission. Pairing and read-only roster verification suffice for installation. If you cannot operate the owner's browser, say which checks you completed and have them perform steps 4–6; do not invent a pass. They can disconnect to revoke that tab's grant, or run `hermes bot-web revoke` locally to revoke all current browser grants. Refresh starts a new memory-only session.
+
+Close diagnostic connections with authenticated DELETE `/v1/connect` for that probe's own lease, in a `finally` block, and close its stream/reader. **Never use `hermes bot-web revoke` as diagnostic cleanup**: it invalidates every browser grant and lease, not just the current origin or probe. Follow [probe cleanup and stream troubleshooting](https://github.com/enterkey-io/hermes-workspace/blob/main/docs/BOT_MODE_SETUP.md). Report accidental revocation honestly and arrange fresh owner pairing.
 
 ## Return this to the owner
 

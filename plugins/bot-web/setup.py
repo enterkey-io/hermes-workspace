@@ -98,4 +98,4 @@ def control(action, code=None, app_origin=None):
             json.loads(response.read(65536))
     except Exception as error:
         raise ValueError("Cannot complete browser access control. Check that the bridge is running and the code and application origin are current.") from error
-    print(f"Browser approved for {origin}. The owner can return to the web app." if action == "approve" else "Browser access revoked.")
+    print(f"Browser approved for {origin}. The owner can return to the web app." if action == "approve" else "All browser access revoked; every browser must pair again.")

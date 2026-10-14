@@ -10,6 +10,8 @@ npm run check
 python -m unittest discover -s test/plugin -p 'test_*.py'
 ```
 
+The Python stream regression sends a continuous sequence of native events belonging to another session through the actual ASGI handler. It requires scheduled heartbeat frames without leaking those events, checks idle streams and verifies that closing an operator probe leaves the owner's grant intact. A closed lease must not receive an event that was pending while it was closed. The browser empty-roster case additionally stays idle beyond the client's 35-second deadline before refreshing the roster.
+
 Use a separate Python 3.12 environment with `test/plugin/requirements.txt` for the Python boundary tests, or the isolated Hermes environment below. CI runs these Node/Python checks with read-only repository permissions. Prior published preview checks passed remotely; each change still needs its own validation.
 
 ## Isolated real Hermes environment
@@ -98,7 +100,7 @@ Run the extracted web package’s `serve-static.mjs` from a working directory ou
 To repeat the installation smoke against an explicit public GitHub release instead of the local mirror, use:
 
 ```sh
-/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.2-preview.1
+/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.3-preview.1
 ```
 
 It uses the same isolated home and zero-model-turn checks. The URL selects immutable-version-named assets; it never reads the owner’s Hermes installation.
