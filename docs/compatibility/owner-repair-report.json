@@ -1,0 +1,27 @@
+{
+  "recorded_date": "2026-10-14",
+  "source": "User-forwarded repair completion report from the owner's Hermes agent",
+  "independently_verified_on_owner_host_by_development_agent": false,
+  "reported_results": {
+    "installed_and_serving_bridge_version": "0.2.3",
+    "archive_manifest_and_checksum_verification": "pass",
+    "previous_plugin_code_backed_up_privately": true,
+    "private_configuration_and_native_stores_preserved": true,
+    "configured_port_origins_tunnel_and_routes_preserved": true,
+    "managed_bot_count": 1,
+    "initialized_bot_chat_count": 1,
+    "native_setup": "Managed profile and canonical Bot Chat created through native operations",
+    "existing_model_settings_inherited": true,
+    "model_prompts_sent_during_setup": 0,
+    "loopback_stream": "Immediate readiness and continuing 15-second heartbeats; no reported drop",
+    "actual_https_route_stream": "Immediate readiness and continuing 15-second heartbeats; no reported drop",
+    "probe_cleanup": "Each probe deleted only its own lease; no global revocation"
+  },
+  "remaining": {
+    "owner_browser_pairing": "Pending fresh pairing after bridge restart",
+    "owner_browser_roster_and_native_chat": "Not yet reported",
+    "permanent_restart_recovery": "Not configured; bridge and tunnel remain background processes",
+    "single_agent_launch_installation_acceptance": "Not passed by this repaired preview"
+  },
+  "privacy": "Owner endpoints, home paths, bot/profile names, model/provider identifiers, credentials, SSH identities, backup paths and conversation content omitted"
+}
