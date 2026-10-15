@@ -1,8 +1,8 @@
 # Installed-owner implementation status
 
-This file tracks the current development implementation separately from the last
-published 0.2.4 preview. It is not a production certification or a claim that an
-owner's remote Hermes has been upgraded.
+This file tracks the published 0.3.0 development preview. It is not a production
+certification or a claim that an owner's remote Hermes has been upgraded. Existing
+0.2.4 installations require the app/login and integration upgrade.
 
 Implemented and exercised locally:
 

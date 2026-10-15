@@ -192,3 +192,12 @@ entry, which started React against a missing root. A direct shared photo import
 restores an isolated 22 KB avatar script graph with no owner-auth API or app CSS.
 All six avatar browser cases pass again; the isolation assertion now checks those
 boundaries explicitly. The candidate tag/assets are not published before CI passes.
+
+Preview v0.3.0-preview.1 was published from 228dd7de12e06babdb90c02f540efd2f65c81b2e
+after independent CI run 38775113353 passed. Public owner/plugin/source downloads
+were fetched again and checked against the manifest and SHA256SUMS. Generic
+archives contain no private endpoints or owner state. On the developer app host,
+the unclaimed owner service is staged under supervision and retains its issuer
+through restart; the current static tailnet root is preserved pending the remote
+Hermes integration upgrade. No owner login was claimed and no remote agent,
+conversation or model execution was changed.
