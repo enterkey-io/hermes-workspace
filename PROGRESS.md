@@ -185,3 +185,10 @@ standing grants, durable task dependencies/results, broader partial-operation re
 native activation/credential rollback and independently installed update/supervision
 acceptance remain explicitly open in docs/IMPLEMENTATION_STATUS.md. No production
 launch gate is promoted merely from these fixture results.
+
+The first independent CI run caught a multi-entry bundling regression after photo
+integration: the avatar page imported a generated namespace helper from the app
+entry, which started React against a missing root. A direct shared photo import
+restores an isolated 22 KB avatar script graph with no owner-auth API or app CSS.
+All six avatar browser cases pass again; the isolation assertion now checks those
+boundaries explicitly. The candidate tag/assets are not published before CI passes.

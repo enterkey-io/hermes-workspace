@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AvatarView, AvatarScheduler } from './avatar-lab/renderer';
 import { COLORS, SHAPES } from './avatar-lab/engine';
+import { previewPhoto } from './avatar-lab/photo';
 import type { Activity } from './avatar-lab/engine';
 import type { Appearance } from './workspace';
 import type { BotBridgeClient } from '@hermes-client/protocol';
@@ -211,7 +212,6 @@ export function AvatarChooser({
               onBusyChange?.(true);
               setError('');
               try {
-                const { previewPhoto } = await import('./avatar-lab/photo');
                 const result = await previewPhoto(file);
                 if (generation.current === ticket) {
                   onPhoto(result);

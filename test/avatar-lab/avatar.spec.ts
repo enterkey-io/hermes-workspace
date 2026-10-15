@@ -8,11 +8,14 @@ test('appearance and activity controls work without contacting Hermes or externa
   const unexpected: string[] = [];
   const errors: string[] = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== 'http://127.0.0.1:8092') unexpected.push(request.url());
+    const url = new URL(request.url());
+    if (url.origin !== 'http://127.0.0.1:8092' || url.pathname.startsWith('/api/'))
+      unexpected.push(request.url());
   });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/avatar-lab.html');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('A little character.');
+  await expect(page.locator('link[href*="workspace-"]')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/avatar-lab-desktop.png' });
   await page.getByRole('button', { name: 'Petal', exact: true }).click();
   await page.getByRole('button', { name: 'Lagoon', exact: true }).click();
