@@ -266,3 +266,17 @@ tests in each supported runtime, native owner-browser onboarding/account/avatar/
 mobile flow and 33 installed-package checks on af0cd4df, including native chat,
 crash recovery, update/rollback and failed activation recovery. Evidence is
 docs/compatibility/patch-0.4.2-local.json. No owner's running Hermes was upgraded.
+
+## Interface review and tracked owner reports
+
+Astra high-effort review compared the supplied reference and current rendered
+app, inspected frontend/bridge state contracts and af0 native source, and
+produced docs/PEBBLE_CREW_UI_PLAN.md. The plan covers visual hierarchy, native
+message metadata, scoped state/component extraction, responsive layouts, roster
+freshness and real native deletion with separate acceptance gates.
+
+Owner bug reports are tracked in docs/BUGS_AND_IMPROVEMENTS.md. The stale sidebar,
+real deletion and reversible hide/unhide are open work; this planning pass did
+not implement them. No private screenshot transcript/contact data was uploaded
+or added to public documentation. The 0.4.2 branding/onboarding preview is
+published separately, with its downloaded package verified after publication.

@@ -52,6 +52,11 @@ independently validated/re-encoded before native Hermes asset storage. The isola
 `/avatar-lab.html` remains available for motion/performance experiments without any
 Hermes or model requests. See the [avatar plan](docs/AVATAR_SYSTEM_PLAN.md).
 
+## Interface work and owner reports
+
+The [interface implementation plan](docs/PEBBLE_CREW_UI_PLAN.md) records the
+Astra review and the next UI/data milestones. The [bug and improvement list](docs/BUGS_AND_IMPROVEMENTS.md) tracks owner reports, acceptance criteria and release status.
+
 ## Development
 
 Use Node 26 and npm 11.12.1:
