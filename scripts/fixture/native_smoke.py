@@ -34,6 +34,8 @@ class Model(BaseHTTPRequestHandler):
     slow_started = threading.Event()
     turns = 0
     tools_seen = set()
+    audit_requests = False
+    request_audit = []
 
     def log_message(self, *args):
         pass
@@ -53,7 +55,12 @@ class Model(BaseHTTPRequestHandler):
 
     def do_POST(self):
         data = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        Model.turns += 1
+        if Model.audit_requests:
+            Model.request_audit.append({'path': self.path,
+                'message_count': len(data.get('messages', []))})
+        # Native model capability probes may POST /show or token metadata. They
+        # are not inference requests and must not be counted as replayed turns.
+        Model.turns += int(self.path.endswith('/chat/completions'))
         if any(t.get("function", {}).get("name") == "message_agent" for t in data.get("tools", [])):
             Model.saw_native_tool = True
         text = "Native fixture reply"
@@ -245,6 +252,7 @@ def main():
     parser.add_argument("--cert")
     parser.add_argument("--key")
     parser.add_argument("--origin", default="https://127.0.0.1:5443")
+    parser.add_argument("--public-host", help="Exact Host for a disposable reverse-proxy fixture")
     args = parser.parse_args()
     root = Path(args.project)
     with tempfile.TemporaryDirectory(prefix="bot-web-native-") as directory:
@@ -275,6 +283,7 @@ def main():
                     patch('bot_web.native.asyncio.create_subprocess_exec', diagnostic_spawn).start()
                 from bot_web.trust import OwnerTrust
                 trust = OwnerTrust(json.loads(Path(args.owner_trust).read_text())) if args.owner_trust else None
+                hosts = {args.public_host or f"127.0.0.1:{args.port}"}
                 if args.short_leases:
                     import bot_web.server as bridge_module
                     bridge_module.HEARTBEAT_SECONDS = 0.2
@@ -285,7 +294,7 @@ def main():
                     from bot_web.workspace import WorkspaceService, WorkspaceStore, workspace_path
                     gateway = NativeGateway()
                     workspace = WorkspaceService(BotOperations(gateway), WorkspaceStore(workspace_path()))
-                    app = create_app("f" * 43, {args.origin}, {f"127.0.0.1:{args.port}"}, gateway=gateway, trust=trust, workspace=workspace)
+                    app = create_app("f" * 43, {args.origin}, hosts, gateway=gateway, trust=trust, workspace=workspace)
                     if args.short_leases:
                         # Test-only control; the bridge boundary still requires operator auth.
                         @app.post('/fixture/restart-native')
@@ -294,7 +303,7 @@ def main():
                             await gateway.start()
                             return {'restarted': True}
                 else:
-                    app = create_app("f" * 43, {args.origin}, {f"127.0.0.1:{args.port}"}, workspace=False)
+                    app = create_app("f" * 43, {args.origin}, hosts, workspace=False)
                 uvicorn.run(app, host="127.0.0.1", port=args.port, ssl_certfile=args.cert, ssl_keyfile=args.key,
                     access_log=False, proxy_headers=False, log_level="warning")
             else:

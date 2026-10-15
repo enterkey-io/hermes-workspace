@@ -201,3 +201,26 @@ the unclaimed owner service is staged under supervision and retains its issuer
 through restart; the current static tailnet root is preserved pending the remote
 Hermes integration upgrade. No owner login was claimed and no remote agent,
 conversation or model execution was changed.
+
+## Combined installable plugin candidate 0.4.0
+
+Owner authorized the combined-plugin direction after feasibility research. The
+package now includes prebuilt web assets, Better Auth/SQLite owner login, a narrow
+same-origin streaming proxy, the native integration, immutable owner-local release
+snapshots and a stable supervised launcher. Login keys survive code updates and
+rollback. An interrupted initial owner-state commit resumes without rotating keys.
+A private setup-link fragment replaces address/code entry in normal first use.
+
+Local archive/real-CLI/browser acceptance passes on both pinned Hermes builds:
+33 checks each, zero managed bots initially, original primary SOUL preserved,
+service/native/manager crash recovery with drafts, code update/rollback and a
+failed activation which restores the prior release. One actual synthetic model
+inference occurs per build; /api/show capability probes are not replayed turns.
+Node checks: 68. Python checks: 54. Full staged build/type/lint/format checks pass.
+
+Evidence is docs/compatibility/installed-plugin-local.json. These are local
+fixtures, not production or owner-pod certification. Systemd/launchd/container
+startup, the real ingress and existing owner migration remain the installation
+agent's next pilot. Unsupported data migrations remain blocked. The running
+Mac static preview, staged old owner service, remote Hermes and tailnet routes
+were not changed during this implementation.

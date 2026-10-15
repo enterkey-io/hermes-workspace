@@ -1,22 +1,22 @@
 # Private Hermes workspace — name undecided
 
-A self-hosted web interface to **actual Hermes Bot Mode**, with Hermes remaining on
-its own host. The installed app runs in the owner's Node/SQLite or Cloudflare
-Worker/D1 environment. The browser connects directly to the owner's Hermes bridge.
-There is no vendor content service, relay, account or credential vault.
+A self-hosted interface to **actual Hermes Bot Mode**, distributed as one
+installable plugin. It includes the web app, local administrator login and native
+integration, served through one owner-controlled address. All state stays on the
+owner's infrastructure; no vendor account, content store or relay is required.
 
-The installed-owner development candidate is **0.3.0-preview.1** (integration
-0.3.0). See [implementation status](docs/IMPLEMENTATION_STATUS.md) for implemented
-features and remaining certification work. A candidate tag in source is not proof
-that a release was published or an owner's remote integration was upgraded.
+The combined-plugin candidate is **0.4.0-preview.1** (integration 0.4.0). This is a
+development preview, not production certification. A version in source does not
+mean its release is published or an owner's host was upgraded. See
+[implementation status](docs/IMPLEMENTATION_STATUS.md).
 
 ## Installation and first use
 
-Give one installation agent the [agent guide](docs/AGENT_INSTALL.md). They deploy
-the web app where the owner chooses, install the separate Hermes integration,
-enroll persistent verification-key trust, configure routing/supervision and verify
-the actual HTTPS chain. They return the app URL and one-use setup proof privately.
-No Olares-specific packaging or app/Hermes colocation is required.
+Give your Hermes agent the [installation guide](docs/AGENT_INSTALL.md). They install
+the combined package on your existing Hermes host, configure persistent startup
+and an HTTPS route, verify it, and give you one private setup link. There is no
+address entry, pairing code or second-agent handoff. Olares is simply one possible
+Hermes host. Independent web hosting remains an optional advanced deployment.
 
 First opening creates the owner administrator login. Onboarding detects the
 primary existing Hermes profile, offers an editable public @ handle and an
@@ -27,7 +27,7 @@ placeholder, clone SOUL or merge other channels' histories.
 Refreshes, idle time, service restarts and new devices use owner login and automatic
 reconnection. Browser tickets are short-lived; signing out prevents new tickets,
 and existing tickets expire within five minutes. Owner authentication/configuration
-is stored on the owner's app host; transcripts, agent memory and service credentials
+is stored on the owner's host; transcripts, agent memory and service credentials
 stay on Hermes. A public-to-private topology still requires browser reachability,
 valid TLS and any local-network permission.
 
@@ -66,12 +66,12 @@ npm run dev
 can build the owner service alone. `npm run typecheck:worker` checks the separately
 generated Workers environment types. `npm run serve` is the **legacy static
 technical preview**, which retains temporary pairing and does not provide owner
-login. Use the owner-service commands in the guide for an installed application.
+login. Use the combined-plugin installation guide for an installed application.
 
-`npm run package` creates separate owner-app, static-preview, integration and source
-archives plus manifest/checksums in ignored `artifacts/packages`. Runtime secrets,
-private state, temporary fixtures and development artifacts are excluded. Install
-Node runtime dependencies from the pinned lock in the owner package. Full source
+`npm run package` creates a combined plugin plus optional independent owner-app,
+static-preview, API-only integration and source archives plus manifest/checksums in ignored `artifacts/packages`. Runtime secrets,
+private state, temporary fixtures and development artifacts are excluded. The plugin installer installs
+Node runtime dependencies from its pinned lock. Full source
 includes the Cloudflare adapter and migrations.
 
 Tests include TypeScript/auth unit checks, Python boundary/workspace tests, a local
@@ -84,8 +84,8 @@ creation, public-handle DMs, MCP discovery and native OAuth/PKCE. These use disp
 homes and no personal provider credentials; they are not claims about a user's
 actual model or every cloud/VPN topology.
 
-The compatibility gate remains closed for full production launch until independent
-hosting, real topology, one-agent installation, supervision, update/rollback and the
+The compatibility gate remains closed for full production launch until installed
+real topology, one-agent installation, supervision, update/rollback and the
 remaining plan exit gates are evidenced. Supported source surfaces are pinned;
 package version labels alone cannot authorize an untested adapter. No core Hermes
 handler is patched or replaced.

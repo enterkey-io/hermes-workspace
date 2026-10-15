@@ -1,3 +1,5 @@
 # Install into the Hermes interpreter, not a second gateway environment.
 PyJWT[crypto]==2.13.0
 Pillow==12.3.0
+fastapi==0.133.1
+uvicorn==0.41.0

@@ -1,5 +1,7 @@
 # Hermes plugin and messaging-channel assessment
 
+October 15 update: the default plugin now bundles the web UI and local owner login, with one public origin and an internal API-only Python component. See ARCHITECTURE.md for current deployment. The channel distinction below still applies; combined hosting does not substitute generic chat for native Bot Mode.
+
 The web app needs a Hermes-side interface that exposes actual Bot Mode with suitable browser authentication. The current tested stock Hermes build does not expose the complete external-web-client contract, so this preview requires the published `bot-web` integration plugin. It uses supported plugin discovery/CLI registration without changing Hermes core.
 
 ## What Hermes calls a channel/platform
@@ -8,13 +10,13 @@ Hermes's [pinned platform-adapter guide](https://raw.githubusercontent.com/NousR
 
 ## What the current plugin actually implements
 
-`bot-web` registers a CLI command and runs an API-only HTTPS-ingress service with strict Host/app-origin allowlists and proof-bound owner approval. Its persistent native stdio child invokes Hermes's real `tui_gateway` handlers, the same native Bot Mode surface used by interactive clients. It resumes existing canonical Bot Chats normally, activates native tool/teammate behavior and the native room service, and exposes narrowly allowlisted methods/events to approved clients.
+`bot-web` registers installation/management CLI commands and runs the native API behind strict Host/Origin and owner-ticket checks. Combined mode supplies the UI and login through its own local web listener; independent clients can still use the API separately. Its persistent native stdio child invokes Hermes's real `tui_gateway` handlers, the same native Bot Mode surface used by interactive clients. It resumes existing canonical Bot Chats normally, activates native tool/teammate behavior and the native room service, and exposes narrowly allowlisted methods/events to approved clients.
 
 It does **not** register a new `BasePlatformAdapter` or show up as a messaging channel in `hermes gateway setup`. Interactive native Bot Mode access does not require routing these operations through a new generic inbound-message channel. Moving it blindly to `handle_message` would need proof of canonical-session, bot-profile, native room and approval semantics; a channel that merely starts a separate generic chat would not satisfy the product requirement.
 
 The native fixtures test real canonical continuity, teammate injection/delivery, room-driver output and controls, not a browser-run agent simulator. Browser tests now exercise the API from an independently hosted origin. This is a working preview contract, not evidence that every Hermes messaging-channel feature is implemented.
 
-Existing ordinary profiles can now be discovered through `agents.list` and selected in the web app. `agent.enable` registers those same existing profiles and initializes/reuses their native Bot Chats; it does not create another agent or transfer SOUL. Bot Mode identity stays with the selected profile's existing SOUL, memory, skills and settings. The Desktop managed marker is a discovery/registration detail, not evidence that an unmarked profile lacks an agent identity. New-profile creation is a separate operation and is not exposed by this enrollment API.
+Existing ordinary profiles can now be discovered through `agents.list` and selected in the web app. `agent.enable` registers those same existing profiles and initializes/reuses their native Bot Chats; it does not create another agent or transfer SOUL. Bot Mode identity stays with the selected profile's existing SOUL, memory, skills and settings. The Desktop managed marker is a discovery/registration detail, not evidence that an unmarked profile lacks an agent identity. New-profile creation is a separate reviewed `agent.create` management proposal; enrollment itself never clones an identity.
 
 ## Channel follow-up plan
 

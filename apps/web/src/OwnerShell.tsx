@@ -32,14 +32,15 @@ export async function ownerRequest(path: string, body?: unknown) {
     );
   return value;
 }
-export function OwnerShell() {
+export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
   const [mode, setMode] = useState<
     'loading' | 'preview' | 'setup' | 'login' | 'ready' | 'unavailable'
   >('loading');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
-  const [proof, setProof] = useState('');
+  const [proof, setProof] = useState(setupProof);
+  const [usingSetupLink, setUsingSetupLink] = useState(Boolean(setupProof));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function check() {
@@ -83,6 +84,7 @@ export function OwnerShell() {
       setConfirmation('');
       setMode('ready');
     } catch (e) {
+      if (mode === 'setup') setUsingSetupLink(false);
       setError(e instanceof Error ? e.message : 'Could not sign in.');
     } finally {
       setBusy(false);
@@ -139,11 +141,13 @@ export function OwnerShell() {
           <>
             <p>
               {mode === 'setup'
-                ? 'Create the administrator login for this installation. Your installer supplied a private setup code to confirm that this workspace belongs to you.'
+                ? usingSetupLink
+                  ? 'Create your administrator login. Your private setup link connects this workspace to your Hermes.'
+                  : 'Create the administrator login for this installation. Open the private setup link from your installer, or enter its setup code below.'
                 : 'Sign in to pick up where you left off. Your Hermes reconnects automatically.'}
             </p>
             <form onSubmit={(e) => void submit(e)}>
-              {mode === 'setup' && (
+              {mode === 'setup' && !usingSetupLink && (
                 <label>
                   Private setup code
                   <input

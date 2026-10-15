@@ -1,24 +1,69 @@
-"""Optional user-hosted Hermes extension; registration has no network side effects."""
+"""Installable owner-hosted workspace; registration has no network side effects."""
 
 
 def register(ctx):
     def setup(parser):
-        parser.add_argument("action", choices=["doctor", "serve", "setup", "approve", "revoke", "enroll", "primary", "sync-runtime", "probe"],
+        parser.add_argument("action", choices=["doctor", "serve", "setup", "approve", "revoke", "enroll", "primary", "sync-runtime", "probe", "install", "run", "service", "status", "verify", "setup-link", "update", "rollback"],
             help="revoke invalidates ALL browser access; it is not diagnostic connection cleanup")
         parser.add_argument("code", nargs="?")
         parser.add_argument("--trust-file")
         parser.add_argument("--bridge-url")
         parser.add_argument("--app-origin", action="append")
         parser.add_argument("--port", type=int, default=8788)
+        parser.add_argument("--origin")
+        parser.add_argument("--web-port", type=int)
+        parser.add_argument("--bridge-port", type=int)
+        parser.add_argument("--node")
+        parser.add_argument("--supervisor", choices=["external", "systemd-user", "launchd"], default="external")
+        parser.add_argument("--public", action="store_true", help="Verify the real HTTPS route")
+        parser.add_argument("--ca-file", help="Additional trusted CA for an operator-controlled private HTTPS route")
+        parser.add_argument("--renew-setup", action="store_true", help="Replace only an unclaimed initial setup proof")
 
     def run(args):
+        if args.action in {"install", "run", "service", "status", "verify", "setup-link", "update", "rollback"}:
+            import asyncio
+            import json
+            from . import host_install, host_service
+            directory = host_install.state_dir()
+            if args.action in {"install", "update"}:
+                origin = args.origin or (host_install.load_install(directory)["origin"] if args.action == "update" else None)
+                if not origin:
+                    raise ValueError("Installation requires the owner's chosen public HTTPS origin")
+                result = host_install.install(origin, node=args.node, web_port=args.web_port,
+                    bridge_port=args.bridge_port, supervisor=args.supervisor, update=args.action == "update")
+                host_service.supervisor_files(directory)
+                if args.action == "update":
+                    try:
+                        result.update(host_service.wait_ready(directory))
+                    except Exception:
+                        if result["changed"]:
+                            host_install.rollback(directory)
+                            host_service.wait_ready(directory)
+                        raise ValueError("Update activation failed; the previous release was restored") from None
+            elif args.action == "run":
+                asyncio.run(host_service.manager(directory))
+                return
+            elif args.action == "service":
+                result = host_service.enable_supervisor(directory)
+            elif args.action in {"status", "verify"}:
+                result = host_service.status(directory, public=args.public, stream=args.action == "verify", ca_file=args.ca_file)
+            elif args.action == "setup-link":
+                result = host_install.setup_link(directory, renew=args.renew_setup)
+            else:
+                result = host_install.rollback(directory)
+                result.update(host_service.wait_ready(directory))
+            print(json.dumps(result, indent=2))
+            if result.get("ready") is False:
+                raise SystemExit(2)
+            return
         if args.action == "doctor":
             import json
             from .compatibility import inspect_native_adapter
             report = inspect_native_adapter()
             from .setup import config_path
             from .trust import trust_path
-            report.update(bridge_version="0.3.0", connection_configured=config_path().is_file(), owner_issuer_enrolled=trust_path().is_file())
+            from .version import VERSION
+            report.update(bridge_version=VERSION, connection_configured=config_path().is_file(), owner_issuer_enrolled=trust_path().is_file())
             print(json.dumps(report, indent=2))
             if not report["supported"]:
                 raise SystemExit(2)
@@ -57,4 +102,4 @@ def register(ctx):
     from .runtime import register_runtime
     register_runtime(ctx)
 
-    ctx.register_cli_command("bot-web", "Connect independent apps to native Hermes Bot Mode", setup, run)
+    ctx.register_cli_command("bot-web", "Install and manage your private Hermes web workspace", setup, run)

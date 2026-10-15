@@ -20,6 +20,7 @@ export type EvidenceLevel =
 export interface CompatibilityEvidence {
   readonly revision: string;
   readonly topology: 'hosted-separate-origin' | 'self-hosted-same-origin' | 'localhost-development';
+  readonly transport?: 'trusted-owner-https' | 'development-test-certificate';
   readonly gates: Readonly<Partial<Record<EvidenceGate, EvidenceLevel>>>;
 }
 
@@ -30,7 +31,9 @@ export function assessBotMode(evidence: CompatibilityEvidence): {
   const missing = requiredBotModeEvidence.filter((gate) => {
     const value = evidence.gates[gate];
     return gate === 'hosted-origin-auth'
-      ? evidence.topology !== 'hosted-separate-origin' || value !== 'browser-pass'
+      ? evidence.topology === 'localhost-development' ||
+          evidence.transport !== 'trusted-owner-https' ||
+          value !== 'browser-pass'
       : value !== 'real-runtime-pass' && value !== 'browser-pass';
   });
   return { certified: missing.length === 0, missing };

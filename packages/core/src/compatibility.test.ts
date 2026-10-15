@@ -6,6 +6,7 @@ function report(level: EvidenceLevel): CompatibilityEvidence {
   return {
     revision: 'fixture',
     topology: 'hosted-separate-origin',
+    transport: 'trusted-owner-https',
     gates: Object.fromEntries(requiredBotModeEvidence.map((key) => [key, level])),
   };
 }
@@ -29,12 +30,29 @@ describe('genuine Bot Mode acceptance', () => {
     ).toBe(true);
   });
 
-  it('does not mistake localhost or self-hosted authentication for hosted access', () => {
+  it('requires trusted transport for either hosting mode and never certifies localhost', () => {
     expect(
-      assessBotMode({ ...report('browser-pass'), topology: 'self-hosted-same-origin' }).certified,
+      assessBotMode({
+        ...report('browser-pass'),
+        topology: 'self-hosted-same-origin',
+        transport: 'development-test-certificate',
+      }).certified,
     ).toBe(false);
     expect(
       assessBotMode({ ...report('browser-pass'), topology: 'localhost-development' }).certified,
+    ).toBe(false);
+  });
+
+  it('can certify a real owner-hosted plugin only when all native and trusted route gates pass', () => {
+    expect(
+      assessBotMode({ ...report('browser-pass'), topology: 'self-hosted-same-origin' }).certified,
+    ).toBe(true);
+    expect(
+      assessBotMode({
+        revision: 'fixture',
+        topology: 'self-hosted-same-origin',
+        gates: report('browser-pass').gates,
+      }).certified,
     ).toBe(false);
   });
 

@@ -1,17 +1,36 @@
 # Installed-owner implementation status
 
-This file tracks the published 0.3.0 development preview. It is not a production
-certification or a claim that an owner's remote Hermes has been upgraded. Existing
-0.2.4 installations require the app/login and integration upgrade.
+This file tracks the 0.4.0 combined-plugin candidate and the earlier published
+0.3.0 owner-login preview. It is not production certification or a claim that an
+owner's remote Hermes has been upgraded. The default distribution is now one
+installable plugin; independent app hosting remains optional.
 
 Implemented and exercised locally:
+
+- Combined installable archive containing prebuilt web UI, Node/SQLite login and
+  the native Python integration. Positive checksum inventory, locked production
+  dependencies with lifecycle scripts disabled, immutable release snapshots and
+  persistent owner keys outside replaceable code.
+- One public origin with a narrow, bounded loopback proxy; browser login cookies
+  are not forwarded to Hermes. A private first-use link removes its fragment
+  immediately and opens admin setup without code/address entry or pairing.
+- Foreground supervision with child/native recovery, stable launcher, generated
+  systemd-user/launchd/container definitions, code-only update activation and
+  readiness rollback. Unsupported data migrations are refused. Actual deployment
+  supervision, Linux boot and container replacement still need owner-host proof.
+- Real archive/CLI/browser acceptance from ordinary profiles with zero managed
+  bots, plus native Bot Mode replies, independent service/native/manager crashes,
+  draft/login/history preservation, installed updates, rollback and deliberate
+  bad-release activation. Disposable local fixtures do not certify remote routes.
 
 - Maintained Better Auth username/password login; one administrator, one-use
   installation proof, atomic bootstrap, no public signup/reset, database sessions
   and rate limits, secure HttpOnly/SameSite cookies, no auth telemetry.
 - Equivalent Node/SQLite and Cloudflare Worker/D1 owner services. App configuration,
-  login and signing keys belong to the owner's app host. Chat never passes through
-  that service. No vendor account, content database or relay.
+  login and signing keys belong to the owner's host. In combined mode the web
+  listener forwards streams to its fixed loopback integration without storing
+  transcripts. Independent hosting retains direct browser-to-Hermes transport.
+  No vendor account, content database or relay.
 - Operator-enrolled Ed25519 public-key trust on Hermes, five-minute browser tickets,
   authenticated lease renewal and independent stream expiry. Ordinary login can
   obtain new tickets after restart; pairing is disabled for an enrolled issuer.
@@ -36,7 +55,8 @@ Implemented and exercised locally:
   do not claim runtime readiness merely from configuration.
 - Shared low-cost avatar renderer in onboarding, Settings and roster; white palette,
   local photo preparation, independent server raster decoding/re-encoding and native
-  profile asset storage. Photos never go to the owner-login service or vendor.
+  profile asset storage. The combined listener forwards photo uploads without
+  storing them; photos are never sent to a vendor service.
 
 Still required before the full plan is complete:
 
@@ -49,7 +69,8 @@ Still required before the full plan is complete:
   the broader public-handle restart matrix and active-job behavior. Native DM
   and local room handoffs with changed handles pass on both supported builds.
 - Complete installation/migration/update/supervision acceptance on independently
-  hosted owner infrastructure. The developer's old static preview is not evidence
+  installed owner infrastructure, including Linux boot, real container replacement,
+  trusted HTTPS ingress and migration from the old API-only preview. The developer's old static preview is not evidence
   of a finished owner installation.
 
 The earlier plans remain the requirements. Implemented subsets above do not waive
@@ -65,3 +86,8 @@ The owner package installs and starts separately from the development checkout.
 These results are development evidence, not an installed-owner launch pass.
 
 Machine-readable local evidence: [owner-instance-local.json](compatibility/owner-instance-local.json).
+
+Combined package evidence: [installed-plugin-local.json](compatibility/installed-plugin-local.json).
+Both supported source builds pass 33 local installation/browser checks each,
+including an interrupted first installation. Each runs one synthetic inference;
+metadata probes are separate. The tested combined archive is identified by SHA-256.

@@ -1,6 +1,11 @@
 name: bot-web
-version: 0.3.0
-description: API-only native Bot Mode integration for independently hosted clients.
+version: 0.4.0
+description: Self-hosted private web workspace using native Hermes Bot Mode.
+python_dependencies:
+  - PyJWT[crypto]==2.13.0
+  - Pillow==12.3.0
+  - fastapi==0.133.1
+  - uvicorn==0.41.0
 provides_tools:
   - workspace_agents
 provides_hooks:

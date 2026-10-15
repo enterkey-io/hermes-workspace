@@ -17,6 +17,7 @@ from .native import NativeError, NativeGateway
 from .operations import BotOperations, InvalidOperation
 from .compatibility import check_native_adapter
 from .pairing import BrowserPairing
+from .version import VERSION
 
 MAX_BODY = 65536
 LEASE_SECONDS = 1800
@@ -169,6 +170,8 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
 
     @app.post("/v1/connect")
     async def connect(request: Request):
+        if getattr(native, "healthy", True) is False:
+            return JSONResponse({"error": "Hermes is restarting. Reconnecting automatically."}, 503)
         for key in list(clients):
             idle = clients[key]
             expired = time.monotonic() - idle["touched"] > LEASE_SECONDS
@@ -182,7 +185,7 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                                "inflight": 0, "sessions": set(), "principal": request.scope["bot.principal"],
                                "expires": request.scope.get("bot.ticket_expires"), "ended": None}
         build = getattr(native, "build", None) or {}
-        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": "0.3.0",
+        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": VERSION,
                 "capabilities": {"existing_agents": True, "owner_login": owner_trust is not None, "workspace": bool(workspace)},
                 "hermes_version": build.get("version"), "hermes_revision": build.get("revision")}
 

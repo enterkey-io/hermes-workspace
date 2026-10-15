@@ -1,60 +1,153 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Agent installation guide · Hermes workspace preview</title><link rel="stylesheet" href="/install.css"></head><body><header><a href="/">← Workspace preview</a><span>Product name undecided</span></header><main><section class="owner-note"><p class="eyebrow">FOR THE OWNER</p><h1>Give this page to your Hermes agent.</h1><p>Your installation agent sets up this private web app on the host you choose and connects your separate Hermes. They give you the web address and a private one-use setup code. Open the app to create your administrator login, then bring in your primary agent.</p><p>You can also host your own copy on Cloudflare, DigitalOcean or another web host. Only the integration plugin needs to run on the Hermes host. Your conversations and service credentials remain there.</p><a href="/install.md">Read or copy the plain-text instructions ↗</a></section><nav aria-label="Installer downloads"><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-manifest.json">Package manifest</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-owner-preview.zip">Web app files</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-plugin-preview.zip">Hermes integration plugin</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-source-preview.zip">Source code</a></nav><article><h1>Install the owner&#x27;s private Hermes workspace</h1>
-<p>This is for the owner&#x27;s installation agent. <strong>The web app and Hermes are independent installations and may live on different hosts/networks.</strong> Olares, if present, is only a host running Hermes. Never package or deploy an Olares application for this project.</p>
-<p>The product name is undecided. <code>workspace-owner-preview.zip</code> is the web application with its owner-login service; <code>workspace-plugin-preview.zip</code> is its Hermes integration. The plain static web package is a technical preview, not the finished installed-owner deployment.</p>
-<h2>Outcome to deliver</h2>
-<p>One installation agent handles deployment, persistent trust, routing and verification, then privately gives the owner the web URL and one-use setup code. First opening creates the administrator login and guides the owner through their detected primary existing agent&#x27;s handle and animated/photo avatar. Normal visits, new devices, idle periods and service restarts use that login and automatic reconnection. No browser pairing code, pasted Hermes administrator token or second-agent diagnostic relay is part of this flow.</p>
-<p>Keep conversations, SOUL, memory, service credentials and agent configuration on Hermes. The owner&#x27;s app host stores only its own authentication, configuration and signing material. No vendor account, relay or content storage is required. The app server need not reach Hermes: the <strong>owner&#x27;s browser</strong> must reach the app and the independent HTTPS bridge.</p>
-<h2>1. Inventory and choose the two deployment locations</h2>
-<p>Preserve an existing app host unless the owner wants to move it. Ask only for missing access or hosting preference; do not assume the app belongs beside Hermes. With no preference, offer the owner&#x27;s own <a href="https://developers.cloudflare.com/workers/static-assets/" rel="noreferrer">Cloudflare Workers account</a> or a <a href="https://docs.digitalocean.com/products/droplets/getting-started/quickstart/" rel="noreferrer">DigitalOcean Droplet</a> / other Node host. These are ordinary reference links; no affiliate IDs are embedded.</p>
-<p>For the web application choose one:</p>
-<p class="bullet">• Node 26 on a host with persistent private storage, outbound access for software updates, and an HTTPS reverse proxy. It uses one local SQLite file; no separate database service is needed. The application binds loopback. Reserve persistent state outside versioned release directories, with owner-only permissions.</p>
-<p class="bullet">• The owner&#x27;s Cloudflare account with Workers static assets, D1 for owner authentication, and Worker secrets for signing/auth settings. The repository includes the adapter and versioned migration. Plain static Pages/assets alone do not provide owner authentication.</p>
-<p>For Hermes, verify the actual interpreter, native source/build, persistent HERMES_HOME and intended profile. <code>hermes bot-web doctor</code> supports tested native revisions 29112bef… (0.21.0) and af0cd4df… (0.21.7); package metadata 0.0.0 is not itself a rejection. A different untested adapter surface requires maintainer revalidation. Do not downgrade, patch fingerprints or edit Hermes core.</p>
-<p>Inspect existing services/ports before changing anything. An occupied bridge port may belong to an MCP socket. Choose a different free loopback port; never stop another service. Reuse an already configured bridge port, HTTPS URL, origin and tunnel on an update. The app port and Hermes bridge port are separate.</p>
-<p>Before mutations, record versions, existing deployment/supervision, routes, file ownership and backup locations privately. Never include credentials, owner content or private endpoints in Git commits, issue reports, screenshots or public install records.</p>
-<h2>2. Obtain one immutable release</h2>
-<p>The candidate installed-owner release is <code>v0.3.0-preview.1</code>. Use its published artifacts only after that release exists; if absent, report that the candidate has not been published rather than substitute executable code from main.</p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-manifest.json" rel="noreferrer">Manifest</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/SHA256SUMS" rel="noreferrer">SHA256SUMS</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-owner-preview.zip" rel="noreferrer">Owner web application</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-plugin-preview.zip" rel="noreferrer">Hermes integration</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-source-preview.zip" rel="noreferrer">Full source</a></p>
-<p>Verify each downloaded archive against both manifest and checksum file. Before extracting, reject absolute paths, traversal, symlinks and entries escaping the destination. Use private staging directories. Keep app authentication state and Hermes stores outside staging/code directories.</p>
-<p>Routine installations do <strong>not</strong> need a fork. Use immutable upstream releases or a checkout at the published tag. A fork is for intentional code customization and carries responsibility for merging/security updates.</p>
-<h2>3. Install the web application on the chosen app host</h2>
-<p>For Node, extract the owner package into a versioned release directory, run <code>npm ci --omit=dev --ignore-scripts</code> there, and initialize once. Replace the example values with the owner&#x27;s actual canonical origins and persistent state path:</p>
-<pre><code>node apps/owner-node/dist/main.mjs init --origin https://workspace.example.com --bridge https://hermes-bridge.example.com --state /var/lib/workspace-owner
-node apps/owner-node/dist/main.mjs serve --state /var/lib/workspace-owner --port 8081</code></pre>
-<p>Initialization writes private settings, SQLite state, <code>trust.json</code> (public verification material) and <code>setup-code.txt</code> (one-use owner proof). It prints file locations, not secrets. Do not rerun init over an existing installation or rotate its keys during an update. Put HTTPS in front of loopback 8081, preserving the configured Host. The runtime serves both web assets and <code>/api/*</code>; do not route the APIs to an old static server.</p>
-<p>Use a real supervisor and verify automatic restart. <code>deploy/owner.service.example</code> illustrates a Node service; adapt user, Node executable, working directory and state path. macOS launchd, Docker/s6 or Kubernetes supervision are also valid when their persistent-volume and startup behavior are verified. Do not leave an unsupervised terminal/background process as the finished installation.</p>
-<p>For Cloudflare, use the full source release, run <code>npm ci --ignore-scripts</code>, <code>npm run build</code>, and <code>npm run build:owner</code>. Generate private owner settings using the same init command with the intended Cloudflare/custom-domain origin and bridge origin. Run <code>node scripts/provision-worker.mjs PRIVATE_STATE_DIRECTORY</code> to prepare private bootstrap SQL. Create D1 in the owner&#x27;s account and a private Wrangler configuration based on <code>apps/owner-worker/wrangler.jsonc</code>, replacing its placeholder database ID and resolving main/assets/migration paths to the checkout. Apply its D1 migrations, then the bootstrap SQL, to that database. Put the contents of private <code>settings.json</code> into the Worker&#x27;s <code>OWNER_SETTINGS</code> secret; never into public vars or the repository. Deploy the Worker with its assets. The owner setup code stays outside D1 and is delivered privately.</p>
-<p>Check current Wrangler command syntax through its help/docs. Keep <code>nodejs_compat</code>, the configured compatibility date and the <code>/api/*</code> plus <code>/.well-known/hermes-workspace.json</code> Worker-first routes. Generate types after configuration changes. The example disables request observability/metrics; do not enable content/query/credential logging. The adapter has been exercised in local Workerd/D1; certify the owner&#x27;s actual cloud route before handoff.</p>
-<h2>4. Install and enroll the Hermes integration</h2>
-<p>Use the <strong>same Python interpreter/environment Hermes runs</strong>. Install <code>bot-web/requirements.txt</code> there after checking its dependency resolution against that Hermes runtime. Replace only the integration code, with a private rollback backup; connection.json, trust, workspace.sqlite, native profiles, SOUL, skills, history, assets and credentials are separate persistent data and must be preserved.</p>
-<p>Place <code>bot-web</code> in the intended root installation&#x27;s plugins directory and enable it using the native Hermes plugin command. On an initial configuration, use:</p>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Agent installation guide · Hermes workspace preview</title><link rel="stylesheet" href="/install.css"></head><body><header><a href="/">← Workspace preview</a><span>Product name undecided</span></header><main><section class="owner-note"><p class="eyebrow">FOR THE OWNER</p><h1>Give this page to your Hermes agent.</h1><p>Your agent installs the workspace plugin on your Hermes host, sets up reliable startup and a private web address, then gives you one private setup link. Open it to create your administrator login and bring in your existing primary agent.</p><p>The plugin includes the web app. Your conversations, memory, service credentials and login stay on your infrastructure. No pairing conversation is needed.</p><a href="/install.md">Read or copy the plain-text instructions ↗</a></section><nav aria-label="Installer downloads"><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-manifest.json">Package manifest</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-plugin-preview.zip">Complete workspace plugin</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-source-preview.zip">Source code</a></nav><article><h1>Install the private Hermes workspace plugin</h1>
+<p>For the owner&#x27;s Hermes installation agent: install the <strong>combined plugin</strong> on the</p>
+<p>owner&#x27;s Hermes host. It includes the web app, owner login and native Bot Mode</p>
+<p>integration. Finish supervision and HTTPS verification, then give the owner **one</p>
+<p>private setup link**. No address form, pairing conversation, placeholder agent or</p>
+<p>second installation agent belongs in this flow.</p>
+<p>The product name remains undecided. Olares is simply one possible Hermes host;</p>
+<p>there is no Olares app package. No vendor runtime service or account is required.</p>
+<p>Conversations, memory, personality, service credentials, photos, login keys and</p>
+<p>app configuration all stay on the owner&#x27;s infrastructure.</p>
+<h2>1. Inventory before changing anything</h2>
+<p>Identify the actual Hermes interpreter, source revision, persistent root</p>
+<p>HERMES_HOME, service account, primary agent, existing plugin, network route and</p>
+<p>service manager. Do not use an incidental named profile or sticky CLI selection</p>
+<p>as proof of the root installation or primary agent. Preserve profiles, SOUL,</p>
+<p>memory, skills, channels, history, roles and photos. Never create a starter bot.</p>
+<p>This preview supports native revisions <code>29112bef…</code> (0.21.0) and <code>af0cd4df…</code></p>
+<p>(0.21.7) on Linux/macOS. Package metadata 0.0.0 is not itself a rejection. An</p>
+<p>untested native surface needs maintainer revalidation; do not downgrade Hermes,</p>
+<p>edit core files or bypass fingerprints.</p>
+<p>The host needs Node 22.13 or newer (Node 26 recommended), npm, the existing</p>
+<p>Hermes Python environment and persistent owner-only storage. Browser assets are</p>
+<p>prebuilt; no frontend build is needed. Resolve the plugin&#x27;s declared Python</p>
+<p>dependencies through the supported native dependency flow, or check and install</p>
+<p><code>bot-web/requirements.txt</code> in that same Hermes environment. Never replace the</p>
+<p>environment or copy credentials to a separate gateway installation.</p>
+<p>Inspect existing ports. Two distinct free loopback ports are needed: web and</p>
+<p>internal integration. An occupied port can belong to MCP; never stop it. Reuse</p>
+<p>saved ports and origins on updates. Keep old bridge settings and stores intact.</p>
+<p>For an existing 0.2/0.3 API-only preview, plan a brief migration: record and back</p>
+<p>up that integration&#x27;s exact code, owned service and route configuration; avoid</p>
+<p>interrupting active work. Stop only its identified bridge before replacing its</p>
+<p>code and starting the combined native integration. Keep the old web app and all</p>
+<p>unrelated services intact until the new route passes. If migration fails, restore</p>
+<p>the old integration code/service and its preserved settings. Do not run two native</p>
+<p>room drivers against the same home as an installation shortcut. Old temporary</p>
+<p>browser grants are not migrated; the new app creates its owner login once.</p>
+<h2>2. Establish the owner&#x27;s HTTPS route</h2>
+<p>Choose one canonical HTTPS origin on owner-controlled infrastructure. Reuse an</p>
+<p>appropriate reverse proxy, ingress or private tailnet route. Preserve its Host</p>
+<p>header, disable response buffering, and allow streams longer than the 15-second</p>
+<p>heartbeat interval. Only the web listener needs external routing: it forwards</p>
+<p><code>/v1/*</code> internally. Preserve all unrelated routes and keep the integration port</p>
+<p>on loopback. Disable logging of bodies, Authorization headers, cookies, private</p>
+<p>setup links and OAuth query parameters. Tailnet-only access requires the browsing device on the tailnet.</p>
+<p>Do not depend on our machines, domains, accounts or tailnet. In Docker/Kubernetes,</p>
+<p>inspect persistent deployment configuration, state volumes and startup/ingress</p>
+<p>permissions. Installing files inside a running pod does not create a durable</p>
+<p>service or network route. If deployment authority is missing, report that exact</p>
+<p>requirement before promising a URL. A terminal or <code>nohup</code> process is not a finished</p>
+<p>installation.</p>
+<h2>3. Obtain the immutable combined release</h2>
+<p>Candidate: <code>v0.4.0-preview.1</code>. If these assets are not published, stop and report</p>
+<p>that the candidate is unavailable. Do not substitute main or an API-only package.</p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-manifest.json" rel="noreferrer">Manifest</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/SHA256SUMS" rel="noreferrer">SHA256SUMS</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-plugin-preview.zip" rel="noreferrer">Complete plugin</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-source-preview.zip" rel="noreferrer">Source</a></p>
+<p>Verify size and SHA-256 against both manifest and checksum file. Reject absolute</p>
+<p>archive paths, traversal, symlinks and entries escaping private staging. The</p>
+<p>installable directory is <code>bot-web/</code>, including <code>web-runtime/</code>. The repository root</p>
+<p>is development source, not a prebuilt plugin. Owners do not need to fork it.</p>
+<p>Back up existing plugin code privately, then put the complete <code>bot-web/</code> directory</p>
+<p>in the root Hermes home&#x27;s plugins directory and enable it natively. Preserve</p>
+<p><code>$HERMES_HOME/bot-web/</code>: mutable state never comes from package files.</p>
 <pre><code>hermes plugins enable bot-web
-hermes bot-web doctor
-hermes bot-web setup --bridge-url https://hermes-bridge.example.com --app-origin https://workspace.example.com --port FREE_LOOPBACK_PORT</code></pre>
-<p><code>FREE_LOOPBACK_PORT</code> is an installer-chosen verified free port, not something the human must figure out. Skip setup on an existing configured bridge. Read and preserve its private configuration instead.</p>
-<p>Obtain the app&#x27;s public verification document from its validated HTTPS origin at <code>/.well-known/hermes-workspace.json</code>, or privately transfer the app host&#x27;s generated <code>trust.json</code>. Verify that issuer/origin is exactly the owner&#x27;s intended app and that audience/key matches that installation. Enroll it <strong>operator-side on Hermes</strong>:</p>
-<pre><code>hermes bot-web enroll --trust-file /private/staging/trust.json</code></pre>
-<p>Only the public verification key is transferred to Hermes. Never copy the app signing private key or auth secret to the browser or Hermes, and never put the Hermes admin credential into the app server or browser. Pairing endpoints are disabled after owner trust is active. Logout/revocation stops new tickets immediately; existing tickets have a maximum five-minute lifetime, with server-side stream expiry.</p>
-<p>Confirm the primary existing profile from persisted binding or trustworthy installation/channel configuration. For a conventional root installation, the native unique default/root profile is the baseline. A sticky CLI active profile, alphabetical roster order or a service launched under an arbitrary named profile is not proof. If the actual primary is a verified named profile, bind it explicitly before starting onboarding:</p>
+hermes bot-web doctor</code></pre>
+<p>Inspect <code>hermes plugins enable --help</code> first. If this build offers <code>--yes-deps</code>,</p>
+<p>pass it after reviewing the declared dependency plan; headless enabling otherwise</p>
+<p>refuses dependency preparation. Older builds may require the explicit same-runtime</p>
+<p>requirements installation and do not accept that flag. Resolve this within the</p>
+<p>installation session; do not ask the owner to relay dependency errors.</p>
+<h2>4. Configure once and attach persistent supervision</h2>
+<p>Run as the Hermes service account with its verified root HERMES_HOME. Replace the</p>
+<p>example origin and select the actual supervisor. Free ports are chosen unless</p>
+<p>explicit <code>--web-port</code> and <code>--bridge-port</code> values are required by the deployment.</p>
+<pre><code>hermes bot-web install --origin https://workspace.example.com --supervisor systemd-user
+hermes bot-web service</code></pre>
+<p>Use <code>--supervisor launchd</code> on macOS, or <code>--supervisor external</code> for Docker, s6,</p>
+<p>Kubernetes or another existing host supervisor. Installation verifies prebuilt</p>
+<p>files, installs locked production dependencies without lifecycle scripts, stages</p>
+<p>an immutable release, and creates local login keys and internal trust. No token</p>
+<p>or trust file is passed to the owner or entered into the browser.</p>
+<p>Mutable state is <code>$HERMES_HOME/bot-web/web/</code>, separate from plugin code. Repeating</p>
+<p>the same installation preserves the keys, account, ports and release. Do not run</p>
+<p>the independent <code>setup</code>, <code>enroll</code> or <code>approve</code> commands for combined mode.</p>
+<p>For systemd user services, enable lingering for the Hermes service account before</p>
+<p>service activation so startup survives reboot without login. On macOS, launchd</p>
+<p>starts after that account logs in; do not promise pre-login availability.</p>
+<p>For an external supervisor, <code>service</code> returns <code>supervised: false</code> and generated</p>
+<p>service files. Attach the exact foreground command/environment from</p>
+<p><code>$HERMES_HOME/bot-web/web/service/container-command.json</code> to the deployment&#x27;s</p>
+<p>persistent supervisor and state volume. Its local manager restarts both children</p>
+<p>and the native subprocess. The outer supervisor must restart that manager too.</p>
+<p>Files generated does not mean supervision completed.</p>
+<p>Route the canonical HTTPS origin to <code>web_port</code> in private <code>install.json</code>. Keep</p>
+<p>both listeners on loopback and supply the appropriate proxy/container network</p>
+<p>route. Do not expose the integration port separately.</p>
+<p>For a verified named primary, bind it before onboarding:</p>
 <pre><code>hermes bot-web primary EXISTING_PROFILE_NAME</code></pre>
-<p>Do not create a placeholder or ask the owner to select their primary from an empty workspace. Do not clone existing agents or rewrite SOUL. The owner confirms the primary handle/avatar in onboarding; other existing profiles are added later through the app. Canonical Bot Chats are reused or initialized without a model prompt. A deliberately retired Bot Chat needs explicit owner confirmation; do not resurrect it silently.</p>
-<h2>5. Make the bridge reachable and supervise it</h2>
-<p>Run <code>hermes bot-web serve</code> under the verified root HERMES_HOME and the intended supervisor. It binds only loopback. Put the owner&#x27;s HTTPS reverse proxy, Cloudflare Tunnel or private VPN route in front of it, forwarding the configured Host. Preserve streaming: flush response headers and NDJSON immediately, disable buffering, and allow long-lived responses. Keep admin/health probes private and do not log Authorization, callbacks, query values or request bodies.</p>
-<p>For a pod with no tailnet interface, a supervised owner-controlled SSH tunnel plus an HTTPS tailnet entry on another owner machine is valid. Treat it as an explicit connection route, not app/bridge colocation. Verify restart of both tunnel and bridge. Never replace unrelated HTTPS/Tailscale routes, stop another service or assume a conversation-scoped background job survives a pod reboot.</p>
-<p>For a preview-to-owner update, preserve existing configuration/ports/routes, enroll trust, and run <code>hermes bot-web sync-runtime</code> to update this integration&#x27;s enrolled profile copies with private backups. Wait until active native work is idle before maintenance/restarting the bridge. Do not interrupt active jobs just to finish an update. Never use global <code>revoke</code> for probe cleanup; it invalidates other browser grants. Probes release only their own connection lease.</p>
-<h2>6. Verify the complete route before handoff</h2>
-<p>Run <code>hermes bot-web doctor</code>, then <code>hermes bot-web probe</code> through the configured actual HTTPS front door. Probe verifies immediate stream readiness, a heartbeat, matching app verification key, and its own lease cleanup, without model calls or profile changes. Separately verify:</p>
-<p class="bullet">• The app URL responds over normal valid HTTPS, the owner API reports setup/sign-in state, and the public verification document contains no private key.</p>
-<p class="bullet">• Exact app Origin passes preflight; an unapproved Origin and unauthenticated bridge API request are denied. A bare bridge URL is an API endpoint, not the web app, and being denied there is expected.</p>
-<p class="bullet">• Root HERMES_HOME/profile is correct; the existing profile roster is visible. No bots, personalities, model calls or service credentials are fabricated for verification.</p>
-<p class="bullet">• App login state/signing keys and plugin trust persist through supervised restarts. Browser reachability is verified from the owner&#x27;s device/network; app-server-to-Hermes reachability is not a requirement.</p>
-<p class="bullet">• Bridge, tunnel/proxy and app each have verified startup/supervision. Persist the install/update/rollback record privately, including paths, versions and service definitions.</p>
-<p>Return only the owner web URL, private one-use setup code and a short readiness summary to the owner. They create their administrator login, confirm their primary agent&#x27;s handle/avatar and start its chat. The optional welcome is a real request to that agent/model and is submitted at most once. The owner should not relay browser codes or troubleshoot ports, CORS or streams.</p>
-<h2>Updates, rollback and recovery</h2>
-<p>Update from a new immutable upstream release, not a fork/pull of private state. Back up owner auth/settings and plugin workspace/trust separately with private permissions. Stage and verify new code/dependencies in a new release directory, run its checks, wait for idle native work, switch the active code and restart only the required supervised services. Preserve signing keys, cookies/session database, issuer/audience, bridge config, workspace identities and all native data. Verify the actual route again. Reverting code does not mean reverting unrelated owner conversations or credentials.</p>
-<p>For Node login recovery, the host operator runs the owner&#x27;s bundled command <code>recover --state PRIVATE_STATE_DIRECTORY</code>. It revokes local sessions and creates a fresh one-use setup proof; it is not a public reset endpoint. Old already-issued bridge tickets expire within five minutes. Keep the same installation/signing binding during login recovery. Cloudflare recovery likewise requires the owner&#x27;s account access and a reviewed D1 transaction plus newly delivered proof; never offer an unauthenticated public reset link.</p>
-<p>Creation/connection operations distinguish pending, configured, partial and runtime readiness. On an uncertain native mutation, inspect its saved request/receipt and native state; never repeat profile creation under a different name as a repair. New agent creation currently supports an explicit single primary API-key/custom-provider grant; OAuth/credential-pool model sharing and uninstalled local service packages require their own verified native setup. Do not broaden credential copying to make a preview look ready.</p></article></main><footer>This page contains installation instructions and public software packages. No owner credentials are requested here.</footer></body></html>
+<p>Otherwise use root/default primary detection. Do not guess alphabetically,</p>
+<p>clone an agent, rewrite SOUL, enroll every profile or send model messages. The</p>
+<p>owner confirms their primary @ handle and avatar in the UI and adds others later.</p>
+<h2>5. Verify before giving the owner a link</h2>
+<pre><code>hermes bot-web status
+hermes bot-web verify --public</code></pre>
+<p>The real HTTPS route must report the owner service, native bridge, running active</p>
+<p>release, immediate <code>bridge.ready</code> and a heartbeat as ready. Probes delete only</p>
+<p>their own lease, never globally revoke browsers. They send no model prompts and</p>
+<p>do not print histories or credentials.</p>
+<p>For an owner-operated private certificate authority, <code>--ca-file /path/to/ca.pem</code></p>
+<p>adds that CA for verification while retaining certificate and hostname checks.</p>
+<p>The owner&#x27;s browser must trust the same authority. Never disable TLS verification</p>
+<p>to label an installation ready.</p>
+<p>Also verify unauthenticated requests cannot read bots/history or call APIs, an</p>
+<p>unapproved Origin is denied, and first opening shows admin setup. Restart the</p>
+<p>manager through its real supervisor and verify again. Check durable deployment</p>
+<p>configuration for Docker/Kubernetes; a surviving background process is not proof.</p>
+<pre><code>hermes bot-web setup-link</code></pre>
+<p>This prints the path of a private mode-0600 <code>setup-link.txt</code>, not its secret.</p>
+<p>Read it privately and give the complete link directly to the owner. The one-use</p>
+<p>proof is a URL fragment removed immediately by the app and retained only in</p>
+<p>memory; it is absent from request URLs, server logs and referrers. Treat it as a</p>
+<p>temporary credential and keep it out of public reports.</p>
+<p>The owner opens that link, creates an admin login, confirms their detected primary</p>
+<p>agent&#x27;s handle and animated/photo avatar, and enters its real Bot Chat. There is</p>
+<p>no Hermes address or connection approval. Later visits use the plain app URL and</p>
+<p>login. Do not claim the account for the owner or run paid-model tests without</p>
+<p>their authorization.</p>
+<h2>Updates and rollback</h2>
+<p>Verify the next combined release, back up and replace only installed plugin code,</p>
+<p>and enable it natively. Running services keep using their immutable snapshot until</p>
+<p>activation; preserve private state and native stores.</p>
+<pre><code>hermes bot-web update
+hermes bot-web verify --public</code></pre>
+<p>The updater stages dependencies and compatibility checks before switching the</p>
+<p>release. The manager adopts it without replacing keys or data. Failed readiness</p>
+<p>restores the previous release. Explicit rollback is:</p>
+<pre><code>hermes bot-web rollback
+hermes bot-web verify --public</code></pre>
+<p>This preview supports code updates with unchanged owner/workspace data schemas;</p>
+<p>unsupported data migrations are refused. Keep previous snapshots and code backups</p>
+<p>until verification passes. Do not restore native history/personality stores as</p>
+<p>plugin rollback. After successful activation, use <code>hermes bot-web sync-runtime</code></p>
+<p>to update enrolled agents&#x27; runtime-only plugin copies; they receive no web bundle.</p>
+<p>If initial setup expires before account creation, run `hermes bot-web setup-link</p>
+<p>--renew-setup` and privately deliver the new link. It refuses to replace a claimed</p>
+<p>owner account. Never delete a claimed account or regenerate keys to repair an update.</p>
+<h2>Optional separate hosting</h2>
+<p>Independent Node/SQLite and Cloudflare Worker/D1 hosting remain available for an</p>
+<p>owner who intentionally chooses that topology. Follow <code>docs/INDEPENDENT_INSTALL.md</code></p>
+<p>and its matching release. This is an advanced alternative, not a requirement for</p>
+<p>the combined plugin.</p></article></main><footer>This page contains installation instructions and public software packages. No owner credentials are requested here.</footer></body></html>

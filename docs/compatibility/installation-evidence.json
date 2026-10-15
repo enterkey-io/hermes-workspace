@@ -1,20 +1,20 @@
 {
   "schema": 1,
-  "date": "2026-10-14",
+  "date": "2026-10-15",
   "evidenceLevel": "unverified",
   "contract": "docs/INSTALLATION_CONTRACT.md",
   "gates": {
     "single-installation-agent": "unverified",
     "fresh-native-bot-setup": "unverified",
     "idempotent-existing-install": "unverified",
-    "independent-hosts-trusted-tls": "unverified",
     "owner-first-use-without-server-configuration": "unverified",
     "reopen-and-reconnect-without-agent": "unverified",
     "restart-recovery": "unverified",
     "installed-update-and-rollback": "unverified",
     "privacy-and-probe-isolation": "unverified",
     "existing-agent-selection-and-identity": "unverified",
-    "owner-admin-bootstrap-and-login": "unverified"
+    "owner-admin-bootstrap-and-login": "unverified",
+    "single-origin-plugin-trusted-tls": "unverified"
   },
   "partialEvidence": [
     "Native first-bot creation and canonical initialization/reuse pass in isolated homes on both supported source revisions",
@@ -22,13 +22,18 @@
     "Downloaded-package CLI installation passes in a disposable seeded home with zero model turns",
     "Heartbeat and per-probe cleanup regression tests pass",
     "Owner agent reports plugin 0.2.3 serving, one initialized native bot, healthy loopback/HTTPS heartbeats and isolated probe cleanup; owner browser and permanent supervision remain pending (owner-repair-report.json)",
-    "Existing-profile enrollment preserves identity/settings and uses the selected SOUL in a synthetic native turn on both supported builds; browser selection passes. Complete owner-launch evidence remains unverified."
+    "Existing-profile enrollment preserves identity/settings and uses the selected SOUL in a synthetic native turn on both supported builds; browser selection passes. Complete owner-launch evidence remains unverified.",
+    "Combined-plugin archive/CLI/browser fixtures on disposable native homes now exercise owner setup links, zero-managed-bot onboarding, service/native/manager recovery and code update/rollback. These remain local test-route evidence, not a completed owner launch pass."
   ],
   "remaining": [
-    "A complete clean-install acceptance run driven by one installation agent",
-    "Owner first-use connection discovery without manual server settings",
-    "Owner-hosted administrator login, durable instance trust and automatic connection recovery without another agent exchange",
-    "Verified permanent supervision and restart recovery across supported deployment targets",
-    "Installed update/rollback and interruption recovery evidence"
-  ]
+    "A complete installation driven by one agent on independently managed owner infrastructure",
+    "Real trusted HTTPS route and persistent Linux/container/macOS service verification",
+    "Migration of the existing API-only owner preview without identity/history loss",
+    "Container replacement/host reboot and interrupted-install acceptance",
+    "Explicit migrations before any release changes the owner/workspace data schema"
+  ],
+  "default_deployment": "combined-installable-plugin",
+  "optionalGates": {
+    "independent-hosts-trusted-tls": "unverified"
+  }
 }

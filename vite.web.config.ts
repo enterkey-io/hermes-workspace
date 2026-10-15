@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
 
 export default defineConfig({
   root: 'apps/web',
@@ -10,7 +11,9 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: process.env.WORKSPACE_BUILD_ROOT
+      ? resolve(process.env.WORKSPACE_BUILD_ROOT, 'web')
+      : 'dist',
     emptyOutDir: true,
     sourcemap: false,
     rollupOptions: {

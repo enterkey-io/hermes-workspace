@@ -5,6 +5,7 @@ const report = JSON.parse(await readFile('docs/compatibility/integration-evidenc
 const assessed = assessBotMode({
   revision: report.revision,
   topology: report.topology,
+  transport: report.transport,
   gates: report.gates ?? {},
 });
 const installation = JSON.parse(
@@ -16,7 +17,7 @@ const installationGates = [
   'fresh-native-bot-setup',
   'existing-agent-selection-and-identity',
   'idempotent-existing-install',
-  'independent-hosts-trusted-tls',
+  'single-origin-plugin-trusted-tls',
   'owner-first-use-without-server-configuration',
   'reopen-and-reconnect-without-agent',
   'restart-recovery',

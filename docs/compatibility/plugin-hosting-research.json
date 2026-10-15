@@ -1,0 +1,212 @@
+{
+  "date": "2026-10-15",
+  "scope": "Research only; no product architecture migration or production service changes",
+  "platform": "Darwin arm64",
+  "native_core_modified": false,
+  "temporary_homes_only": true,
+  "production_credentials_used": false,
+  "vendor_runtime_required": false,
+  "release_published": false,
+  "dashboard_probe_models_used": false,
+  "combined_probe_model": "Deterministic loopback model through real native Bot Mode; no cloud model",
+  "browser_tls": "Disposable self-signed loopback certificate accepted only by the research browser",
+  "source_builds": [
+    {
+      "revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+      "reported_hermes_version": "0.21.0",
+      "source_repository": "https://github.com/NousResearch/hermes-agent.git",
+      "runtime_dependencies": {
+        "fastapi": "0.133.1",
+        "starlette": "1.3.1",
+        "httpx": "0.28.1"
+      },
+      "inspected_source_sha256": {
+        "hermes_cli/web_server.py": "c56b2f4605f0858704463a4f8ed8f3e44b56bba0f53b0e1839c33a537b4b16f4",
+        "plugins/dashboard_auth/basic/__init__.py": "81da36adae712bb133d522a5df1d66ccefcf5f9803e7bc90b226d4f096ac4cba",
+        "hermes_cli/dashboard_auth/middleware.py": "a7ed66ee8334458a53029ee2ca8ad59682ac830b1e65c881cde486752d212d4e",
+        "hermes_cli/dashboard_auth/cookies.py": "3a1c359a3aa5a30b2904ca7fc5176520d2dd2319b2bdc7555aebc092ac062af2",
+        "hermes_cli/dashboard_auth/routes.py": "2d8934b320234bc3d99d2b467dccaa5f57886ce2f569b8e839d6cb7bd71197f4",
+        "hermes_cli/plugins.py": "63cef01ae81a23c859170d36860c9ac257f320266a88640a8b9690952728bba6",
+        "hermes_cli/plugins_cmd.py": "fd358229934333bd61c3c9a20e52109ef7e2b78764d6e569badbb127c482a3f0",
+        "docker/s6-rc.d/dashboard/run": "491fce603b16603ba64e0ddfb43ee11f2a2e77b6de701a433045e88232c09568",
+        "web/src/App.tsx": "5f72d97b2f3c952118df3920fa6075e9c349dc58d16f9cc00df0dbc9839d3b0e"
+      },
+      "dashboard_extension_probe": {
+        "source_revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+        "python": "3.12.14",
+        "checks": {
+          "public_url_requires_auth_on_loopback": true,
+          "user_plugin_discovered": true,
+          "unauthenticated_api_denied": true,
+          "unauthenticated_plugin_html_denied": true,
+          "login_page_available": true,
+          "unauthenticated_wrong_host_denied": true,
+          "native_password_login": true,
+          "authenticated_wrong_host_denied": true,
+          "login_keeps_plugin_tab_target": true,
+          "session_cookie_secure_httponly": true,
+          "plugin_api_inherits_verified_session": true,
+          "plugin_html_available_after_login": true,
+          "authenticated_discovery_api": true,
+          "plugin_js_served": true,
+          "session_survives_provider_reconstruction_with_persisted_key": true,
+          "authenticated_stream_unbuffered_through_native_middleware": true,
+          "disabled_plugin_route_denied": true
+        },
+        "observations": {
+          "router_lifespan_entered": true,
+          "forged_origin_authenticated_post_status": 200,
+          "session_after_changed_signing_key_status": 401,
+          "stream_frame_seconds": [
+            0.002,
+            0.202,
+            0.404
+          ],
+          "router_lifespan_completed": true,
+          "node_deps_headless": "No equivalent dependency gate on this build"
+        },
+        "passed": true
+      },
+      "combined_host_browser_probe": {
+        "source_revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+        "checks": {
+          "first_use_owner_setup_then_native_onboarding": true,
+          "no_connect_address_or_pairing_form": true,
+          "native_primary_enrolled_through_same_url": true,
+          "real_native_bot_mode_synthetic_model_reply": true,
+          "stream_survives_accelerated_idle_lease": true,
+          "secure_httponly_strict_session": true,
+          "fixture_controls_not_exposed_at_owner_front_door": true,
+          "native_gateway_restart_preserves_draft": true,
+          "owner_service_restart_and_reload_need_no_repairing": true,
+          "browser_uses_only_one_origin": true,
+          "no_page_errors": true
+        },
+        "passed": true
+      },
+      "inspected_runtime_sources_match_revision": true,
+      "nonruntime_checkout_metadata_changes": 1
+    },
+    {
+      "revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
+      "reported_hermes_version": "0.21.7",
+      "source_repository": "https://github.com/enterkey-io/hermes-agent.git",
+      "runtime_dependencies": {
+        "fastapi": "0.133.1",
+        "starlette": "1.3.1",
+        "httpx": "0.28.1"
+      },
+      "inspected_source_sha256": {
+        "hermes_cli/web_server.py": "14428aa34d4297b81f7dbeb7e8fe2abae0e205a3356d9e341eb22d457ae2e55f",
+        "plugins/dashboard_auth/basic/__init__.py": "0d9942552cbce8ec2f71c7c97b6c926d5a3236f3fb639b1c2913c8de21a0acad",
+        "hermes_cli/dashboard_auth/middleware.py": "b36464fd05946aff9c2b31843243711de55e61d16d65dcd8a69aea2721e7fc45",
+        "hermes_cli/dashboard_auth/cookies.py": "09f589b8725a12a0621cfb971100587c82844fcae6a32a276c586076b4c8c4c9",
+        "hermes_cli/dashboard_auth/routes.py": "b942890e1e4f078a801f70ae5c3c571c27383dc179e806668d104ef501e81eb2",
+        "hermes_cli/plugins.py": "f5a1c27a22025984bbf956b58154ce23914592307bd945d7a1c0167cc443d771",
+        "hermes_cli/plugins_cmd.py": "25d5f8eb93a125aa13baf43792719d9efec5dda05eb5a8da5a20647b182936fc",
+        "docker/s6-rc.d/dashboard/run": "676529be5a58c490fead000973ebb0f1363b3abc2553bfa6671e51c77a55d27e",
+        "web/src/App.tsx": "5e805f5b5ba656aa746b867b8dc38484dbc2ed5f12abed744af5d2d9d40fd53e",
+        "hermes_cli/web_server_dashboard.py": "7f4143db80fcb1ef667ff9faed9076f334b73b55a78dfb781bacc932845be13e",
+        "hermes_cli/plugin_isolation.py": "08e3d77c6533db10d2ea7d4f96b3e9b252aec5fda8e69580a3539939abef1fbd",
+        "hermes_cli/plugins_cmd_install.py": "19056c67bff2d072eca39cf4ccfd5e30747932d9a82352a8110705381ccfca47",
+        "hermes_cli/plugins_cmd_update.py": "997ff1522ddad6dc3c5e7d2dcfaae0bc86de1d02cbed2aebd91521e3616d7875",
+        "pm/plugin_declarations.py": "a487ca6db1cdfab3fe570911b66e7bd136eb3208d4337dbedc9ded2b8eb15d01"
+      },
+      "dashboard_extension_probe": {
+        "source_revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
+        "python": "3.14.7",
+        "checks": {
+          "public_url_requires_auth_on_loopback": true,
+          "user_plugin_discovered": true,
+          "unauthenticated_api_denied": true,
+          "unauthenticated_plugin_html_denied": true,
+          "login_page_available": true,
+          "unauthenticated_wrong_host_denied": true,
+          "native_password_login": true,
+          "authenticated_wrong_host_denied": true,
+          "login_keeps_plugin_tab_target": true,
+          "session_cookie_secure_httponly": true,
+          "plugin_api_inherits_verified_session": true,
+          "plugin_html_available_after_login": true,
+          "authenticated_discovery_api": true,
+          "plugin_js_served": true,
+          "session_survives_provider_reconstruction_with_persisted_key": true,
+          "authenticated_stream_unbuffered_through_native_middleware": true,
+          "disabled_plugin_route_denied": true
+        },
+        "observations": {
+          "router_lifespan_entered": true,
+          "forged_origin_authenticated_post_status": 200,
+          "session_after_changed_signing_key_status": 401,
+          "stream_frame_seconds": [
+            0.001,
+            0.203,
+            0.406
+          ],
+          "router_lifespan_completed": true,
+          "node_deps_headless": {
+            "assume_yes_supported": true,
+            "gate_allows_enable": true,
+            "node_modules_created": false,
+            "skip_message_present": true
+          }
+        },
+        "passed": true
+      },
+      "combined_host_browser_probe": {
+        "source_revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
+        "checks": {
+          "first_use_owner_setup_then_native_onboarding": true,
+          "no_connect_address_or_pairing_form": true,
+          "native_primary_enrolled_through_same_url": true,
+          "real_native_bot_mode_synthetic_model_reply": true,
+          "stream_survives_accelerated_idle_lease": true,
+          "secure_httponly_strict_session": true,
+          "fixture_controls_not_exposed_at_owner_front_door": true,
+          "native_gateway_restart_preserves_draft": true,
+          "owner_service_restart_and_reload_need_no_repairing": true,
+          "browser_uses_only_one_origin": true,
+          "no_page_errors": true
+        },
+        "passed": true
+      },
+      "inspected_runtime_sources_match_revision": true,
+      "nonruntime_checkout_metadata_changes": 0
+    }
+  ],
+  "reproduction": {
+    "dashboard": "<supported-hermes-python> scripts/fixture/plugin_hosting_probe.py --source <exact-hermes-checkout> --output <result.json>",
+    "combined": "HERMES_NATIVE_ROOT=<exact-hermes-checkout> HERMES_NATIVE_PYTHON=<supported-hermes-python> BOT_WEB_TEST_CHROMIUM=<installed-chromium-binary> node scripts/fixture/combined_host_probe.mjs <result.json>",
+    "prerequisites": "Existing compiled owner app and web assets plus project dependencies. Research does not rebuild or modify live dist assets."
+  },
+  "source_only_findings": {
+    "newer_host_isolation_buffers_dashboard_api_responses": true,
+    "native_password_logout_does_not_revoke_stateless_tokens": true,
+    "prebuilt_dashboard_assets_need_no_node_runtime": true,
+    "dashboard_tab_override_keeps_native_shell": true,
+    "native_plugin_task_lifetime_is_process_bound": true,
+    "pinned_plugin_update_requires_explicit_revision_change": true
+  },
+  "not_proven": [
+    "Combined-package installation through the native plugin manager",
+    "Unattended Linux service installation or actual Docker/Kubernetes installation",
+    "Rendering the full product UI inside the native dashboard shell",
+    "Complete integration process restart with persisted native home in the combined fixture",
+    "Host/container reboot or automatic service supervision",
+    "Installed upgrade/migration failure and rollback",
+    "Owner live Hermes pod or its real TLS/tunnel route",
+    "Public DNS/certificate and remote networking provisioning",
+    "Performance or memory overhead of final package",
+    "Compatibility with unknown Hermes source revisions or plugin host isolation for the full existing integration"
+  ],
+  "totals": {
+    "dashboard_checks_passed": 34,
+    "combined_browser_checks_passed": 22,
+    "all_checked_runtime_sources_unchanged": true
+  },
+  "product_baseline_commit": "6458a67ddb5036a3b86060a70cc9f410f623ee69",
+  "compiled_asset_sha256": {
+    "apps/owner-node/dist/main.mjs": "6d973881a6e80900231a02bb43cf9d539080a7008e34b21fe5b77def254ac80f",
+    "apps/web/dist/index.html": "9fa759c474de4972781f064d9199046ab30c82973e0a0095d8c84a766fde102e"
+  }
+}

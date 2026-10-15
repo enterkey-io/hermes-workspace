@@ -7,6 +7,7 @@ import { generateKeyPair, exportJWK } from 'jose';
 import { NodeOwnerDatabase } from '../../packages/owner-service/src/node-store';
 import { createOwnerService, digest } from '../../packages/owner-service/src/service';
 import type { OwnerSettings } from '../../packages/owner-service/src/service';
+import { proxyBridge } from '../../packages/owner-service/src/bridge-proxy';
 
 const command = process.argv[2];
 function flag(name: string) {
@@ -96,6 +97,15 @@ if (command === 'init' || command === 'recover') {
 } else if (command === 'serve') {
   const service = createOwnerService(db, store, settings);
   const origin = new URL(settings.origin);
+  const bridgePort = flag('--bridge-port') ? Number(flag('--bridge-port')) : undefined;
+  if (
+    bridgePort !== undefined &&
+    (!Number.isInteger(bridgePort) ||
+      bridgePort < 1024 ||
+      bridgePort > 65535 ||
+      settings.bridgeUrl !== settings.origin)
+  )
+    throw new Error('Combined hosting requires a valid loopback bridge port and one public origin');
   const headerText = await readFile(resolve(root, '_headers'), 'utf8');
   const headers = Object.fromEntries(
     headerText
@@ -106,6 +116,11 @@ if (command === 'init' || command === 'recover') {
         return [line.slice(0, i).trim(), line.slice(i + 1).trim()];
       }),
   );
+  if (bridgePort !== undefined && headers['Content-Security-Policy'])
+    headers['Content-Security-Policy'] = headers['Content-Security-Policy'].replace(
+      'connect-src https:',
+      "connect-src 'self'",
+    );
   const mime: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
@@ -124,12 +139,24 @@ if (command === 'init' || command === 'recover') {
         res.writeHead(403).end();
         return;
       }
-      for (const name of ['host', 'origin', 'content-length', 'authorization'])
+      for (const name of [
+        'host',
+        'origin',
+        'content-length',
+        'authorization',
+        'x-bot-connection',
+        'content-type',
+        'sec-fetch-site',
+      ])
         if (req.rawHeaders.filter((v, i) => i % 2 === 0 && v.toLowerCase() === name).length > 1) {
           res.writeHead(400).end();
           return;
         }
       const url = new URL(req.url, origin);
+      if (bridgePort !== undefined && url.pathname.startsWith('/v1/')) {
+        proxyBridge(req, res, settings.origin, bridgePort);
+        return;
+      }
       if (
         url.pathname.startsWith('/api/') ||
         url.pathname === '/.well-known/hermes-workspace.json'
@@ -192,11 +219,23 @@ if (command === 'init' || command === 'recover') {
     }
   });
   server.listen(Number(flag('--port') ?? 8081), '127.0.0.1');
-  for (const signal of ['SIGTERM', 'SIGINT'] as const)
-    process.once(signal, () =>
-      server.close(() => {
-        db.close();
-        process.exit(0);
-      }),
-    );
+  function shutdown() {
+    const deadline = setTimeout(() => {
+      server.closeAllConnections();
+      process.exit(0);
+    }, 5000);
+    deadline.unref();
+    server.close(() => {
+      db.close();
+      process.exit(0);
+    });
+  }
+  const managerPid = Number(process.env.WORKSPACE_SUPERVISOR_PID ?? 0);
+  if (managerPid) {
+    const parentWatch = setInterval(() => {
+      if (process.ppid !== managerPid) shutdown();
+    }, 1000);
+    parentWatch.unref();
+  }
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, shutdown);
 } else throw new Error('Use init, serve or recover');

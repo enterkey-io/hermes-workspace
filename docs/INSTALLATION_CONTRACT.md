@@ -1,5 +1,7 @@
 # Launch requirement: one agent completes setup
 
+October 15 direction: the default is one combined installable plugin on the owner's Hermes host, serving one HTTPS origin with local admin login. Independent hosting remains optional. The installation agent returns a private one-use setup link; normal visits use the plain app URL and login. See [the current architecture](ARCHITECTURE.md).
+
 The owner gives one setup request to their own installation agent, which may access their chosen web host and Hermes. That agent completes installation, native Bot Mode readiness, connection configuration, verification and service lifecycle setup, then returns a usable app URL. On first opening the owner creates the instance administrator login; later visits use that login/session. The installer configures persistent Hermes trust once. Normal use, including a new-device login, must not require another agent-mediated pairing code. Developer intervention and relaying diagnostic messages between agents are not acceptable launch steps.
 
 This is a release requirement, not a description of the current preview. The preview's manual address/code exchanges, repeated pairing after refresh, diagnostic repair guides and tracked background processes are not a launch-ready onboarding system. The recent owner test exposed missing automated installation coverage, even though individual protocol tests passed.
@@ -7,7 +9,7 @@ This is a release requirement, not a description of the current preview. The pre
 ## What the installation agent must complete
 
 - Discover the real Hermes home/profile, native compatibility, dependencies, existing listeners/routes and available supervisor before changing anything. Detect unsupported configurations early and explain the specific limitation within the same setup session.
-- Deploy the web app with its owner-hosted authentication runtime to the owner's chosen host, independently of Hermes, or reuse their existing app deployment. Install a versioned, verified integration only where required. Preserve existing configuration and unrelated services.
+- Install the verified combined plugin with its prebuilt owner authentication and web runtime on Hermes. Configure its persistent supervisor and one web route. Independently hosted deployments remain an explicitly chosen alternative. Preserve existing configuration and unrelated services.
 - Discover all existing profiles and let the owner choose which agents appear, through the app or an explicit choice during installation. Enable Bot Mode on those same profiles and reuse/initialize their canonical chats. Preserve their SOUL, memory, skills and settings. Zero managed bots never justifies inventing a placeholder; new-agent creation requires a separate explicit choice. Setup itself must not spend model tokens, send prompts or run tools through the bot.
 - Configure the exact app origin, trusted HTTPS bridge and an appropriate owner-controlled route. Resolve port collisions and service errors locally. The owner should not need to select ports, copy private configuration, understand CORS, configure SSH or find an API key.
 - Verify authentication, denial cases, actual roster, canonical readiness and at least 50 seconds of event frames. Close only its own diagnostic connections. Preserve other devices' grants and avoid spending model turns during install verification.
@@ -32,8 +34,8 @@ Required gates are tracked in `docs/compatibility/installation-evidence.json`:
 
 - One installation agent completes the supported procedure without development-agent intervention or owner-relayed diagnostics.
 - Native bot and canonical chat initialization work from an empty supported home; existing-install repetition reuses identities and preserves history/configuration.
-- Web and Hermes run on independent hosts with trusted TLS, and the owner's browser reaches the intended authenticated connection through the documented supported topology.
-- First opening securely creates the single instance administrator; public registration and first-visitor takeover are refused. The owner then selects an existing agent and completes a synthetic native Bot Mode turn without entering server configuration. Later/new-device visits use the instance login, not an agent-mediated pairing code.
+- The combined installed plugin serves web and native API through one trusted HTTPS origin. The owner's browser reaches that authenticated endpoint without server configuration. Optional independent hosting has its own separate topology acceptance.
+- First opening securely creates the single instance administrator; public registration and first-visitor takeover are refused. The owner then confirms the detected existing primary agent and completes a synthetic native Bot Mode turn without entering server configuration. Later/new-device visits use the instance login, not an agent-mediated pairing code.
 - Refresh, reopening and recoverable network interruption work without renewed agent involvement while preserving authorization and revocation rules.
 - Bridge, route and persistent configuration recover after supported process/host/container restart scenarios.
 - Installed updates and rollback preserve state; interrupted installs resume safely without duplicates or unrelated service changes.
