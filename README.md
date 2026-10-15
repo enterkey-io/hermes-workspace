@@ -64,3 +64,7 @@ Public-hosted-to-home networking across real browsers, full production TLS/topol
 ## Team and orchestrator research
 
 The next behavior contract automatically detects the primary existing agent for initial orchestration, offers an editable @ handle, and covers teams, editable roles/reporting, and bot-callable agent creation/attachment. The [onboarding and connections plan](docs/ONBOARDING_AND_CONNECTIONS_PLAN.md) and [phased implementation plan](docs/ONBOARDING_AND_CONNECTIONS_IMPLEMENTATION_PLAN.md) cover the full owner-login-to-first-chat path and native tool/service setup. This is [researched and specified](docs/TEAMS_AND_ORCHESTRATOR_PLAN.md), not implemented in the current preview. The reproducible native configuration probe uses disposable profiles with zero model prompts on both supported builds.
+
+## Avatar motion study
+
+Open `/avatar-lab.html` on the same preview host to try five original geometric faces, color choices including white, local-only photo previews, simulated activity, reduced motion and 24/60/120-agent rosters. This isolated demo makes no Hermes/model requests and keeps choices in page memory. It does not upload photos or modify/save any existing agent's appearance. This is a development-source addition, not a new tagged application/plugin release. The [avatar system plan](docs/AVATAR_SYSTEM_PLAN.md) covers the portable renderer contract, onboarding/Settings, native metadata compatibility and performance acceptance.

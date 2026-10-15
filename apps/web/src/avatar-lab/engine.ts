@@ -1,0 +1,196 @@
+/** Original procedural study. No vendor artwork or animation runtime. */
+export const SHAPES = ['pebble', 'beacon', 'petal', 'kite', 'arch'] as const;
+export type Shape = (typeof SHAPES)[number];
+export const STATES = ['ready', 'thinking', 'working', 'waiting', 'attention', 'done'] as const;
+export type Activity = (typeof STATES)[number];
+export const COLORS = [
+  { id: 'iris', label: 'Iris', hex: '#aca8ed' },
+  { id: 'citron', label: 'Citron', hex: '#d4dc85' },
+  { id: 'clay', label: 'Clay', hex: '#eeaa8d' },
+  { id: 'lagoon', label: 'Lagoon', hex: '#8dcec6' },
+  { id: 'rose', label: 'Rose', hex: '#e7a5ba' },
+  { id: 'sky', label: 'Sky', hex: '#9bbfe8' },
+  { id: 'white', label: 'White', hex: '#f4f3ef' },
+] as const;
+
+/** Fixed normalized paths can be replayed as native vector paths on other platforms. */
+export const BODY_PATHS: Record<Shape, string> = {
+  pebble: 'M21 32 C27 13 48 9 66 17 C88 20 94 42 86 65 C80 86 57 92 36 83 C16 77 11 52 21 32 Z',
+  beacon:
+    'M38 15 Q50 9 62 16 L80 28 Q89 34 89 46 L87 65 Q86 77 75 82 L57 89 Q48 92 38 87 L21 76 Q12 70 13 59 L14 38 Q15 29 25 23 Z',
+  petal: 'M50 22 C70 4 94 27 80 48 C100 66 76 93 53 80 C34 99 6 78 21 54 C2 33 27 7 50 22 Z',
+  kite: 'M43 14 Q50 8 58 15 L85 43 Q93 50 85 59 L59 85 Q50 94 42 85 L15 59 Q7 50 15 42 Z',
+  arch: 'M17 54 C17 0 83 0 83 54 L83 75 Q83 86 72 86 L28 86 Q17 86 17 75 Z',
+};
+
+export interface Pose {
+  x: number;
+  y: number;
+  rotation: number;
+  sx: number;
+  sy: number;
+  gazeX: number;
+  gazeY: number;
+  leftOpen: number;
+  rightOpen: number;
+  leftTilt: number;
+  rightTilt: number;
+  orbit: number;
+  orbitOpacity: number;
+  dots: [number, number, number];
+}
+
+export function seedFromId(id: string): number {
+  let value = 2166136261;
+  for (let i = 0; i < id.length; i++) value = Math.imul(value ^ id.charCodeAt(i), 16777619);
+  return value >>> 0;
+}
+
+const TAU = Math.PI * 2;
+const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
+
+/** Pure, time-based pose. No DOM, timers, randomness, device data or model access. */
+export function samplePose(
+  state: Activity,
+  milliseconds: number,
+  seed: number,
+  reduced = false,
+): Pose {
+  const t = Number.isFinite(milliseconds) ? Math.max(0, milliseconds) / 1000 : 0;
+  const phase = (seed % 10007) / 10007;
+  const wave = Math.sin(t * 2.4 + phase * TAU);
+  const pose: Pose = {
+    x: 0,
+    y: 0,
+    rotation: 0,
+    sx: 1,
+    sy: 1,
+    gazeX: 0,
+    gazeY: 0,
+    leftOpen: 1,
+    rightOpen: 1,
+    leftTilt: 0,
+    rightTilt: 0,
+    orbit: 0,
+    orbitOpacity: 0,
+    dots: [0, 0, 0],
+  };
+  switch (state) {
+    case 'ready':
+      if (!reduced) {
+        pose.gazeX = Math.sin(Math.floor(t / 2.8 + phase * 6) * 2.3) * 2.8;
+        pose.gazeY = Math.cos(Math.floor(t / 4.1 + phase * 3)) * 1.1;
+      }
+      break;
+    case 'thinking':
+      pose.rotation = -6;
+      pose.gazeX = -3;
+      pose.gazeY = -3;
+      pose.leftOpen = 0.62;
+      pose.rightOpen = 0.92;
+      pose.leftTilt = -12;
+      if (!reduced) {
+        pose.rotation += wave * 2;
+        pose.y = Math.sin(t * 1.6 + phase * TAU) * 1.2;
+        pose.dots = [0, 1, 2].map(
+          (i) => 0.22 + 0.78 * Math.max(0, Math.sin(t * 3.2 - i * 1.1)),
+        ) as Pose['dots'];
+      }
+      break;
+    case 'working':
+      pose.gazeY = 1.7;
+      pose.leftOpen = pose.rightOpen = 0.69;
+      pose.leftTilt = -9;
+      pose.rightTilt = 9;
+      pose.orbitOpacity = 0.85;
+      if (!reduced) {
+        pose.x = wave * 0.7;
+        pose.rotation = Math.sin(t * 2 + phase * TAU) * 3.2;
+        pose.gazeX = Math.sin(t * 1.8) * 3.4;
+        pose.sy = 1 + Math.sin(t * 4.8 + phase * TAU) * 0.014;
+        pose.sx = 2 - pose.sy;
+        pose.orbit = (t * 72 + phase * 360) % 360;
+      }
+      break;
+    case 'waiting':
+      pose.gazeX = 3.5;
+      pose.leftOpen = pose.rightOpen = 0.48;
+      pose.rotation = 4;
+      if (!reduced) pose.y = Math.sin(t * 1.15 + phase * TAU) * 1.1;
+      break;
+    case 'attention':
+      pose.leftOpen = pose.rightOpen = 1.28;
+      pose.gazeY = -1;
+      pose.sy = 1.02;
+      pose.sx = 0.98;
+      if (!reduced) pose.rotation = Math.sin(t * 1.8 + phase * TAU) * 2;
+      break;
+    case 'done': {
+      pose.leftOpen = pose.rightOpen = 0.34;
+      pose.leftTilt = -19;
+      pose.rightTilt = 19;
+      // A single short acknowledgment, never a perpetual celebration loop.
+      const progress = clamp(t / 0.9, 0, 1);
+      if (!reduced && progress < 1) {
+        pose.y = -Math.sin(progress * Math.PI) * 6;
+        pose.rotation = Math.sin(progress * TAU) * 5;
+      }
+      break;
+    }
+  }
+  if (!reduced && state !== 'done') {
+    const interval = 4.7 + phase * 2.4;
+    const p = (t + phase * interval) % interval;
+    const blink = p < 0.19 ? Math.max(0.07, 1 - Math.sin((p / 0.19) * Math.PI) * 0.97) : 1;
+    pose.leftOpen *= blink;
+    pose.rightOpen *= blink;
+  }
+  return pose;
+}
+
+/** Next meaningful pose deadline. Idle faces sleep between blinks and held looks. */
+export function nextPoseDelay(
+  state: Activity,
+  milliseconds: number,
+  seed: number,
+  fps: number,
+): number {
+  const t = Math.max(0, milliseconds) / 1000;
+  const phase = (seed % 10007) / 10007;
+  const frame = 1000 / Math.max(1, Math.min(30, fps));
+  if (state === 'done') return t < 0.9 ? frame : Infinity;
+  if (state !== 'ready') return frame;
+  const interval = 4.7 + phase * 2.4;
+  const blinkPosition = (t + phase * interval) % interval;
+  if (blinkPosition < 0.19) return frame;
+  const gazeX = ((Math.floor(t / 2.8 + phase * 6) + 1 - phase * 6) * 2.8 - t) * 1000;
+  const gazeY = ((Math.floor(t / 4.1 + phase * 3) + 1 - phase * 3) * 4.1 - t) * 1000;
+  return Math.max(frame, Math.min((interval - blinkPosition) * 1000, gazeX, gazeY));
+}
+
+/** Interruption starts at the currently drawn pose, including partially closed eyes. */
+export function blendPose(from: Pose, to: Pose, progress: number): Pose {
+  const x = Math.max(0, Math.min(1, progress));
+  const weight = x * x * (3 - 2 * x);
+  const mix = (a: number, b: number) => a + (b - a) * weight;
+  return {
+    x: mix(from.x, to.x),
+    y: mix(from.y, to.y),
+    rotation: mix(from.rotation, to.rotation),
+    sx: mix(from.sx, to.sx),
+    sy: mix(from.sy, to.sy),
+    gazeX: mix(from.gazeX, to.gazeX),
+    gazeY: mix(from.gazeY, to.gazeY),
+    leftOpen: mix(from.leftOpen, to.leftOpen),
+    rightOpen: mix(from.rightOpen, to.rightOpen),
+    leftTilt: mix(from.leftTilt, to.leftTilt),
+    rightTilt: mix(from.rightTilt, to.rightTilt),
+    orbit: mix(from.orbit, to.orbit),
+    orbitOpacity: mix(from.orbitOpacity, to.orbitOpacity),
+    dots: [
+      mix(from.dots[0], to.dots[0]),
+      mix(from.dots[1], to.dots[1]),
+      mix(from.dots[2], to.dots[2]),
+    ],
+  };
+}

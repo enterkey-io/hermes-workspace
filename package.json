@@ -27,7 +27,8 @@
     "test:plugin": "python3 -m unittest discover -s test/plugin -p \"test_*.py\"",
     "test:native": "python3 scripts/fixture/native_smoke.py",
     "serve": "node scripts/serve-static.mjs",
-    "package": "npm run build && python3 scripts/package.py"
+    "package": "npm run build && python3 scripts/package.py",
+    "test:avatars": "playwright test --config playwright.avatar.config.ts"
   },
   "dependencies": {
     "react": "19.3.0",

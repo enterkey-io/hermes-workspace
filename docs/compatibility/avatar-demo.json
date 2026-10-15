@@ -1,0 +1,85 @@
+{
+  "browser": "155.0.8059.41",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "fixture": "headless Chromium, bundled original avatars, simulated activity, no Hermes",
+  "scope": "JavaScript pose sampling and SVG attribute writes only; excludes layout/paint/GPU, total CPU, energy and native clients",
+  "certified": false,
+  "measurements": [
+    {
+      "roster": 24,
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "mounted": 30,
+      "visible": 29,
+      "updateP95Ms": 0.7999999821186066,
+      "observedBatchFps": 19.619383951229214
+    },
+    {
+      "roster": 60,
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "mounted": 66,
+      "visible": 56,
+      "updateP95Ms": 1.0999999940395355,
+      "observedBatchFps": 26.881720429948
+    },
+    {
+      "roster": 120,
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "mounted": 126,
+      "visible": 56,
+      "updateP95Ms": 0.5999999940395355,
+      "observedBatchFps": 26.801667659162447
+    },
+    {
+      "roster": 120,
+      "viewport": {
+        "width": 1280,
+        "height": 2400
+      },
+      "mounted": 126,
+      "visible": 120,
+      "updateP95Ms": 1.800000011920929,
+      "observedBatchFps": 28.41465804362389
+    }
+  ],
+  "recorded_at": "2026-10-15T15:23:17.775082+00:00",
+  "status": "isolated-prototype-only",
+  "checks": {
+    "unit_tests": 57,
+    "browser_cases": 6,
+    "real_os_background_minimize": "pending; automated visibility event only",
+    "photo_preview": "synthetic local raster, no upload, disguised SVG rejected",
+    "native_persistence": "not implemented",
+    "native_framework_ports": "not implemented",
+    "energy_gpu_total_cpu": "not measured"
+  },
+  "bundled_demo_assets": [
+    {
+      "asset": "avatarLab-DfnMOKS5.js",
+      "bytes": 21611,
+      "gzip_bytes": 8301,
+      "sha256": "fc1a54f2f9f2991f89e9ba758ee98c68a27481bebd5961f67b48285a1f7b4b49"
+    },
+    {
+      "asset": "modulepreload-polyfill-P2Xu9kJm.js",
+      "bytes": 670,
+      "gzip_bytes": 392,
+      "sha256": "418c206484b89b68ef5f067277831e583fc9193a62aadf4de269acaaeb12a85f"
+    },
+    {
+      "asset": "avatarLab-CEKyG4tO.css",
+      "bytes": 9116,
+      "gzip_bytes": 2682,
+      "sha256": "4b010b47621c4d8096102f51ff947ca9021ca160d4e89814cb3178adfc328ffd"
+    }
+  ]
+}

@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:avatars
       - run: npm audit --omit=dev --audit-level=high
       - run: python3 -m venv /tmp/bot-web-test-env
       - run: /tmp/bot-web-test-env/bin/pip install -r test/plugin/requirements.txt

@@ -9,6 +9,16 @@ export default defineConfig({
         .pathname,
     },
   },
-  build: { outDir: 'dist', emptyOutDir: true, sourcemap: false },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: false,
+    rollupOptions: {
+      input: {
+        workspace: new URL('./apps/web/index.html', import.meta.url).pathname,
+        avatarLab: new URL('./apps/web/avatar-lab.html', import.meta.url).pathname,
+      },
+    },
+  },
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
 });
