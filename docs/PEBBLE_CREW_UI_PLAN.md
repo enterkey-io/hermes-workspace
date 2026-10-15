@@ -127,6 +127,8 @@ Read cursors must be monotonic within a verified conversation incarnation and
 its native ordering. A stale second device cannot move the cursor backward or
 mark already-read activity unread. Replaced canonical chats and recreated rooms
 need distinct cursor scope rather than inheriting an unrelated sequence.
+Advance read state only through messages actually displayed in the foreground
+conversation, not merely fetched in a background snapshot.
 
 Obtain sidebar summaries with a bounded native read. Never open or resume all
 agents merely to populate previews. Use a role/description fallback until actual
@@ -211,7 +213,10 @@ roles or deletion receipts.
 
 Recognize verified profile renames through native identity evidence rather than
 treating every name change as deletion and recreation. Do not infer a rename
-from similar names or persona text.
+from similar names or persona text. The inspected af0 profile list includes
+`previous_names`; verify equivalent evidence on other supported builds. A
+cloned profile must receive a distinct identity even if native cloning copies a
+plugin-owned marker; reject or reconcile duplicate markers before management.
 
 If a selected pebble is hidden, move navigation safely and retain its draft under
 the hidden identity. If it is deleted, invalidate the conversation generation,
@@ -290,7 +295,7 @@ than accepting a passing screenshot comparison alone.
   events do not duplicate bubbles. Native membership drives avatar stacks.
 - Roster tests include selected/unselected and pinned pebbles, external changes,
   a second browser, missed events and reconnect. Hide/unhide preserves data.
-- Delete tests include active work, routines, crews, name reuse, restart, lost
+- Delete tests include active work, routines, crews, name reuse, cloning, restart, lost
   acknowledgment, partial filesystem failure and identity settlement pending.
   Assert no duplicate destruction, directory resurrection or accidental chat
   recreation, on both pinned native revisions before enabling the feature.
