@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "date": "2026-10-15",
+  "evidence_level": "native-configuration-research",
+  "new_management_operations_implemented": false,
+  "live_owner_agents_changed": false,
+  "ui_changed": false,
+  "probes": [
+    {
+      "revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
+      "checks": {
+        "custom_provider_model_pin_applied": true,
+        "fresh_native_profile_without_parent_soul_or_env_copy": true,
+        "native_roster_role_uses_top_level_description_not_ui_description": true,
+        "section_metadata_native_write_and_stale_cas_rejection": true,
+        "ui_namespace_replaces_whole_value_requires_read_merge_cas": true,
+        "description_edit_preserves_soul": true,
+        "installed_skill_enable_disable_native": true,
+        "empty_toolset_selection_resets_to_defaults_not_no_tools": true,
+        "known_mcp_configuration_attach_without_credential_copy": true,
+        "mcp_live_connection_or_authorization_verified": false,
+        "default_native_handle": "hermes",
+        "friendly_alias_resolves_default": false,
+        "exact_profile_id_wins_over_friendly_alias_collision": true,
+        "plugin_sdk": {
+          "register_tool": true,
+          "register_skill": true,
+          "register_system_prompt_section": true,
+          "register_hook": true
+        }
+      },
+      "submitted_model_prompts": 0,
+      "scope": "disposable native fixture; research only"
+    },
+    {
+      "revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
+      "checks": {
+        "custom_provider_model_pin_applied": false,
+        "fresh_native_profile_without_parent_soul_or_env_copy": true,
+        "native_roster_role_uses_top_level_description_not_ui_description": true,
+        "section_metadata_native_write_and_stale_cas_rejection": true,
+        "ui_namespace_replaces_whole_value_requires_read_merge_cas": true,
+        "description_edit_preserves_soul": true,
+        "installed_skill_enable_disable_native": true,
+        "empty_toolset_selection_resets_to_defaults_not_no_tools": true,
+        "known_mcp_configuration_attach_without_credential_copy": true,
+        "mcp_live_connection_or_authorization_verified": false,
+        "default_native_handle": "hermes",
+        "friendly_alias_resolves_default": true,
+        "exact_profile_id_wins_over_friendly_alias_collision": true,
+        "plugin_sdk": {
+          "register_tool": true,
+          "register_skill": true,
+          "register_system_prompt_section": true,
+          "register_hook": true
+        }
+      },
+      "submitted_model_prompts": 0,
+      "scope": "disposable native fixture; research only"
+    }
+  ],
+  "not_verified": [
+    "Actual model use of a newly registered management tool and skill in every profile/DM subprocess",
+    "Runtime refresh of role/hierarchy context in an already-open canonical chat",
+    "Owner-only approval/replay protection and caller binding",
+    "Custom-provider authorization for a new profile",
+    "MCP live connectivity/authorization",
+    "Task dependency execution and report delivery",
+    "Guided orchestrator onboarding and welcome idempotence"
+  ]
+}
