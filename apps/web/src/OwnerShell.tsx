@@ -27,7 +27,7 @@ export async function ownerRequest(path: string, body?: unknown) {
     throw new OwnerRequestError(
       value && typeof value === 'object' && 'error' in value && typeof value.error === 'string'
         ? value.error
-        : 'Sign in to your workspace.',
+        : 'Please sign in.',
       response.status,
     );
   return value;
@@ -40,7 +40,7 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [proof, setProof] = useState(setupProof);
-  const [usingSetupLink, setUsingSetupLink] = useState(Boolean(setupProof));
+  const usingSetupLink = Boolean(setupProof);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function check() {
@@ -84,7 +84,6 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
       setConfirmation('');
       setMode('ready');
     } catch (e) {
-      if (mode === 'setup') setUsingSetupLink(false);
       setError(e instanceof Error ? e.message : 'Could not sign in.');
     } finally {
       setBusy(false);
@@ -116,36 +115,25 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
   return (
     <main className="owner-entry">
       <div className="owner-card">
-        <a className="wordmark" href="/">
-          Workspace
-        </a>
-        <p className="eyebrow">YOUR PRIVATE HERMES WORKSPACE</p>
         <h1>
           {mode === 'setup'
-            ? 'Make it yours.'
+            ? 'Create your login'
             : mode === 'loading'
-              ? 'Opening your workspace…'
+              ? 'Loading…'
               : mode === 'unavailable'
-                ? 'Your workspace needs attention.'
-                : 'Welcome back.'}
+                ? 'Unable to connect'
+                : 'Sign in'}
         </h1>
         {mode === 'unavailable' ? (
           <>
-            <p>
-              The owner service isn’t available. Your installer can check its service status; your
-              Hermes conversations are still on your server.
-            </p>
+            <p>The app isn’t responding. Try again in a moment.</p>
             <button onClick={() => void check()}>Try again</button>
           </>
         ) : mode === 'loading' ? null : (
           <>
-            <p>
-              {mode === 'setup'
-                ? usingSetupLink
-                  ? 'Create your administrator login. Your private setup link connects this workspace to your Hermes.'
-                  : 'Create the administrator login for this installation. Open the private setup link from your installer, or enter its setup code below.'
-                : 'Sign in to pick up where you left off. Your Hermes reconnects automatically.'}
-            </p>
+            {mode === 'setup' && !usingSetupLink && (
+              <p>Open your private setup link to continue.</p>
+            )}
             <form onSubmit={(e) => void submit(e)}>
               {mode === 'setup' && !usingSetupLink && (
                 <label>
@@ -166,6 +154,7 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
                   minLength={3}
                   maxLength={32}
                   pattern="[A-Za-z0-9_]+"
+                  title="3–32 letters, numbers or underscores"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
@@ -177,6 +166,7 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
                   type="password"
                   autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
                   minLength={mode === 'setup' ? 12 : 1}
+                  {...(mode === 'setup' ? { placeholder: 'At least 12 characters' } : {})}
                   maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -200,21 +190,17 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
                 </p>
               )}
               <button className="primary" disabled={busy}>
-                {busy ? 'Just a moment…' : mode === 'setup' ? 'Create my workspace' : 'Sign in'}
+                {busy ? 'Please wait…' : mode === 'setup' ? 'Create login' : 'Sign in'}
               </button>
             </form>
             {mode === 'login' && (
               <details>
                 <summary>Forgot your password?</summary>
-                <p>
-                  Your installer can reset the login on your own app host using the owner recovery
-                  command. There is no public password reset or vendor account.
-                </p>
+                <p>Ask your Hermes agent to reset your login.</p>
               </details>
             )}
           </>
         )}
-        <small>Hosted by you · Conversations and agent memory stay on Hermes</small>
       </div>
     </main>
   );

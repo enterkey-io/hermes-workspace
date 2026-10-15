@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Agent installation guide · Hermes workspace preview</title><link rel="stylesheet" href="/install.css"></head><body><header><a href="/">← Workspace preview</a><span>Product name undecided</span></header><main><section class="owner-note"><p class="eyebrow">FOR THE OWNER</p><h1>Give this page to your Hermes agent.</h1><p>Your agent installs the workspace plugin on your Hermes host, sets up reliable startup and a private web address, then gives you one private setup link. Open it to create your administrator login and bring in your existing primary agent.</p><p>The plugin includes the web app. Your conversations, memory, service credentials and login stay on your infrastructure. No pairing conversation is needed.</p><a href="/install.md">Read or copy the plain-text instructions ↗</a></section><nav aria-label="Installer downloads"><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-manifest.json">Package manifest</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-plugin-preview.zip">Complete workspace plugin</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-source-preview.zip">Source code</a></nav><article><h1>Install the private Hermes workspace plugin</h1>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Agent installation guide</title><link rel="stylesheet" href="/install.css"></head><body><header><a href="/">← Back to app</a></header><main><section class="owner-note"><p class="eyebrow">FOR THE OWNER</p><h1>Give this page to your Hermes agent.</h1><p>Your agent installs the plugin on your Hermes host, sets up reliable startup and a private web address, then gives you one private setup link. Open it to create your administrator login and bring in your existing primary agent.</p><p>The plugin includes the web app. Your conversations, memory, service credentials and login stay on your infrastructure. No pairing conversation is needed.</p><a href="/install.md">Read or copy the plain-text instructions ↗</a></section><nav aria-label="Installer downloads"><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-manifest.json">Package manifest</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-plugin-preview.zip">Complete plugin</a><a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-source-preview.zip">Source code</a></nav><article><h1>Install the web app plugin for Hermes</h1>
 <p>For the owner&#x27;s Hermes installation agent: install the <strong>combined plugin</strong> on the</p>
 <p>owner&#x27;s Hermes host. It includes the web app, owner login and native Bot Mode</p>
 <p>integration. Finish supervision and HTTPS verification, then give the owner **one</p>
@@ -35,6 +35,13 @@
 <p>the old integration code/service and its preserved settings. Do not run two native</p>
 <p>room drivers against the same home as an installation shortcut. Old temporary</p>
 <p>browser grants are not migrated; the new app creates its owner login once.</p>
+<p>The old <code>$HERMES_HOME/bot-web/connection.json</code> is intentionally retained unchanged</p>
+<p>for rollback to the API-only service. Its old admin token is not used by the</p>
+<p>combined service; that service reads its private settings from</p>
+<p><code>$HERMES_HOME/bot-web/web/install.json</code>. Keep the old file private (0600) with the</p>
+<p>old service stopped. Do not copy its credential into the new settings or delete</p>
+<p>it during install/update. After the owner accepts the migration and closes the</p>
+<p>rollback window, it can be archived privately with the old service/code.</p>
 <h2>2. Establish the owner&#x27;s HTTPS route</h2>
 <p>Choose one canonical HTTPS origin on owner-controlled infrastructure. Reuse an</p>
 <p>appropriate reverse proxy, ingress or private tailnet route. Preserve its Host</p>
@@ -50,12 +57,12 @@
 <p>requirement before promising a URL. A terminal or <code>nohup</code> process is not a finished</p>
 <p>installation.</p>
 <h2>3. Obtain the immutable combined release</h2>
-<p>Candidate: <code>v0.4.0-preview.1</code>. If these assets are not published, stop and report</p>
+<p>Candidate: <code>v0.4.1-preview.1</code>. If these assets are not published, stop and report</p>
 <p>that the candidate is unavailable. Do not substitute main or an API-only package.</p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-manifest.json" rel="noreferrer">Manifest</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/SHA256SUMS" rel="noreferrer">SHA256SUMS</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-plugin-preview.zip" rel="noreferrer">Complete plugin</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-source-preview.zip" rel="noreferrer">Source</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-manifest.json" rel="noreferrer">Manifest</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/SHA256SUMS" rel="noreferrer">SHA256SUMS</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-plugin-preview.zip" rel="noreferrer">Complete plugin</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-source-preview.zip" rel="noreferrer">Source</a></p>
 <p>Verify size and SHA-256 against both manifest and checksum file. Reject absolute</p>
 <p>archive paths, traversal, symlinks and entries escaping private staging. The</p>
 <p>installable directory is <code>bot-web/</code>, including <code>web-runtime/</code>. The repository root</p>
@@ -128,6 +135,20 @@ hermes bot-web verify --public</code></pre>
 <p>login. Do not claim the account for the owner or run paid-model tests without</p>
 <p>their authorization.</p>
 <h2>Updates and rollback</h2>
+<p>For the 0.4.1 patch, obtain and verify the new combined ZIP as in step 3, back up</p>
+<p>and replace only the installed plugin code (preserving all state), then run</p>
+<p><code>hermes bot-web update</code>. Keep the existing origin, ports, owner login, agent</p>
+<p>bindings and supervisor. Run <code>hermes bot-web verify --public</code> through the existing</p>
+<p>HTTPS route; no new setup link, login creation or pairing is required. If the</p>
+<p>owner has not claimed the initial login, retrieve its still-valid private link</p>
+<p>with <code>hermes bot-web setup-link</code> (use <code>--renew-setup</code> only if it expired).</p>
+<p><code>setup-link</code> returns <code>expires</code> (Unix epoch milliseconds) and <code>expires_in</code> (whole</p>
+<p>remaining seconds). Its output contains the private file path, never the secret.</p>
+<p>Event parsing and legacy access controls are specified in</p>
+<p><a href="https://github.com/enterkey-io/hermes-workspace/blob/v0.4.1-preview.1/docs/WIRE_PROTOCOL.md" rel="noreferrer">the wire protocol</a>.</p>
+<p>Never use global revocation for diagnostic cleanup: use DELETE <code>/v1/connect</code></p>
+<p>with the probe&#x27;s own lease. Global revocation now requires `hermes bot-web revoke</p>
+<p>--all<code> or the operator-only HTTP body </code>{&quot;all&quot;:true}`.</p>
 <p>Verify the next combined release, back up and replace only installed plugin code,</p>
 <p>and enable it natively. Running services keep using their immutable snapshot until</p>
 <p>activation; preserve private state and native stores.</p>

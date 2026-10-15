@@ -1095,19 +1095,17 @@ a:focus-visible {
   display: grid;
   place-items: center;
   padding: 28px;
-  background: radial-gradient(ellipse at 50% 0%, #24242e, #101113 65%);
+  background: #101112;
   overflow: auto;
 }
 .owner-card {
-  width: min(100%, 440px);
-  background: #18191c;
-  border: 1px solid #33343a;
-  border-radius: 24px;
-  padding: 32px;
+  width: min(100%, 360px);
 }
 .owner-card h1 {
-  font-size: 32px;
-  letter-spacing: -1px;
+  font-size: 26px;
+  letter-spacing: -0.7px;
+  font-weight: 600;
+  margin-bottom: 12px;
 }
 .owner-card p {
   color: #b8bac5;
@@ -1115,13 +1113,14 @@ a:focus-visible {
 }
 .owner-card form {
   display: grid;
-  gap: 18px;
-  margin: 28px 0;
+  gap: 20px;
+  margin: 28px 0 20px;
 }
 .owner-card label {
   display: grid;
   gap: 8px;
   color: #d9dbe3;
+  font-size: 14px;
 }
 .owner-card input {
   width: 100%;
@@ -1153,8 +1152,8 @@ a:focus-visible {
   vertical-align: middle;
 }
 .agent-avatar.large {
-  width: 116px;
-  height: 126px;
+  width: 132px;
+  height: 144px;
 }
 .agent-avatar svg.avatar {
   width: 100%;
@@ -1185,6 +1184,16 @@ a:focus-visible {
   color: #d4dc85;
   font-size: 12px;
 }
+.empty-photo {
+  width: 100%;
+  height: 100%;
+  padding: 32px;
+  border: 1px dashed #48494f;
+  border-radius: 50%;
+  fill: none;
+  stroke: #85868f;
+  stroke-width: 1.5;
+}
 .workspace-setup,
 .settings-panel {
   height: 100%;
@@ -1196,8 +1205,9 @@ a:focus-visible {
   margin: auto;
 }
 .workspace-setup h1 {
-  font-size: clamp(28px, 4vw, 44px);
-  letter-spacing: -1px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.7px;
 }
 .setup-intro {
   max-width: 640px;
@@ -1238,6 +1248,119 @@ a:focus-visible {
   align-items: center;
   gap: 12px;
 }
+.workspace-setup .handle-input {
+  gap: 0;
+  padding-left: 14px;
+  border: 1px solid #494b56;
+  border-radius: 10px;
+  background: #191a1e;
+  color: #9c9ca5;
+}
+.workspace-setup .handle-input:focus-within {
+  outline: 2px solid #d1e8ff;
+  outline-offset: 3px;
+}
+.workspace-setup .handle-input input {
+  border: 0;
+  background: transparent;
+  padding-left: 4px;
+  outline: none;
+}
+.appearance-picker {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.avatar-preview {
+  display: grid;
+  place-items: center;
+  min-height: 156px;
+}
+.avatar-modes {
+  display: flex;
+  gap: 2px;
+  border-radius: 9px;
+  background: #1b1c20;
+  padding: 3px;
+}
+.avatar-modes button {
+  font-size: 13px;
+  padding: 6px 18px;
+  border-color: transparent;
+  background: transparent;
+  color: #96969f;
+}
+.avatar-modes button[aria-pressed='true'] {
+  color: #f4f4f5;
+  background: #35353d;
+}
+.avatar-shapes {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+.avatar-shapes button {
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 2px solid transparent;
+  background: #1b1c20;
+  border-radius: 12px;
+}
+.avatar-shapes button:hover {
+  background: #27272e;
+}
+.avatar-shapes button[aria-pressed='true'] {
+  border-color: #d5d2f4;
+  background: #292831;
+}
+.avatar-shapes svg {
+  width: 100%;
+  height: 100%;
+  max-height: 52px;
+}
+.avatar-colors {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.avatar-colors button {
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  width: 38px;
+  height: 38px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 50%;
+}
+.avatar-colors button[aria-pressed='true'] {
+  border-color: #e4e1f9;
+}
+.avatar-colors button span {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.photo-upload {
+  text-align: center;
+}
+.photo-upload input[hidden] {
+  display: none;
+}
+.photo-upload button {
+  font-size: 13px;
+}
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 8px 22px;
+}
 .choice-row {
   display: flex;
   gap: 8px;
@@ -1269,10 +1392,13 @@ a:focus-visible {
 .welcome-choice {
   grid-template-columns: 24px 1fr;
   align-items: start;
+  font-size: 13px;
+  color: #b8b8c1;
 }
 .welcome-choice input {
   width: 18px;
-  margin-top: 4px;
+  margin: 1px 0 0;
+  accent-color: #aca8ed;
 }
 .welcome-choice small {
   grid-column: 2;
@@ -1379,16 +1505,25 @@ a:focus-visible {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(ellipse at 80% 0%, #24232e, #101113 65%);
+  background: #101112;
 }
 .onboarding-shell > header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 24px 36px;
-  border-bottom: 1px solid #303138;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  flex-shrink: 0;
 }
 .onboarding-shell .workspace-setup {
   flex: 1;
   min-height: 0;
+  max-width: 416px;
+  padding: 24px 28px 40px;
+}
+.workspace-setup form {
+  margin: 24px 0 0;
+  gap: 22px;
+}
+.workspace-setup label {
+  font-size: 14px;
 }

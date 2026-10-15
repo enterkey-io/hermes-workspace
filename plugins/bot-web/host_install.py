@@ -372,4 +372,5 @@ def setup_link(directory=None, *, renew=False):
         raise ValueError("The owner setup proof expired or was already used")
     destination = directory / "setup-link.txt"
     atomic_write(destination, value["origin"] + "/#setup=" + proof + "\n", text=True)
-    return {"private_setup_link_file": str(destination), "expires": row[1]}
+    return {"private_setup_link_file": str(destination), "expires": row[1],
+            "expires_in": max(0, int((row[1] - time.time() * 1000) / 1000))}

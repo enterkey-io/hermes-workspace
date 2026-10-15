@@ -1,12 +1,22 @@
 # Installed-owner implementation status
 
-This file tracks the 0.4.0 combined-plugin candidate and the earlier published
+This file tracks the 0.4.1 combined-plugin patch and the earlier published
 0.3.0 owner-login preview. It is not production certification or a claim that an
 owner's remote Hermes has been upgraded. The default distribution is now one
 installable plugin; independent app hosting remains optional.
 
 Implemented and exercised locally:
 
+- Concise owner login and primary-agent setup with no provisional product
+  branding. Animated iris avatar by default, shape thumbnails and circular
+  color swatches, selected-preview matching, and an empty photo-upload state.
+  Existing native photos remain available; a stock image no longer selects
+  photo mode during onboarding. Browser checks include that regression,
+  animation, mobile fit, photo round trips and saved appearance.
+- Documented event framing, blank-line compatibility for existing probes,
+  bounded operator readers accepting either separator, explicit `revoke --all`
+  / `{"all":true}` safeguards, setup-link remaining lifetime and legacy rollback
+  configuration retention. Legacy guides are marked with their version scope.
 - Combined installable archive containing prebuilt web UI, Node/SQLite login and
   the native Python integration. Positive checksum inventory, locked production
   dependencies with lifecycle scripts disabled, immutable release snapshots and

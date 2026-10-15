@@ -274,7 +274,7 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
         async def stream():
             try:
                 # Flush headers immediately and acknowledge an authenticated stream.
-                yield '{"type":"bridge.ready"}\n'
+                yield '{"type":"bridge.ready"}\n\n'
                 next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
                 while active():
                     # Filtered native traffic must not restart the browser's heartbeat clock.
@@ -283,7 +283,7 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                         # An authenticated, actively streamed browser is not idle. Ticket/grant
                         # expiry remains an independent hard boundary; heartbeats never extend it.
                         client["touched"] = time.monotonic()
-                        yield '{"type":"bridge.heartbeat"}\n'
+                        yield '{"type":"bridge.heartbeat"}\n\n'
                         next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
                         continue
                     try:
@@ -293,10 +293,10 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                     if not active():
                         break
                     if event.get("type") == "bridge.resync":
-                        yield json.dumps(event) + "\n"
+                        yield json.dumps(event) + "\n\n"
                         break
                     if event.get("session_id") in client["sessions"]:
-                        yield json.dumps(event, ensure_ascii=False) + "\n"
+                        yield json.dumps(event, ensure_ascii=False) + "\n\n"
             finally:
                 native.listeners.discard(queue)
                 client["streaming"] = False
@@ -332,7 +332,9 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
 
     @app.post("/v1/pairing/revoke")
     async def revoke_pairing(request: Request):
-        await pairing_body(request, [])
+        data = await pairing_body(request, ["all"])
+        if data["all"] is not True:
+            raise InvalidOperation("Global revocation requires all: true; use DELETE /v1/connect for probe cleanup")
         pairing.revoke()
         clients.clear()
         return {"revoked": True}

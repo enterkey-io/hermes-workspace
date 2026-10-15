@@ -140,32 +140,38 @@ describe('direct Bot Mode bridge', () => {
     }
   });
 
-  it('decodes native events split across UTF-8 chunks', async () => {
-    const encoded = new TextEncoder().encode(
-      '{"type":"bridge.ready"}\n{"type":"message.delta","session_id":"live","payload":{"text":"🤖"}}\n',
-    );
-    const body = new ReadableStream({
-      start(controller) {
-        for (const byte of encoded) controller.enqueue(new Uint8Array([byte]));
-        controller.close();
-      },
-    });
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(connectedResponse())
-      .mockResolvedValueOnce(
-        new Response(body, { headers: { 'Content-Type': 'application/x-ndjson' } }),
+  it.each(['\n', '\n\n'])(
+    'decodes %j-delimited events split across UTF-8 chunks',
+    async (separator) => {
+      const encoded = new TextEncoder().encode(
+        '{"type":"bridge.ready"}' +
+          separator +
+          '{"type":"message.delta","session_id":"live","payload":{"text":"🤖"}}' +
+          separator,
       );
-    const client = new BotBridgeClient(endpoint, token, fetcher);
-    const observer = vi.fn();
-    await client.connect();
-    await expect(client.events(observer)).rejects.toMatchObject({ code: 'DISCONNECTED' });
-    expect(observer).toHaveBeenCalledWith({
-      type: 'message.delta',
-      session_id: 'live',
-      payload: { text: '🤖' },
-    });
-  });
+      const body = new ReadableStream({
+        start(controller) {
+          for (const byte of encoded) controller.enqueue(new Uint8Array([byte]));
+          controller.close();
+        },
+      });
+      const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(connectedResponse())
+        .mockResolvedValueOnce(
+          new Response(body, { headers: { 'Content-Type': 'application/x-ndjson' } }),
+        );
+      const client = new BotBridgeClient(endpoint, token, fetcher);
+      const observer = vi.fn();
+      await client.connect();
+      await expect(client.events(observer)).rejects.toMatchObject({ code: 'DISCONNECTED' });
+      expect(observer).toHaveBeenCalledWith({
+        type: 'message.delta',
+        session_id: 'live',
+        payload: { text: '🤖' },
+      });
+    },
+  );
 
   it('rejects a proxy HTML page or an event stream without the readiness handshake', async () => {
     for (const response of [

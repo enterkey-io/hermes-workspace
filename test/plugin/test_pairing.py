@@ -98,11 +98,42 @@ class PairingBoundaryTests(unittest.IsolatedAsyncioTestCase):
             operator_lease = (await client.post('/v1/connect', headers=operator)).json()["connection"]
             self.assertEqual((await client.post('/v1/rpc', headers={**browser, "X-Bot-Connection":operator_lease}, json={"operation":"bots.list","params":{}})).status_code, 400)
             self.assertEqual((await client.post('/v1/connect', headers=browser)).status_code, 200)
-            await client.post('/v1/pairing/revoke', headers=operator, json={})
+            for payload in ({}, {"all": False}, {"all": "true"}, {"all": 1}):
+                denied = await client.post('/v1/pairing/revoke', headers=operator, json=payload)
+                self.assertEqual(denied.status_code, 400)
+                self.assertEqual((await client.post('/v1/renew', headers={**operator, "X-Bot-Connection":operator_lease})).status_code, 200)
+            browser_lease = (await client.post('/v1/connect', headers=browser)).json()["connection"]
+            self.assertEqual((await client.post('/v1/pairing/revoke', headers=browser, json={"all": True})).status_code, 403)
+            self.assertEqual((await client.post('/v1/renew', headers={**browser, "X-Bot-Connection":browser_lease})).status_code, 200)
+            self.assertEqual((await client.post('/v1/pairing/revoke', headers=operator, json={"all": True})).status_code, 200)
             self.assertEqual((await client.post('/v1/connect', headers=browser)).status_code, 401)
 
 
 class SetupTests(unittest.TestCase):
+    def test_cli_revoke_requires_all_flag(self):
+        import argparse
+        from bot_web import register
+        class Context:
+            def register_cli_command(self, name, description, setup, run):
+                self.parser = argparse.ArgumentParser()
+                setup(self.parser)
+                self.run = run
+        context = Context()
+        with patch('bot_web.runtime.register_runtime'), patch('bot_web.setup.control') as control:
+            register(context)
+            with self.assertRaisesRegex(ValueError, 'revoke --all'):
+                context.run(context.parser.parse_args(['revoke']))
+            control.assert_not_called()
+            context.run(context.parser.parse_args(['revoke', '--all']))
+            control.assert_called_once_with('revoke', None, None, all_browsers=True)
+
+    def test_global_revoke_requires_explicit_opt_in_before_reading_credentials(self):
+        from bot_web.setup import control
+        with patch("bot_web.setup.read_settings") as read:
+            with self.assertRaisesRegex(ValueError, 'revoke --all'):
+                control('revoke')
+            read.assert_not_called()
+
     def test_setup_keeps_administrator_credential_private_and_preserves_existing_config(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

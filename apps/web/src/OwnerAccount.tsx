@@ -8,11 +8,7 @@ export function OwnerAccount() {
   const [message, setMessage] = useState('');
   return (
     <section className="owner-account">
-      <h2>Administrator login</h2>
-      <p>
-        This login belongs to your installed workspace. Changing it does not change your Hermes
-        credentials.
-      </p>
+      <h2>Change password</h2>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -28,9 +24,7 @@ export function OwnerAccount() {
             setCurrent('');
             setNext('');
             setConfirm('');
-            setMessage(
-              'Password changed. Other app sessions were signed out. Existing Hermes access tickets expire within five minutes.',
-            );
+            setMessage('Password changed. Other devices will be signed out within five minutes.');
           } catch (e) {
             setMessage(e instanceof Error ? e.message : 'Password could not be changed.');
           } finally {
@@ -78,9 +72,7 @@ export function OwnerAccount() {
           setBusy(true);
           try {
             await ownerRequest('/api/auth/revoke-other-sessions', {});
-            setMessage(
-              'Other app sessions were signed out. Existing Hermes access tickets expire within five minutes.',
-            );
+            setMessage('Other devices will be signed out within five minutes.');
           } catch {
             setMessage('Session revocation could not be confirmed.');
           } finally {

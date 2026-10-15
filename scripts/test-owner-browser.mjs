@@ -9,6 +9,9 @@ const state = join(directory, 'owner'),
   key = join(directory, 'key.pem');
 const processes = [];
 const env = { ...process.env, WORKSPACE_TEST_STATE: state };
+const ownerBundle = env.WORKSPACE_BUILD_ROOT
+  ? join(env.WORKSPACE_BUILD_ROOT, 'owner/main.mjs')
+  : 'apps/owner-node/dist/main.mjs';
 function start(exe, args, extra = {}) {
   const child = spawn(exe, args, { env: { ...env, ...extra }, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
@@ -52,7 +55,7 @@ try {
   execFileSync(
     process.execPath,
     [
-      'apps/owner-node/dist/main.mjs',
+      ownerBundle,
       'init',
       '--origin',
       'https://127.0.0.1:5445',
@@ -64,12 +67,13 @@ try {
     { stdio: 'pipe' },
   );
   start(process.execPath, [
-    'apps/owner-node/dist/main.mjs',
+    ownerBundle,
     'serve',
     '--state',
     state,
     '--port',
     '8096',
+    ...(env.WORKSPACE_BUILD_ROOT ? ['--assets', join(env.WORKSPACE_BUILD_ROOT, 'web')] : []),
   ]);
   start(process.execPath, ['scripts/fixture/owner_tls_proxy.mjs', cert, key]);
   start(

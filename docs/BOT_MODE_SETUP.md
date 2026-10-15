@@ -1,5 +1,11 @@
 # Use existing Hermes agents in Bot Mode
 
+> **Version scope: legacy 0.2.x API-only installs.** For 0.4.x combined-plugin
+> installation or updates, follow [AGENT_INSTALL.md](AGENT_INSTALL.md). The owner
+> creates a login and confirms their existing primary agent in the app. Do not
+> create a starter bot or register a primary agent on the owner's behalf. The
+> procedures below are legacy reference and explicit operator repair only.
+
 The product connects to the owner's existing agents. Installing it must not invent a neutral placeholder, clone an agent or require a SOUL transfer. Discover all native profiles, including ordinary profiles not yet registered in Bot Mode. The earlier automatic starter-bot instructions are superseded.
 
 ## Owner selection in the web app

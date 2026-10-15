@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AvatarView, AvatarScheduler } from './avatar-lab/renderer';
-import { COLORS, SHAPES } from './avatar-lab/engine';
+import { BODY_PATHS, COLORS, SHAPES } from './avatar-lab/engine';
 import { previewPhoto } from './avatar-lab/photo';
 import type { Activity } from './avatar-lab/engine';
 import type { Appearance } from './workspace';
@@ -64,7 +64,7 @@ export function AgentAvatar({
   }, [look.kind, photo, client, profile]);
   const image = look.kind === 'photo' ? photo || savedPhoto : '';
   useEffect(() => {
-    if (!host.current || image) return;
+    if (!host.current || look.kind !== 'shape') return;
     const scheduler = acquire();
     const motion = matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => scheduler.configure(true, motion.matches);
@@ -88,7 +88,7 @@ export function AgentAvatar({
       motion.removeEventListener('change', update);
       release();
     };
-  }, [id, image, look.shape, look.color, orchestrator, large]);
+  }, [id, look.kind, look.shape, look.color, orchestrator, large]);
   useEffect(() => {
     if (view.current && clock) {
       view.current.setState(state, clock.clock);
@@ -112,6 +112,12 @@ export function AgentAvatar({
           )}
         </>
       )}
+      {look.kind === 'photo' && !image && (
+        <svg className="empty-photo" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="18" r="7" />
+          <path d="M11 39v-3a13 13 0 0 1 26 0v3" />
+        </svg>
+      )}
     </span>
   );
 }
@@ -122,7 +128,6 @@ export function AvatarChooser({
   onPhoto,
   client,
   profile,
-  hasPhoto = false,
   onBusyChange,
 }: {
   look: Appearance;
@@ -131,12 +136,13 @@ export function AvatarChooser({
   onPhoto: (v: string) => void;
   client?: BotBridgeClient;
   profile?: string;
-  hasPhoto?: boolean;
   onBusyChange?: (busy: boolean) => void;
 }) {
   const [storedPhoto, setStoredPhoto] = useState('');
+  const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     let live = true;
+    setStoredPhoto('');
     if (client && profile)
       void client
         .invoke('bots.appearance.get', { profile })
@@ -144,6 +150,7 @@ export function AvatarChooser({
           const data = value as { data?: unknown };
           if (
             live &&
+            data &&
             typeof data.data === 'string' &&
             /^data:image\/(png|jpeg|webp);base64,/.test(data.data)
           )
@@ -156,6 +163,10 @@ export function AvatarChooser({
   }, [client, profile]);
   const [error, setError] = useState('');
   const [decoding, setDecoding] = useState(false);
+  const missingPhoto = look.kind === 'photo' && !photo && !storedPhoto;
+  useEffect(() => {
+    onBusyChange?.(decoding || missingPhoto);
+  }, [decoding, missingPhoto, onBusyChange]);
   const generation = useRef(0);
   useEffect(
     () => () => {
@@ -166,40 +177,39 @@ export function AvatarChooser({
   function choose(value: Appearance) {
     generation.current++;
     setDecoding(false);
-    onBusyChange?.(false);
+    setError('');
     onChange(value);
   }
   return (
     <div className="appearance-picker">
-      <AgentAvatar
-        id="appearance-preview"
-        look={look}
-        photo={photo || storedPhoto}
-        {...(client ? { client } : {})}
-        {...(profile ? { profile } : {})}
-        large
-        orchestrator
-      />
-      <div className="choice-row" aria-label="Avatar style">
+      <div className="avatar-preview" role="img" aria-label="Selected avatar">
+        <AgentAvatar id="appearance-preview" look={look} photo={photo || storedPhoto} large />
+      </div>
+      <div className="avatar-modes" role="group" aria-label="Avatar style">
         <button
           type="button"
           aria-pressed={look.kind === 'shape'}
           onClick={() => choose({ ...look, kind: 'shape' })}
         >
-          Animated shape
+          Animated
         </button>
-        {(photo || storedPhoto || hasPhoto) && (
-          <button
-            type="button"
-            aria-pressed={look.kind === 'photo'}
-            onClick={() => choose({ ...look, kind: 'photo' })}
-          >
-            Photo
+        <button
+          type="button"
+          aria-pressed={look.kind === 'photo'}
+          onClick={() => choose({ ...look, kind: 'photo' })}
+        >
+          Photo
+        </button>
+      </div>
+      {look.kind === 'photo' && (
+        <div className="photo-upload">
+          <button type="button" disabled={decoding} onClick={() => fileInput.current?.click()}>
+            {decoding ? 'Opening photo…' : photo || storedPhoto ? 'Change photo' : 'Upload photo'}
           </button>
-        )}
-        <label className="photo-choice">
-          Choose photo
           <input
+            ref={fileInput}
+            hidden
+            aria-label="Choose photo"
             type="file"
             accept="image/png,image/jpeg,image/webp"
             disabled={decoding}
@@ -209,7 +219,6 @@ export function AvatarChooser({
               if (!file) return;
               const ticket = ++generation.current;
               setDecoding(true);
-              onBusyChange?.(true);
               setError('');
               try {
                 const result = await previewPhoto(file);
@@ -223,47 +232,56 @@ export function AvatarChooser({
               } finally {
                 if (generation.current === ticket) {
                   setDecoding(false);
-                  onBusyChange?.(false);
                 }
               }
             }}
           />
-        </label>
-      </div>
+        </div>
+      )}
       {look.kind === 'shape' && (
         <>
-          <div className="choice-row" aria-label="Avatar shape">
+          <div className="avatar-shapes" role="group" aria-label="Avatar shape">
             {SHAPES.map((shape) => (
               <button
                 key={shape}
                 type="button"
+                aria-label={shape}
                 aria-pressed={look.shape === shape}
                 onClick={() => choose({ ...look, shape })}
               >
-                {shape}
+                <svg viewBox="0 0 100 108" aria-hidden="true" focusable="false">
+                  <path
+                    d={BODY_PATHS[shape]}
+                    fill={COLORS.find((c) => c.id === look.color)?.hex ?? COLORS[0].hex}
+                  />
+                  <g fill="#222329">
+                    <rect x="35" y="40" width="8" height="18" rx="4" />
+                    <rect x="56" y="40" width="8" height="18" rx="4" />
+                  </g>
+                </svg>
               </button>
             ))}
           </div>
-          <div className="choice-row" aria-label="Avatar color">
+          <div className="avatar-colors" role="group" aria-label="Avatar color">
             {COLORS.map((color) => (
               <button
                 key={color.id}
                 type="button"
+                aria-label={color.label}
                 aria-pressed={look.color === color.id}
                 onClick={() => choose({ ...look, color: color.id })}
               >
-                <span style={{ background: color.hex }} className="color-chip" />
-                {color.label}
+                <span style={{ background: color.hex }} />
               </button>
             ))}
           </div>
         </>
       )}
-      {error && <p role="alert">{error}</p>}
-      <small>
-        Your photo goes directly to your Hermes when you save. Switching to a shape keeps the saved
-        photo.
-      </small>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

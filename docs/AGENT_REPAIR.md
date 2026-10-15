@@ -1,5 +1,9 @@
 # Repair an existing preview connection and finish Bot Mode setup
 
+> **Legacy 0.2.x repair reference.** Combined 0.4.x installs and updates use
+> [AGENT_INSTALL.md](AGENT_INSTALL.md). Do not apply this older pairing or bot
+> setup flow to the combined app.
+
 > **Preview limitation:** the installed-product target starts with creating the owner's administrator login and reconnects to Hermes automatically. That owner-hosted authentication service is not implemented here yet; the current preview still uses temporary browser pairing. See the [owner instance plan](OWNER_INSTANCE_PLAN.md). These instructions describe the existing preview and must not be presented as the finished onboarding flow.
 
 For the owner's existing Hermes agent. Use this when an older preview hides existing ordinary agents, shows only a placeholder, has no bots, or loses live updates. Keep the independently hosted web app where it is. No Hermes Desktop installation, Hermes downgrade, core patch or new hosting account is required.

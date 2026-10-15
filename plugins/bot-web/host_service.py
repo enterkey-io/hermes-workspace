@@ -196,11 +196,12 @@ def status(directory=None, *, public=False, stream=False, ca_file=None):
             result["native_bridge"] = (response.status == 200 and data.get("bridge_version") == metadata["version"]
                                          and data.get("capabilities", {}).get("owner_login") is True)
         if stream and lease:
+            from .setup import read_event_frame
             with request(value, "/v1/events", public=public, lease=lease, ca_file=ca_file) as response:
-                first = json.loads(response.readline(8192))
+                first = read_event_frame(response)
                 result["stream_ready"] = first.get("type") == "bridge.ready"
                 for _ in range(4):
-                    frame = json.loads(response.readline(8192))
+                    frame = read_event_frame(response)
                     if frame.get("type") == "bridge.heartbeat":
                         result["heartbeat"] = True
                         break

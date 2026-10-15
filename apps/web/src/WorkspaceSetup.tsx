@@ -38,7 +38,9 @@ export function WorkspaceSetup({
         setProfile(d.profile);
         setRevision(d.revision);
         setHandle(d.bot.handle);
-        setLook(d.bot.appearance);
+        // First use starts with an animated avatar, even when Hermes supplies a stock image.
+        // Existing photos stay available in the picker and are never removed by this choice.
+        setLook({ kind: 'shape', shape: 'pebble', color: 'iris' });
       })
       .catch((e) => {
         if (live) setError(e instanceof Error ? e.message : 'Could not detect your primary agent.');
@@ -73,16 +75,11 @@ export function WorkspaceSetup({
   return (
     <section className="workspace-setup">
       <div className="setup-intro">
-        <p className="eyebrow">LET’S BRING YOUR HERMES IN</p>
-        <h1>Your agent. A new place to work.</h1>
-        <p>
-          We found your primary Hermes agent. They’ll be your orchestrator, helping you build and
-          coordinate the rest of your team. Their personality, memory and skills stay with them.
-        </p>
+        <h1>Set up your agent</h1>
       </div>
       <form onSubmit={(e) => void finish(e)}>
         <label>
-          What should we call them here?
+          Handle
           <span className="handle-input">
             <span>@</span>
             <input
@@ -95,12 +92,7 @@ export function WorkspaceSetup({
               spellCheck={false}
             />
           </span>
-          <small>
-            By default, Hermes calls its primary bot @hermes. Choose a different handle here, or
-            change it later in Settings.
-          </small>
         </label>
-        <h2>Give them a look.</h2>
         <AvatarChooser
           look={look}
           onChange={setLook}
@@ -112,8 +104,7 @@ export function WorkspaceSetup({
         />
         <label className="welcome-choice">
           <input type="checkbox" checked={welcome} onChange={(e) => setWelcome(e.target.checked)} />
-          Ask my agent to introduce themselves when we start.
-          <small>This sends one welcome request using your Hermes model.</small>
+          Send an introduction
         </label>
         {error && (
           <p role="alert" className="error">
@@ -121,7 +112,7 @@ export function WorkspaceSetup({
           </p>
         )}
         <button className="primary" disabled={busy || photoBusy || !profile}>
-          {busy ? 'Bringing your agent in…' : `Open ${handle ? '@' + handle : 'my workspace'}`}
+          {busy ? 'Saving…' : 'Start chatting'}
         </button>
       </form>
     </section>

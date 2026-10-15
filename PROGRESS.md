@@ -224,3 +224,25 @@ startup, the real ingress and existing owner migration remain the installation
 agent's next pilot. Unsupported data migrations remain blocked. The running
 Mac static preview, staged old owner service, remote Hermes and tailnet routes
 were not changed during this implementation.
+
+## 0.4.1 preview: concise setup and avatar correction
+
+Removed provisional product branding and setup slogans. Login is a short admin
+form. First-agent setup is a handle and visual avatar selection: live iris shape
+by default, shape thumbnails, circular color swatches, clear selection rings and
+a separate empty photo-upload state. Native stock-avatar metadata no longer
+selects photo mode during onboarding; saved photos remain available.
+
+Added explicit global-revoke safeguards in HTTP and CLI, documented NDJSON
+framing and compatibility separators, shared bounded operator event parsing,
+version notes on legacy guides, retained legacy config guidance and setup-link
+remaining seconds. No owner state schema, credentials or agent data changed.
+
+Validation: full staged type/lint/format/build and 69 TypeScript tests; 57 Python
+tests in both supported runtimes; native owner-browser regression/selection/
+photo/account/mobile flow; 33 installed-package checks on each native revision,
+including actual native Bot Mode, crash recovery, update/rollback and failed
+activation recovery. Both final runs verify the same combined archive digest.
+Evidence: docs/compatibility/patch-0.4.1-local.json. The owner's installed service
+and existing Mac/tailnet services were not changed; the patch needs installation
+on the owner's Hermes host.

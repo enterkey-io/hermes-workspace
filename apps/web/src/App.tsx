@@ -674,10 +674,6 @@ export function App({ owner }: { owner?: OwnerConnection }) {
             : 'Choose a bot to see its routines.'}
         </p>
       )}
-      <p className="native-note">
-        Your bots use Hermes’s native tools and teammate messaging. Hermes owns execution and
-        memory.
-      </p>
     </>
   );
 
@@ -685,7 +681,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     return owner ? (
       <main className="owner-entry">
         <div className="owner-card">
-          <h1>Opening your Hermes…</h1>
+          <h1>Connecting…</h1>
           <p role="status">{activity}</p>
           {error && <p className="error">{error}</p>}
           <button onClick={() => void owner.logout()}>Sign out</button>
@@ -699,7 +695,6 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     return (
       <main className="onboarding-shell">
         <header>
-          <span className="wordmark">Workspace</span>
           {owner && (
             <button
               onClick={() => {
@@ -729,11 +724,11 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       ? selection.bot.name
       : selection?.kind === 'room'
         ? text(selection.room.name)
-        : 'Your workspace';
+        : 'Chats';
   return (
     <main className="workspace">
       <aside className={`sidebar ${nav ? 'visible' : ''}`}>
-        <div className="wordmark">Workspace</div>
+        <div className="sidebar-title">Agents</div>
         <button
           onClick={() => {
             setPickingAgents(true);
@@ -751,7 +746,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               setNav(false);
             }}
           >
-            Workspace settings
+            Settings
           </button>
         )}
         <p className="section-label">

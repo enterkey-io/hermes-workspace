@@ -100,7 +100,7 @@ def main():
                 "Authorization":"Bearer " + grant,"X-Bot-Connection":connection,"Content-Type":"application/json"})
             result = json.loads(urllib.request.urlopen(req, timeout=10).read(1_000_000))
             assert {bot["profile"] for bot in result["result"]["bots"]} == {"alpha", "beta"}
-            cli("revoke")
+            cli("revoke", "--all")
             assert Model.turns == 0, "Installation verification must not submit model turns"
             print("Separate web files, API-only Hermes install, checksums, real CLI setup/serve/approve/revoke and native roster: PASS (zero model turns)")
         finally:

@@ -74,7 +74,9 @@ def configure(bridge_url, app_origins, port):
     print(f"Hermes bridge configured. Start it with: hermes bot-web serve\nHermes connection address: {url}\nAllowed web apps: {', '.join(origins)}\nWeb hosting is separate. No administrator credential needs to be sent to the owner.")
 
 
-def control(action, code=None, app_origin=None):
+def control(action, code=None, app_origin=None, *, all_browsers=False):
+    if action == "revoke" and all_browsers is not True:
+        raise ValueError("Global revocation requires revoke --all; use DELETE /v1/connect for probe cleanup")
     settings = read_settings()
     if app_origin:
         origin = https_origin(app_origin)[0]
@@ -84,7 +86,7 @@ def control(action, code=None, app_origin=None):
         origin = settings["origins"][0]
     else:
         raise ValueError("Specify --app-origin for the browser being approved")
-    payload = {"code": code} if action == "approve" else {}
+    payload = {"code": code} if action == "approve" else {"all": True}
     request = urllib.request.Request(f"http://127.0.0.1:{settings['port']}/v1/pairing/{action}",
         data=json.dumps(payload).encode(), method="POST", headers={
             "Host": settings["host"], "Origin": origin,
@@ -181,6 +183,23 @@ def sync_runtime():
         'next': 'Restart the bridge only after native work is idle. Existing profiles and stores were preserved.'}))
 
 
+def read_event_frame(response):
+    """Read bounded NDJSON, accepting both deployed newline separator styles."""
+    for _ in range(9):
+        line = response.readline(8193)
+        if not line or not line.endswith(b'\n'):
+            raise ValueError('Event stream ended before a complete frame')
+        if len(line) > 8192:
+            raise ValueError('Event frame exceeds probe limit')
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        if not isinstance(event, dict):
+            raise ValueError('Invalid event frame')
+        return event
+    raise ValueError('Too many empty event lines')
+
+
 def probe():
     """Full-route operator probe; release its own lease, never revoke browser grants."""
     from .trust import OwnerTrust
@@ -205,12 +224,12 @@ def probe():
             connected = json.load(response)
         connection = connected['connection']
         with request('/v1/events', connection=connection) as response:
-            ready = json.loads(response.readline())
+            ready = read_event_frame(response)
             if ready != {'type': 'bridge.ready'}:
                 raise ValueError('Live stream did not become ready')
             deadline = time.monotonic()+20
             while time.monotonic() < deadline:
-                event = json.loads(response.readline())
+                event = read_event_frame(response)
                 if event == {'type': 'bridge.heartbeat'}:
                     break
             else:

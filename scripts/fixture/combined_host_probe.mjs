@@ -178,24 +178,20 @@ try {
   });
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(origin);
-  await expect(page.getByRole('heading', { name: 'Make it yours.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Create your login' })).toBeVisible();
   const proof = (await readFile(join(state, 'setup-code.txt'), 'utf8')).trim();
   await page.getByLabel('Private setup code').fill(proof);
   await page.getByLabel('Username', { exact: true }).fill('fixture_owner');
   await page.getByLabel('Password', { exact: true }).fill('synthetic-research-password-123');
   await page.getByLabel('Confirm password').fill('synthetic-research-password-123');
-  await page.getByRole('button', { name: 'Create my workspace', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Your agent. A new place to work.' }),
-  ).toBeVisible();
+  await page.getByRole('button', { name: 'Create login', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Set up your agent' })).toBeVisible();
   result.checks.first_use_owner_setup_then_native_onboarding = true;
   result.checks.no_connect_address_or_pairing_form =
     (await page.getByRole('button', { name: 'Connect my Hermes', exact: true }).count()) === 0;
-  await page
-    .getByRole('checkbox', { name: 'Ask my agent to introduce themselves when we start.' })
-    .uncheck();
+  await page.getByRole('checkbox', { name: 'Send an introduction' }).uncheck();
   await page.locator('.handle-input input').fill('aurora');
-  await page.getByRole('button', { name: 'Open @aurora', exact: true }).click();
+  await page.getByRole('button', { name: 'Start chatting', exact: true }).click();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
   result.checks.native_primary_enrolled_through_same_url = true;
   await page

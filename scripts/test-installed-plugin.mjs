@@ -195,7 +195,8 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   const setupLink = (await readFile(join(state, 'setup-link.txt'), 'utf8')).trim();
   await page.goto(setupLink);
-  await expect(page.getByRole('heading', { name: 'Make it yours.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Create your login' })).toBeVisible();
+  await page.screenshot({ path: 'artifacts/plugin-login.png' });
   checks.setup_link_fragment_removed = new URL(page.url()).hash === '';
   checks.no_setup_code_or_connection_form =
     (await page.getByLabel('Private setup code').count()) === 0 &&
@@ -203,16 +204,20 @@ try {
   await page.getByLabel('Username', { exact: true }).fill('owner');
   await page.getByLabel('Password', { exact: true }).fill('synthetic-plugin-password-123');
   await page.getByLabel('Confirm password').fill('synthetic-plugin-password-123');
-  await page.getByRole('button', { name: 'Create my workspace', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Your agent. A new place to work.' }),
-  ).toBeVisible();
-  await page
-    .getByRole('checkbox', { name: 'Ask my agent to introduce themselves when we start.' })
-    .uncheck();
+  await page.getByRole('button', { name: 'Create login', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Set up your agent' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Animated', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Iris', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('checkbox', { name: 'Send an introduction' }).uncheck();
   await page.locator('.handle-input input').fill('aurora');
   await page.getByRole('button', { name: 'White', exact: true }).click();
-  await page.getByRole('button', { name: 'Open @aurora', exact: true }).click();
+  await page.getByRole('button', { name: 'Start chatting', exact: true }).click();
   const message = page.getByLabel('Message', { exact: true });
   await expect(message).toBeEnabled();
   await message.fill('Synthetic installed plugin round trip');

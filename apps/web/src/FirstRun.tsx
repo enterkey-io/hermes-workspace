@@ -91,7 +91,7 @@ export function FirstRun({
     <main className="first-run">
       <header className="first-header">
         <a href="/" className="wordmark">
-          Workspace preview
+          Preview
         </a>
         <span>Independent interface for Hermes · Name to be decided</span>
         <a href="/install">Agent setup guide ↗</a>

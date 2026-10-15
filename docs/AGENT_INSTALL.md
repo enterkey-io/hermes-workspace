@@ -1,4 +1,4 @@
-# Install the private Hermes workspace plugin
+# Install the web app plugin for Hermes
 
 For the owner's Hermes installation agent: install the **combined plugin** on the
 owner's Hermes host. It includes the web app, owner login and native Bot Mode
@@ -44,6 +44,14 @@ the old integration code/service and its preserved settings. Do not run two nati
 room drivers against the same home as an installation shortcut. Old temporary
 browser grants are not migrated; the new app creates its owner login once.
 
+The old `$HERMES_HOME/bot-web/connection.json` is intentionally retained unchanged
+for rollback to the API-only service. Its old admin token is not used by the
+combined service; that service reads its private settings from
+`$HERMES_HOME/bot-web/web/install.json`. Keep the old file private (0600) with the
+old service stopped. Do not copy its credential into the new settings or delete
+it during install/update. After the owner accepts the migration and closes the
+rollback window, it can be archived privately with the old service/code.
+
 ## 2. Establish the owner's HTTPS route
 
 Choose one canonical HTTPS origin on owner-controlled infrastructure. Reuse an
@@ -63,13 +71,13 @@ installation.
 
 ## 3. Obtain the immutable combined release
 
-Candidate: `v0.4.0-preview.1`. If these assets are not published, stop and report
+Candidate: `v0.4.1-preview.1`. If these assets are not published, stop and report
 that the candidate is unavailable. Do not substitute main or an API-only package.
 
-- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-manifest.json)
-- [SHA256SUMS](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/SHA256SUMS)
-- [Complete plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-plugin-preview.zip)
-- [Source](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.0-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-manifest.json)
+- [SHA256SUMS](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/SHA256SUMS)
+- [Complete plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-plugin-preview.zip)
+- [Source](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-source-preview.zip)
 
 Verify size and SHA-256 against both manifest and checksum file. Reject absolute
 archive paths, traversal, symlinks and entries escaping private staging. The
@@ -176,6 +184,23 @@ login. Do not claim the account for the owner or run paid-model tests without
 their authorization.
 
 ## Updates and rollback
+
+For the 0.4.1 patch, obtain and verify the new combined ZIP as in step 3, back up
+and replace only the installed plugin code (preserving all state), then run
+`hermes bot-web update`. Keep the existing origin, ports, owner login, agent
+bindings and supervisor. Run `hermes bot-web verify --public` through the existing
+HTTPS route; no new setup link, login creation or pairing is required. If the
+owner has not claimed the initial login, retrieve its still-valid private link
+with `hermes bot-web setup-link` (use `--renew-setup` only if it expired).
+
+`setup-link` returns `expires` (Unix epoch milliseconds) and `expires_in` (whole
+remaining seconds). Its output contains the private file path, never the secret.
+
+Event parsing and legacy access controls are specified in
+[the wire protocol](https://github.com/enterkey-io/hermes-workspace/blob/v0.4.1-preview.1/docs/WIRE_PROTOCOL.md).
+Never use global revocation for diagnostic cleanup: use DELETE `/v1/connect`
+with the probe's own lease. Global revocation now requires `hermes bot-web revoke
+--all` or the operator-only HTTP body `{"all":true}`.
 
 Verify the next combined release, back up and replace only installed plugin code,
 and enable it natively. Running services keep using their immutable snapshot until

@@ -25,6 +25,17 @@ TOKEN = "s" * 43
 
 
 class StreamTests(unittest.IsolatedAsyncioTestCase):
+    def test_operator_parser_accepts_both_separator_styles_and_bounds_bad_frames(self):
+        from io import BytesIO
+        from bot_web.setup import read_event_frame
+        for separator in (b'\n', b'\n\n'):
+            stream = BytesIO(b'{"type":"bridge.ready"}' + separator + b'{"type":"bridge.heartbeat"}' + separator)
+            self.assertEqual(read_event_frame(stream), {'type': 'bridge.ready'})
+            self.assertEqual(read_event_frame(stream), {'type': 'bridge.heartbeat'})
+        for value in (b'', b'{"type":"bridge.ready"}', b'\n' * 10, b'x' * 8193 + b'\n', b'[]\n'):
+            with self.assertRaises(ValueError):
+                read_event_frame(BytesIO(value))
+
     async def asyncSetUp(self):
         class Native:
             def __init__(self):
@@ -61,8 +72,10 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
             if message["type"] == "http.response.start":
                 response.update(message)
             elif message["type"] == "http.response.body" and message.get("body"):
+                self.assertTrue(message["body"].endswith(b"\n\n"))
                 for line in message["body"].splitlines():
-                    frames.put_nowait(json.loads(line))
+                    if line.strip():
+                        frames.put_nowait(json.loads(line))
 
         task = asyncio.create_task(self.app(scope, receive, send))
         self.tasks.append(task)

@@ -29,7 +29,7 @@ const names: Record<Shape, string> = {
 };
 const root = document.querySelector<HTMLDivElement>('#lab')!;
 root.innerHTML = `
-  <header class="topbar"><a href="/">← Workspace</a><span class="study-label">AVATAR LAB <span> / </span> EXPLORATION 01</span><button id="pause" aria-pressed="false">Pause motion</button></header>
+  <header class="topbar"><a href="/">← Back to app</a><span class="study-label">AVATAR LAB <span> / </span> EXPLORATION 01</span><button id="pause" aria-pressed="false">Pause motion</button></header>
   <main>
     <section class="intro"><p class="eyebrow">PRESENCE, WITH PERSONALITY</p><h1>A little character.<br><span>A clear signal.</span></h1><p>Recognizable teammates. Expressive eyes.<br>Just enough movement to know what’s happening.</p></section>
     <section class="workbench" aria-label="Avatar appearance and activity preview">

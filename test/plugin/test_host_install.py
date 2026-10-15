@@ -33,7 +33,7 @@ class HostInstallTests(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('disposable payload')
             files[name] = hashlib.sha256(path.read_bytes()).hexdigest()
-        manifest = {'schema': 1, 'version': '0.4.0', 'files': files}
+        manifest = {'schema': 1, 'version': '0.4.1', 'files': files}
         (self.root / 'payload.json').write_text(json.dumps(manifest))
         return manifest
 
@@ -124,6 +124,8 @@ class HostInstallTests(unittest.TestCase):
         database.executescript('CREATE TABLE owner_claim(id INTEGER); CREATE TABLE owner_setup(id INTEGER PRIMARY KEY,value TEXT,expires INTEGER);')
         database.close()
         result = setup_link(self.root, renew=True)
+        self.assertGreaterEqual(result['expires_in'], 86398)
+        self.assertLessEqual(result['expires_in'], 86400)
         link = Path(result['private_setup_link_file']).read_text().strip()
         self.assertTrue(link.startswith('https://owner.example/#setup='))
         self.assertEqual(len(link.split('=')[-1]), 43)

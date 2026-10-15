@@ -79,7 +79,7 @@ export function WorkspaceSettings({
     }
   }
   return (
-    <section className="settings-panel" aria-label="Workspace settings">
+    <section className="settings-panel" aria-label="Settings">
       <header>
         <div>
           <p className="eyebrow">YOUR WORKSPACE</p>

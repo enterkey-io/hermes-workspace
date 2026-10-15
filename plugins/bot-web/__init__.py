@@ -18,8 +18,11 @@ def register(ctx):
         parser.add_argument("--public", action="store_true", help="Verify the real HTTPS route")
         parser.add_argument("--ca-file", help="Additional trusted CA for an operator-controlled private HTTPS route")
         parser.add_argument("--renew-setup", action="store_true", help="Replace only an unclaimed initial setup proof")
+        parser.add_argument("--all", action="store_true", help="Required with revoke: invalidate every legacy browser grant and all connection leases")
 
     def run(args):
+        if args.action == "revoke" and not args.all:
+            raise ValueError("Global revocation requires revoke --all. For probe cleanup, DELETE /v1/connect with only the probe's own lease.")
         if args.action in {"install", "run", "service", "status", "verify", "setup-link", "update", "rollback"}:
             import asyncio
             import json
@@ -97,7 +100,7 @@ def register(ctx):
             from .setup import control
             if args.app_origin and len(args.app_origin) != 1:
                 raise ValueError("Approve/revoke accepts one --app-origin")
-            control(args.action, args.code, args.app_origin[0] if args.app_origin else None)
+            control(args.action, args.code, args.app_origin[0] if args.app_origin else None, all_browsers=args.all)
 
     from .runtime import register_runtime
     register_runtime(ctx)
