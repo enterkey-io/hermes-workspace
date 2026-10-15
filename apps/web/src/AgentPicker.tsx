@@ -22,12 +22,15 @@ export function AgentPicker({
 }) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const search = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const live = useRef(true);
   useEffect(() => {
     live.current = true;
+    search.current?.focus();
     return () => {
       live.current = false;
     };
@@ -86,6 +89,11 @@ export function AgentPicker({
     }
   }
 
+  const filter = query.trim().toLocaleLowerCase();
+  const visible = agents.filter((agent) =>
+    `${agent.name} ${agent.profile} ${agent.description}`.toLocaleLowerCase().includes(filter),
+  );
+
   return (
     <section className="agent-picker" aria-labelledby="agent-picker-title">
       <div className="agent-picker-heading">
@@ -98,13 +106,15 @@ export function AgentPicker({
         </button>
       </div>
       <p>
-        Use the agents you already have. Each keeps its own SOUL, memory, skills and model settings
-        because this connects to the same Hermes profile.
+        Choose the agents you want here. They keep their personality, memory, skills and settings.
       </p>
-      <p>
-        Adding an agent enables its native Bot Chat, reusing it when it already exists. Other
-        channel conversations stay in Hermes and are not merged into this chat.
-      </p>
+      <details className="agent-explainer">
+        <summary>What happens when I add an agent?</summary>
+        <p>
+          Each keeps its own SOUL and the same Hermes profile. Adding it enables its native Bot
+          Chat, reusing an existing chat. Conversations from other channels stay separate.
+        </p>
+      </details>
       {!client.supportsExistingAgents ? (
         <p role="status">
           Your integration needs an update to add existing agents here. Your current bots can still
@@ -119,8 +129,29 @@ export function AgentPicker({
               the integration uses. Setup will not create a placeholder agent.
             </p>
           )}
-          <div className="agent-options">
-            {agents.map((agent) => {
+          <label className="agent-search">
+            <span>Find an agent</span>
+            <input
+              ref={search}
+              type="search"
+              placeholder="Search by name…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <p className="agent-result-count" role="status">
+            {loading
+              ? 'Loading…'
+              : `${visible.length} of ${agents.length} agents${chosen.length ? ` · ${chosen.length} selected` : ''}`}
+          </p>
+          <div
+            className="agent-options"
+            role="region"
+            aria-label="Available Hermes agents"
+            tabIndex={0}
+          >
+            {!loading && !!agents.length && !visible.length && <p>No agents match your search.</p>}
+            {visible.map((agent) => {
               const ready = agent.managed && agent.canonical;
               return (
                 <label className="agent-option" key={agent.profile}>

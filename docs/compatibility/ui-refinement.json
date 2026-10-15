@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "web_version": "0.2.4-preview.2",
+  "bridge_version": "0.2.4",
+  "bridge_source_changed": false,
+  "owner_host_accessed": false,
+  "evidence": "local disposable Hermes runtime plus synthetic browser fixtures",
+  "checks": {
+    "typescript_and_rendering_tests": 50,
+    "python_boundary_tests": 37,
+    "browser_tests": 14,
+    "agent_picker_profiles": 28,
+    "agent_picker_viewports": [[1280, 720], [390, 844], [844, 390]],
+    "safe_markdown_and_no_remote_images": "pass",
+    "per_conversation_drafts_and_composer_focus_growth": "pass",
+    "history_scroll_position_and_follow_latest": "pass",
+    "dependency_audit": "zero vulnerabilities"
+  },
+  "limitations": [
+    "The native fixture uses a test certificate exception, not production browser trust evidence",
+    "Current preview remains temporary pairing without owner-admin login or durable reconnect",
+    "The visual and interaction redesign is incomplete",
+    "Complete one-agent installation and permanent service recovery remain unverified"
+  ]
+}

@@ -13,7 +13,8 @@
     "restart-recovery": "unverified",
     "installed-update-and-rollback": "unverified",
     "privacy-and-probe-isolation": "unverified",
-    "existing-agent-selection-and-identity": "unverified"
+    "existing-agent-selection-and-identity": "unverified",
+    "owner-admin-bootstrap-and-login": "unverified"
   },
   "partialEvidence": [
     "Native first-bot creation and canonical initialization/reuse pass in isolated homes on both supported source revisions",
@@ -26,7 +27,7 @@
   "remaining": [
     "A complete clean-install acceptance run driven by one installation agent",
     "Owner first-use connection discovery without manual server settings",
-    "A secure owner-device reconnect/enrollment design beyond the preview's memory-only grants",
+    "Owner-hosted administrator login, durable instance trust and automatic connection recovery without another agent exchange",
     "Verified permanent supervision and restart recovery across supported deployment targets",
     "Installed update/rollback and interruption recovery evidence"
   ]

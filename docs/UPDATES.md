@@ -1,10 +1,12 @@
 # Agent-managed installation updates
 
+Web UI preview 0.2.4-preview.2 keeps plugin 0.2.4 unchanged. Updating only the web files does not require a bridge restart or plugin reinstall. The preview still has temporary pairing; owner login and automatic recovery are pending in the [owner instance plan](OWNER_INSTANCE_PLAN.md).
+
 ## Do users need a fork?
 
 No. Normal installations consume versioned releases from `https://github.com/enterkey-io/hermes-workspace`. A fork is useful only for local source modifications or a hosting-provider workflow that needs a repository under the owner's account. GitHub does not update a fork or merge upstream changes on the owner's behalf.
 
-Use an explicit release tag and its checked packages. Avoid tracking `main`, blindly running `git pull`, overwriting a modified working tree, or using an unversioned download URL as an update policy. The current version is **v0.2.4-preview.1**, a prerelease; the production-certification gate remains closed. GitHub's `releases/latest` skips prereleases, so it is not the correct selector for this preview.
+Use an explicit release tag and its checked packages. Avoid tracking `main`, blindly running `git pull`, overwriting a modified working tree, or using an unversioned download URL as an update policy. The current version is **v0.2.4-preview.2**, a prerelease; the production-certification gate remains closed. GitHub's `releases/latest` skips prereleases, so it is not the correct selector for this preview.
 
 ## Record what was installed
 

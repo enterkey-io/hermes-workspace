@@ -1,26 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
-
-async function pair(page: Page, waitForWorkspace = true) {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Connect my Hermes', exact: true }).click();
-  await page.getByLabel('Hermes connection address').fill('https://127.0.0.1:8788');
-  await page.getByRole('button', { name: 'Request browser access', exact: true }).click();
-  const code = await page.getByLabel('Browser approval code').innerText();
-  const approval = await page.request.post('https://127.0.0.1:8788/v1/pairing/approve', {
-    headers: { Origin: 'https://127.0.0.1:5443', Authorization: 'Bearer ' + 'f'.repeat(43) },
-    data: { code },
-  });
-  expect(approval.status()).toBe(200);
-  if (waitForWorkspace) await expect(page.getByRole('navigation', { name: 'Bots' })).toBeAttached();
-}
-
-async function connect(page: Page) {
-  await pair(page);
-  await page.getByRole('button', { name: 'Alpha Bot Chat' }).click();
-  await expect(page.getByRole('heading', { name: 'Alpha', exact: true })).toBeVisible();
-  await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
-}
+import { pair, connect } from './helpers';
 
 test('independently hosted app pairs with a separate real Hermes bridge without API-key entry', async ({
   page,
@@ -229,7 +208,9 @@ test('existing unregistered agents can be selected in the app without a new prof
   await pair(page);
   await page.getByRole('button', { name: 'Add existing agents', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Choose who appears here.' })).toBeVisible();
-  await expect(page.getByText(/Each keeps its own SOUL/)).toBeVisible();
+  await expect(
+    page.getByText(/They keep their personality, memory, skills and settings/),
+  ).toBeVisible();
   await page.getByRole('checkbox', { name: /gamma/i }).check();
   await page.screenshot({ path: 'artifacts/existing-agents-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -247,7 +228,8 @@ test('existing unregistered agents can be selected in the app without a new prof
   await page.getByLabel('Message', { exact: true }).fill('Existing agent browser turn');
   await page.getByRole('button', { name: 'Send message' }).click();
   await expect(page.getByRole('log')).toContainText('Native fixture reply', { timeout: 45_000 });
-  await page.getByRole('button', { name: 'Toggle navigation' }).click();
+  if ((page.viewportSize()?.width ?? 1440) < 650)
+    await page.getByRole('button', { name: 'Toggle navigation' }).click();
   await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
 });
 
@@ -303,4 +285,60 @@ test('real native approvals and stop reach Hermes execution', async ({ page }) =
     timeout: 45_000,
   });
   await page.getByRole('button', { name: 'Disconnect' }).click();
+});
+
+test('28-agent picker scrolls within the viewport with reachable actions and searchable selection', async ({
+  page,
+}) => {
+  const agents = Array.from({ length: 28 }, (_, index) => ({
+    profile: `fixture-${index + 1}`,
+    name: `Fixture Agent ${String(index + 1).padStart(2, '0')}`,
+    description: 'Synthetic existing profile',
+    managed: false,
+    canonical: false,
+  }));
+  await page.route('**/v1/rpc', async (route) => {
+    if (route.request().postDataJSON().operation === 'agents.list')
+      await route.fulfill({ json: { result: { agents } } });
+    else await route.continue();
+  });
+  await pair(page);
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize(viewport);
+    if (viewport.width < 650) await page.getByRole('button', { name: 'Toggle navigation' }).click();
+    await page.getByRole('button', { name: 'Add existing agents', exact: true }).click();
+    const region = page.getByRole('region', { name: 'Available Hermes agents' });
+    await expect(region.getByRole('checkbox')).toHaveCount(28);
+    const bounds = await region.boundingBox();
+    expect(bounds).toBeTruthy();
+    expect(bounds!.height).toBeGreaterThan(40);
+    expect(bounds!.y + bounds!.height).toBeLessThan(viewport.height);
+    await region.hover();
+    await page.mouse.wheel(0, 10000);
+    await expect.poll(() => region.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    const last = region.getByRole('checkbox', { name: /Fixture Agent 28/ });
+    await expect(last).toBeInViewport();
+    await last.check();
+    const add = page.getByRole('button', { name: 'Add selected agents (1)', exact: true });
+    await expect(add).toBeInViewport();
+    await expect(add).toBeEnabled();
+    await page.screenshot({ path: `artifacts/agent-picker-28-list-${viewport.width}.png` });
+    await page.getByRole('searchbox', { name: 'Find an agent' }).fill('Agent 01');
+    await expect(region.getByRole('checkbox')).toHaveCount(1);
+    await expect(add).toBeEnabled(); // Hidden selections survive filtering.
+    await page.getByRole('searchbox', { name: 'Find an agent' }).fill('no matching profile');
+    await expect(region).toContainText('No agents match');
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight),
+    ).toBe(true);
+    await page.screenshot({ path: `artifacts/agent-picker-28-${viewport.width}.png` });
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+  }
+  if ((page.viewportSize()?.width ?? 1440) < 650)
+    await page.getByRole('button', { name: 'Toggle navigation' }).click();
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
 });

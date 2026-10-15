@@ -1,10 +1,12 @@
 # Hermes workspace preview — name undecided
 
+> **Preview limitation:** the installed-product target starts with creating the owner's administrator login and reconnects to Hermes automatically. That owner-hosted authentication service is not implemented here yet; the current preview still uses temporary browser pairing. See the [owner instance plan](docs/OWNER_INSTANCE_PLAN.md). These instructions describe the existing preview and must not be presented as the finished onboarding flow.
+
 An independent interface to **actual Hermes Bot Mode**. The open-source web app is static HTML/CSS/JavaScript that users can host on Cloudflare Pages, a DigitalOcean droplet, or another HTTPS web host. It connects directly from the browser to the user's existing Hermes, wherever Hermes runs. Web hosting and Hermes hosting are independent.
 
 A small integration plugin supplies the native Bot Mode API required by the current preview. Only that plugin runs on the Hermes host; it does not serve the web app, replace agents or modify Hermes core. The [channel assessment](docs/HERMES_INTEGRATION.md) distinguishes this native API adapter from a registered Telegram-style messaging channel, which remains follow-up work. Later native Mac/Windows/iOS apps can use the same client contract. No personal Hermes server was modified or public Cloudflare deployment created.
 
-Source: [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). Versioned packages: [v0.2.4-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.1). The product name remains undecided; the repository name is descriptive.
+Source: [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). Versioned packages: [v0.2.4-preview.2](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.2). The product name remains undecided; the repository name is descriptive.
 
 ## Try an existing web app
 

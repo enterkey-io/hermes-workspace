@@ -1,5 +1,7 @@
 # Connect an independently hosted web app to Hermes
 
+> **Preview limitation:** the installed-product target starts with creating the owner's administrator login and reconnects to Hermes automatically. That owner-hosted authentication service is not implemented here yet; the current preview still uses temporary browser pairing. See the [owner instance plan](https://github.com/enterkey-io/hermes-workspace/blob/main/docs/OWNER_INSTANCE_PLAN.md). These instructions describe the existing preview and must not be presented as the finished onboarding flow.
+
 These instructions are for the owner's existing Hermes agent. The application is an independent web interface to **actual Hermes Bot Mode**. Its product name is undecided; the software packages are currently named `workspace-*-preview.zip`. The `bot-web` package is a small integration plugin, not the web app.
 
 **Web hosting and Hermes hosting are independent.** The web app is static HTML/CSS/JavaScript that can run on Cloudflare Pages, a DigitalOcean droplet, or another HTTPS web host. Only the native integration plugin runs on the Hermes host. It exposes a narrow authenticated API; it does not host or proxy the web app. Do not move the web app to the Hermes server as a prerequisite.
@@ -21,16 +23,16 @@ The owner stays on the web app's original URL. Browser pairing and bot traffic g
 
 ## Step 1 — Get the packages and inspect Hermes
 
-The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The current software release is [v0.2.4-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.1), a preview. The [maintained installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md) receives instruction corrections between software releases. Packages remain pinned to one immutable release; do not install executable code from a moving branch. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
+The public source repository is [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace). The current software release is [v0.2.4-preview.2](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.2), a preview. The [maintained installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md) receives instruction corrections between software releases. Packages remain pinned to one immutable release; do not install executable code from a moving branch. Use these explicit versioned public download URLs for an installation that does not depend on a development machine:
 
-- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.1/workspace-manifest.json)
-- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.1/SHA256SUMS)
-- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.1/workspace-plugin-preview.zip)
-- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.1/workspace-web-preview.zip)
-- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.1/workspace-site-preview.zip)
-- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.2/workspace-manifest.json)
+- [Checksums](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.2/SHA256SUMS)
+- [Hermes integration plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.2/workspace-plugin-preview.zip)
+- [Web app](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.2/workspace-web-preview.zip)
+- [Complete static site](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.2/workspace-site-preview.zip)
+- [Source package](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.2/workspace-source-preview.zip)
 
-This release includes bot-web **0.2.4**, which adds existing-agent discovery and selection while retaining the heartbeat fix. Update the plugin code using the update procedure; preserve the private configuration, configured loopback port, web origin and HTTPS/tunnel routes. Do not rerun setup or rotate the operator credential for this code update. Restart only the bridge when idle, then pair again; a bridge restart clears its in-memory browser grants. Web and Hermes hosting remain independent.
+This release updates only the web UI; bot-web **0.2.4** is unchanged. A working 0.2.4 bridge does not need reinstalling or restarting for these scrolling/chat fixes. The plugin retains existing-agent discovery/selection and the heartbeat fix. For an older plugin only: Update the plugin code using the update procedure; preserve the private configuration, configured loopback port, web origin and HTTPS/tunnel routes. Do not rerun setup or rotate the operator credential for this code update. Restart only the bridge when idle, then pair again; a bridge restart clears its in-memory browser grants. Web and Hermes hosting remain independent.
 
 The running development preview also mirrors these paths on its own origin for the same-tailnet test. Use that origin only when the owner supplied the preview URL, never infer it from a GitHub page:
 

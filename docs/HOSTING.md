@@ -1,5 +1,7 @@
 # Web hosting requirements and choices
 
+> This page describes the current static preview. The private owner-installed product must first create an administrator login and preserve its Hermes connection. That requires a small owner-hosted runtime: Node with local SQLite, or a Cloudflare Worker and owner-account storage. See the [owner instance plan](OWNER_INSTANCE_PLAN.md). Plain static hosting alone does not implement that login. App and Hermes hosting remain independent.
+
 The application is a static website. Its host needs:
 
 - HTTPS with a certificate trusted by the owner's browser.

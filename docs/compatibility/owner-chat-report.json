@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "date": "2026-10-14",
+  "source": "owner and owner-supplied installation-agent reports",
+  "independently_verified": false,
+  "bridge_version": "0.2.4",
+  "reported": {
+    "existing_profiles_discovered": 28,
+    "existing_profile_enable_available": true,
+    "event_stream_ready_and_heartbeats": true,
+    "selected_bot_round_trip": "owner confirms working"
+  },
+  "limitations": [
+    "UI scrolling and chat interaction problems remain owner-reported defects",
+    "Current preview loses temporary approval on refresh or bridge restart",
+    "Owner-instance admin login and automatic recovery are not implemented",
+    "Complete one-agent launch acceptance is not established"
+  ]
+}

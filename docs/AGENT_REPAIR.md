@@ -1,14 +1,16 @@
 # Repair an existing preview connection and finish Bot Mode setup
 
+> **Preview limitation:** the installed-product target starts with creating the owner's administrator login and reconnects to Hermes automatically. That owner-hosted authentication service is not implemented here yet; the current preview still uses temporary browser pairing. See the [owner instance plan](OWNER_INSTANCE_PLAN.md). These instructions describe the existing preview and must not be presented as the finished onboarding flow.
+
 For the owner's existing Hermes agent. Use this when an older preview hides existing ordinary agents, shows only a placeholder, has no bots, or loses live updates. Keep the independently hosted web app where it is. No Hermes Desktop installation, Hermes downgrade, core patch or new hosting account is required.
 
 ## 1. Preserve the working connection arrangement
 
 Inspect the actual runtime/home, current plugin path/version and existing supervisor, private configuration and forwarding arrangement locally. Keep the configured bridge port, exact web origin, allowed HTTPS Host and route. The configured port may intentionally differ from the default because another service occupies it. Do not stop unrelated services, relocate the web app, recreate a tunnel, rerun setup or print private configuration/credentials.
 
-## 2. Update only the integration code
+## 2. Update the integration only when needed
 
-Use [v0.2.4-preview.1](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.1): native plugin version **0.2.4**, protocol `hermes-bot-web.v1`. Download its plugin archive, manifest and SHA256SUMS over trusted HTTPS and verify size/digest and archive safety as described in the [installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md). Do not execute moving-branch code or mix artifacts from different tags.
+The scrolling/chat update in v0.2.4-preview.2 is web-only. If the bridge already serves 0.2.4, leave it running; reinstalling or restarting it is unnecessary. For an older integration, use [v0.2.4-preview.2](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.2): native plugin version **0.2.4**, protocol `hermes-bot-web.v1`. Download its plugin archive, manifest and SHA256SUMS over trusted HTTPS and verify size/digest and archive safety as described in the [installation guide](https://raw.githubusercontent.com/enterkey-io/hermes-workspace/main/docs/AGENT_INSTALL.md). Do not execute moving-branch code or mix artifacts from different tags.
 
 When idle, stop only the bridge using its existing process/supervisor mechanism. Keep a private backup of its previous plugin code for rollback, replace `<actual HERMES_HOME>/plugins/bot-web` with the verified new plugin, and leave `<actual HERMES_HOME>/bot-web/connection.json` and Hermes stores untouched. Run `hermes bot-web doctor` in the existing runtime/home and confirm support. Relaunch the bridge with the same environment, configuration and local port. Confirm an authenticated `/v1/connect` reports `bridge_version: "0.2.4"`; replaced files or a healthy Hermes doctor alone do not prove the new bridge process is serving. Clean up this probe's lease as described below. Preserve the web app and existing HTTPS/SSH routes. A restart clears in-memory browser grants; fresh pairing is expected. Follow the [update/rollback procedure](https://github.com/enterkey-io/hermes-workspace/blob/main/docs/UPDATES.md).
 

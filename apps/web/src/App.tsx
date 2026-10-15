@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { normalizeEndpoint, safeError } from '@hermes-client/core';
 import { BotBridgeClient } from '@hermes-client/protocol';
 import type { BridgeEvent } from '@hermes-client/protocol';
 import { FirstRun } from './FirstRun';
 import { AgentPicker } from './AgentPicker';
+import { MessageBody, CopyMessage } from './MessageBody';
 
 type Row = Record<string, unknown>;
 type Bot = { profile: string; name: string; description: string; canonical: boolean };
@@ -49,7 +50,14 @@ export function App() {
   const [error, setError] = useState('');
   const [nav, setNav] = useState(false);
   const [pickingAgents, setPickingAgents] = useState(false);
-  const bottom = useRef<HTMLDivElement>(null);
+  const transcriptPane = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const followLatest = useRef(true);
+  const focusOnReady = useRef(false);
+  const drafts = useRef(new Map<string, string>());
+  const [showLatest, setShowLatest] = useState(false);
+  const draftKey = (target: Selection) =>
+    target.kind === 'bot' ? `bot:${target.bot.profile}` : `room:${text(target.room.room_id)}`;
 
   function fail(error: unknown) {
     setError(safeError(error).message);
@@ -74,11 +82,41 @@ export function App() {
     setStreamState('opening');
     setError('');
     setPickingAgents(false);
+    drafts.current.clear();
+    focusOnReady.current = false;
+    followLatest.current = true;
+    setShowLatest(false);
   }
   useEffect(() => () => current.current?.disconnect(), []);
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ block: 'end' });
-  }, [messages, stream]);
+  useLayoutEffect(() => {
+    const pane = transcriptPane.current;
+    if (pane && followLatest.current && !pickingAgents) pane.scrollTop = pane.scrollHeight;
+  }, [messages, stream, pickingAgents, running]);
+  useLayoutEffect(() => {
+    const input = composer.current;
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 170)}px`;
+  }, [draft, selection, pickingAgents]);
+  useLayoutEffect(() => {
+    if (
+      focusOnReady.current &&
+      !busy &&
+      !blocked &&
+      !pickingAgents &&
+      composer.current &&
+      !composer.current.disabled
+    ) {
+      focusOnReady.current = false;
+      composer.current.focus();
+    }
+  }, [busy, blocked, pickingAgents, selection]);
+  function jumpToLatest() {
+    followLatest.current = true;
+    setShowLatest(false);
+    const pane = transcriptPane.current;
+    if (pane) pane.scrollTop = pane.scrollHeight;
+  }
 
   async function refreshHistory(connection: BotBridgeClient, target: Selection) {
     if (target.kind !== 'bot') return;
@@ -212,6 +250,9 @@ export function App() {
     setBusy(true);
     setNav(false);
     setPickingAgents(false);
+    followLatest.current = true;
+    setShowLatest(false);
+    setDraft(drafts.current.get(`bot:${bot.profile}`) ?? '');
     try {
       const data = object(await client.invoke('bot.open', { profile: bot.profile }));
       if (generation !== selectGeneration.current || current.current !== client) return;
@@ -245,7 +286,10 @@ export function App() {
     } catch (error) {
       if (generation === selectGeneration.current) fail(error);
     } finally {
-      if (generation === selectGeneration.current) setBusy(false);
+      if (generation === selectGeneration.current) {
+        focusOnReady.current = matchMedia('(pointer: fine)').matches;
+        setBusy(false);
+      }
     }
   }
 
@@ -255,6 +299,9 @@ export function App() {
     const target: Selection = { kind: 'room', room };
     selected.current = target;
     setSelection(target);
+    setDraft(drafts.current.get(draftKey(target)) ?? '');
+    followLatest.current = true;
+    setShowLatest(false);
     setMessages([]);
     setStream('');
     setApprovals([]);
@@ -346,6 +393,8 @@ export function App() {
     setBusy(true);
     setError('');
     const message = draft;
+    followLatest.current = true;
+    setShowLatest(false);
     setMessages((old) => [...old, { role: 'user', text: message }]);
     if (target.kind === 'bot') {
       setRunning(true);
@@ -360,7 +409,10 @@ export function App() {
           event_id: crypto.randomUUID(),
           text: message,
         });
-      if (owns()) setDraft('');
+      if (owns()) {
+        drafts.current.delete(draftKey(target));
+        setDraft('');
+      }
     } catch (error) {
       if (current.current === connection) setBlocked(true);
       if (owns())
@@ -368,7 +420,10 @@ export function App() {
           `${safeError(error).message} The send outcome is uncertain. Reconnect and inspect history before another send.`,
         );
     } finally {
-      if (generation === selectGeneration.current && current.current === connection) setBusy(false);
+      if (generation === selectGeneration.current && current.current === connection) {
+        focusOnReady.current = true;
+        setBusy(false);
+      }
     }
   }
   async function stop() {
@@ -591,7 +646,19 @@ export function App() {
             )}
           </div>
         )}
-        <div className="transcript" role="log" aria-live="polite">
+        <div
+          ref={transcriptPane}
+          onScroll={(event) => {
+            if (pickingAgents) return;
+            const pane = event.currentTarget;
+            const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 96;
+            followLatest.current = nearBottom;
+            setShowLatest(!nearBottom);
+          }}
+          className={`transcript ${pickingAgents ? 'choosing-agents' : ''}`}
+          role={pickingAgents ? undefined : 'log'}
+          aria-live={pickingAgents ? undefined : 'polite'}
+        >
           {pickingAgents ? (
             <AgentPicker
               client={client}
@@ -654,24 +721,36 @@ export function App() {
                 <small>
                   {message.role === 'user' ? 'You' : message.role === 'tool' ? 'Tool' : title}
                 </small>
-                <p>{message.text}</p>
+                {message.role === 'user' ? (
+                  <p>{message.text}</p>
+                ) : (
+                  <MessageBody text={message.text} />
+                )}
+                <CopyMessage text={message.text} />
               </article>
             ))}
           {!pickingAgents && stream && (
             <article className="message assistant">
               <small>{title}</small>
-              <p>
-                {stream}
-                <span className="caret" aria-hidden>
-                  ▍
-                </span>
-              </p>
+              <MessageBody text={stream} />
+              <span className="caret" aria-hidden>
+                ▍
+              </span>
             </article>
           )}
-          <div ref={bottom} />
+          {!pickingAgents && running && !stream && (
+            <p className="thinking" role="status">
+              Working…
+            </p>
+          )}
         </div>
         {!pickingAgents && (
           <>
+            {showLatest && (
+              <button className="jump-latest" onClick={jumpToLatest}>
+                ↓ Latest messages
+              </button>
+            )}
             <details className="compact-details" open={approvals.length > 0 ? true : undefined}>
               <summary>Activity & routines{approvals.length ? ' · Approval needed' : ''}</summary>
               {detailsContent}
@@ -684,12 +763,18 @@ export function App() {
                 }}
               >
                 <textarea
+                  ref={composer}
+                  rows={1}
                   aria-label="Message"
                   placeholder={selection ? `Message ${title}…` : 'Choose a bot or room to begin'}
                   value={draft}
                   disabled={!selection || busy || blocked || pickingAgents}
                   maxLength={16000}
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setDraft(value);
+                    if (selected.current) drafts.current.set(draftKey(selected.current), value);
+                  }}
                   onKeyDown={(event) => {
                     if (
                       event.key === 'Enter' &&

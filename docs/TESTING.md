@@ -102,7 +102,13 @@ Run the extracted web package’s `serve-static.mjs` from a working directory ou
 To repeat the installation smoke against an explicit public GitHub release instead of the local mirror, use:
 
 ```sh
-/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.1
+/tmp/bot-web-test-python/bin/python scripts/fixture/install_smoke.py --release-base https://github.com/enterkey-io/hermes-workspace/releases/download/v0.2.4-preview.2
 ```
 
 It uses the same isolated home and zero-model-turn checks. The URL selects immutable-version-named assets; it never reads the owner’s Hermes installation.
+
+## Chat usability regression coverage
+
+The browser suite also checks a 28-profile picker in laptop, phone and small landscape viewports, actual wheel scrolling to the final agent, persistent action reachability, search and hidden selection retention. Chat-specific checks cover per-conversation tab-memory drafts, composer growth/focus, rich replies with code copying, no remote image fetches, preserving a reader’s history position and following the latest output. The native fixture remains isolated; these checks do not inspect the owner’s profiles or send production model requests. Vitest includes the web renderer’s raw HTML/image/unsafe-link security cases.
+
+Owner administrator creation, local login and automatic reconnection are not implemented or certified by those tests. They have separate acceptance requirements in [the owner instance plan](OWNER_INSTANCE_PLAN.md).

@@ -1,5 +1,7 @@
 # Executable implementation plan
 
+> Owner-instance correction, 14 October 2026: the installed product is private to its owner. First opening creates the instance administrator login. Owner-hosted authentication/configuration storage is allowed; vendor data storage is not. A small owner-hosted runtime replaces the static-only launch assumption, with independent Node/Cloudflare adapters and direct browser-to-Hermes traffic. Reopening/restarts must recover without agent-mediated pairing. [Owner instance implementation sequence](docs/OWNER_INSTANCE_PLAN.md) supersedes contrary account-free, memory-only and shared-service assumptions below; that authentication work is not yet implemented in the preview.
+
 > Existing-agent correction: discover all Hermes profiles and let the owner choose which appear in the app. Enable Bot Mode on those same profiles, preserving SOUL, memory, skills, model settings and native canonical identity. A missing managed marker must not trigger placeholder creation or cloning. In-app selection is implemented in preview 0.2.4; full launch acceptance remains gated.
 
 > Updated 14 October 2026: the user explicitly authorized an optional integration plugin for native Bot Mode access. The preview now uses a user-hosted bot-web bridge and static browser app. Earlier text excluding a plugin as an access adapter is superseded by this authorization. See docs/SETUP.md and PROGRESS.md for the implemented boundary, current scope and evidence. Public release remains gated separately.

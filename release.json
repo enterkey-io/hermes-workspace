@@ -1,6 +1,6 @@
 {
-  "version": "0.2.4-preview.1",
-  "tag": "v0.2.4-preview.1",
+  "version": "0.2.4-preview.2",
+  "tag": "v0.2.4-preview.2",
   "channel": "preview",
   "repository": "enterkey-io/hermes-workspace",
   "bridge_protocol": "hermes-bot-web.v1",

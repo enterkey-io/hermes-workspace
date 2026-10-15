@@ -12,6 +12,7 @@ const installation = JSON.parse(
 );
 const installationGates = [
   'single-installation-agent',
+  'owner-admin-bootstrap-and-login',
   'fresh-native-bot-setup',
   'existing-agent-selection-and-identity',
   'idempotent-existing-install',

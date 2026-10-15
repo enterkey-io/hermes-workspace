@@ -1,5 +1,7 @@
 # Use the web app with your Hermes
 
+> **Preview limitation:** the installed-product target starts with creating the owner's administrator login and reconnects to Hermes automatically. That owner-hosted authentication service is not implemented here yet; the current preview still uses temporary browser pairing. See the [owner instance plan](OWNER_INSTANCE_PLAN.md). These instructions describe the existing preview and must not be presented as the finished onboarding flow.
+
 This is an independent interface to Hermes's native Bot Mode. The name is undecided. The **web app** and your **Hermes installation** can live on completely different hosts.
 
 You can use an existing hosted copy, or have your agent install your own copy on Cloudflare Pages, a DigitalOcean droplet, or another HTTPS web host. The web app is static files; that host needs no Hermes installation or access to your private network.
@@ -42,7 +44,7 @@ Existing Hermes profiles can be added from the app and their native Bot Chats in
 
 ## Downloads and updates
 
-The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.1) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
+The public [GitHub repository](https://github.com/enterkey-io/hermes-workspace) and [versioned preview release](https://github.com/enterkey-io/hermes-workspace/releases/tag/v0.2.4-preview.2) provide the web app, complete static site, integration plugin, source and checksums. Your agent can install them without a fork. [Hosting requirements and choices](HOSTING.md) explain what a web host needs and suggest providers if you have no preference.
 
 Your agent should record which version it installed and follow [the update/rollback procedure](UPDATES.md) when you request an update or choose a checking schedule on your own Hermes. Updates replace software files while preserving your private settings and Hermes conversations. There is no automatic background updater in this preview.
 

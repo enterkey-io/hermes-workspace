@@ -1,6 +1,8 @@
 # Independent web app and Hermes integration
 
-14 October 2026. This is the current implementation contract. It corrects the earlier assumption that agent-led installation meant co-locating the web app and Hermes. Product naming remains undecided.
+14 October 2026. This describes the implemented technical preview. It corrects the earlier assumption that agent-led installation meant co-locating the web app and Hermes. Product naming remains undecided.
+
+**Product target correction:** the owner installs a private instance and creates its administrator login on first opening. Owner-controlled login/configuration persistence is allowed. The [owner instance plan](OWNER_INSTANCE_PLAN.md) is the binding next architecture; it adds a small owner-hosted authentication runtime and automatic reconnection while retaining separate Hermes hosting and direct conversation traffic. The static, memory-only protocol below is the current preview, not the required launch experience. No login service or durable reconnect has been implemented yet.
 
 ## The three separate parts
 
