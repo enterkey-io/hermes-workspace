@@ -15,7 +15,7 @@ characters across reads. Dispatch a record as soon as its line is complete.
 | ---------------------- | ------------------------------------------------- |
 | 0.2.4 published source | JSON followed by LF (single newline)              |
 | 0.4.0                  | JSON followed by LF (single newline)              |
-| 0.4.1                  | JSON followed by LF LF (compatibility blank line) |
+| 0.4.1–0.5.0            | JSON followed by LF LF (compatibility blank line) |
 
 The installed 0.2.4 probe was reported to observe blank separators. The tagged
 0.2.4 source emits single newlines; that deployment difference has not been
@@ -51,3 +51,24 @@ pairing grants and current connection leases. It does not revoke persistent
 owner login sessions or already-issued owner tickets; manage those through the
 owner account controls. Older releases accepted an empty body and had no CLI
 safeguard.
+
+## Workspace presentation in 0.5.0
+
+`workspace.changed` is an authenticated, payload-free invalidation hint. It never
+contains another session's events. Clients fetch `workspace.snapshot`, coalesce
+concurrent reads, reconcile every five visible seconds as recovery, and refresh
+on focus/reconnect and confirmed mutations. The bridge shares a four-second
+watcher across connected browsers. No model/provider probe runs in roster reads.
+
+Snapshot IDs identify profile incarnations, not reusable names. Read keys bind
+that ID to its native canonical chat. Supported native reads use active-message
+row IDs, and SQLite acknowledgments advance with MAX. Crew read keys include the
+creation identity and native sequence. Only acknowledge history actually shown
+in a visible conversation at the bottom. Missing timestamps/previews stay absent.
+
+`agent.pin`, `agent.hide`, `presentation.order` and `presentation.read` have fixed
+validated fields. `agent.delete` can execute only from an exact durable owner
+request approved with the profile name. Default/lead profiles, managers with
+direct reports, active sessions and live crew members are protected. Executing,
+partial and uncertain deletion receipts cannot be approved again.
+`requests.reconcile` observes the outcome; it never replays native deletion.

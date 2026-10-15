@@ -6,7 +6,7 @@ FILES = (
     'operations.py', 'pairing.py', 'server.py', 'setup.py', 'trust.py', 'workspace.py',
     'runtime.py', 'room_identity.py', 'connections_native.py', 'models_native.py',
     'payload.py', 'plugin.yaml', 'requirements.txt', 'skills/manage-team/SKILL.md',
-    'host_install.py', 'host_service.py', 'host_entry.py', 'version.py',
+    'host_install.py', 'host_service.py', 'host_entry.py', 'version.py', 'lifecycle_native.py', 'presentation.py',
 )
 
 

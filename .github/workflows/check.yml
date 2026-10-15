@@ -19,6 +19,7 @@ jobs:
       - run: npm run test:owner-worker
       - run: npx playwright install --with-deps chromium
       - run: npm run test:avatars
+      - run: npx playwright test --config playwright.chat.config.ts
       - run: npm audit --omit=dev --audit-level=high
       - run: python3 -m venv /tmp/bot-web-test-env
       - run: /tmp/bot-web-test-env/bin/pip install -r test/plugin/requirements.txt

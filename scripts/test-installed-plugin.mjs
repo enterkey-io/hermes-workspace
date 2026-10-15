@@ -308,7 +308,13 @@ try {
 } catch (error) {
   console.error(error.message);
   console.error('Completed checks:', checks);
-  if (page) console.error('Visible headings:', await page.locator('h1').allTextContents());
+  if (page) {
+    console.error('Visible headings:', await page.locator('h1').allTextContents());
+    await page
+      .screenshot({ path: 'artifacts/installed-plugin-failure.png' })
+      .catch(() => undefined);
+    console.error('Synthetic page state:', (await page.locator('main').innerText()).slice(-2000));
+  }
   console.error(diagnostic.slice(-4000));
   process.exitCode = 1;
 } finally {

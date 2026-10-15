@@ -16,7 +16,15 @@ def caller(store, session_id):
         return None
     from hermes_cli.profiles import get_profile_dir
     matches = []
-    for profile in store.read()['bots']:
+    for profile, identity in store.read()['bots'].items():
+        if not identity.get('available', True) or not identity.get('enrolled'):
+            continue
+        from .lifecycle_native import incarnation
+        try:
+            if identity.get('native_incarnation') and incarnation(get_profile_dir(profile)) != identity['native_incarnation']:
+                continue
+        except (OSError, ValueError):
+            continue
         path = Path(get_profile_dir(profile)) / 'state.db'
         if not path.is_file():
             continue
@@ -32,11 +40,11 @@ def caller(store, session_id):
 def live_context(store, profile):
     state = store.read()
     bot = state['bots'].get(profile)
-    if not bot or not bot.get('enrolled'):
+    if not bot or not bot.get('enrolled') or bot.get('available') is False:
         return ''
     root = state['bots'].get(state['orchestrator'], {})
     directory = [{'id': b['id'], 'handle': '@'+b['handle'], 'native_target': 'hermes' if p == 'default' else p,
-                  'role': b['role'], 'manager': b['manager']} for p, b in state['bots'].items() if b.get('enrolled')]
+                  'role': b['role'], 'manager': b['manager']} for p, b in state['bots'].items() if b.get('enrolled') and b.get('available', True)]
     return 'Current owner workspace metadata (not a replacement for your SOUL):\n' + json.dumps({
         'you': '@'+bot['handle'], 'native_profile': profile, 'orchestrator': '@'+root.get('handle', ''),
         'your_role': bot['role'], 'your_manager_profile': bot['manager'],
@@ -69,6 +77,8 @@ def register_runtime(ctx):
                 'agent.create': {'name', 'display_name', 'soul', 'role', 'model_source', 'model_fingerprint', 'skills', 'toolsets', 'manager', 'team', 'expected_revision'},
                 'agent.update': {'profile', 'role', 'manager', 'team', 'expected_revision'},
                 'agent.attach': {'profile', 'skills', 'toolsets', 'expected_revision'},
+                'agent.hide': {'profile', 'id', 'hidden', 'expected_revision'},
+                'agent.delete': {'profile', 'id', 'expected_revision'},
             }
             if action not in ACTIONS or set(spec) != allowed[action]:
                 raise InvalidOperation('Unsupported proposal')
@@ -143,7 +153,7 @@ def register_runtime(ctx):
     ctx.register_tool(name='workspace_agents', toolset='workspace', description='Describe your workspace or propose a team change for owner approval.',
         schema={'name': 'workspace_agents', 'description': 'Read live workspace identity or submit an exact team-management proposal for owner review. Never approves or executes its own request.',
             'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['action', 'spec'], 'properties': {
-                'action': {'type': 'string', 'enum': ['describe', 'agent.enable', 'agent.create', 'agent.update', 'agent.attach']}, 'spec': {'type': 'object'}}}}, handler=tool)
+                'action': {'type': 'string', 'enum': ['describe', 'agent.enable', 'agent.create', 'agent.update', 'agent.attach', 'agent.hide', 'agent.delete']}, 'spec': {'type': 'object'}}}}, handler=tool)
     ctx.register_hook('pre_llm_call', context)
     ctx.register_hook('transform_llm_output', room_output)
     ctx.register_middleware('tool_request', route)

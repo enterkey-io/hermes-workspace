@@ -19,6 +19,14 @@ propose a change, use exactly one of the following actions and spec fields:
   never a clone. Configuration is not proof of a successful runtime turn.
 - `agent.update`: `profile`, `role`, `manager`, `team`, `expected_revision`.
   Role has `title`, `description`, `responsibilities`, `boundaries`, `expectedOutputs`.
+- `agent.hide`: `profile`, `id`, `hidden` (true to hide, false to unhide),
+  `expected_revision`. Reversible; preserves the whole profile and its crews.
+- `agent.delete`: `profile`, `id`, `expected_revision`. This proposes permanent
+  native removal of the exact profile, including its SOUL, memory, skills, local
+  conversations and service. The owner must type the profile name in the app.
+  Never delete the default/lead, active work or a manager with direct reports.
+  Crew logs remain; removed members cannot continue work. Never replay uncertain
+  deletion. Request owner inspection instead.
 - `agent.attach`: `profile`, `skills`, `toolsets`, `expected_revision`.
   Select installed resources; no arbitrary URLs, commands, code or credentials.
 

@@ -75,7 +75,7 @@ export function AgentAvatar({
       SHAPES.includes(look.shape) ? look.shape : 'pebble',
       COLORS.find((c) => c.id === look.color)?.hex ?? COLORS[0].hex,
       state,
-      orchestrator,
+      false,
       large,
     );
     view.current = avatar;
@@ -100,17 +100,17 @@ export function AgentAvatar({
       {image && (
         <>
           <img src={image} alt="" />
-          {orchestrator && (
-            <span className="avatar-star" aria-label="Orchestrator">
-              ★
-            </span>
-          )}
           {state !== 'ready' && (
             <span className="photo-status" aria-label={state}>
               ●
             </span>
           )}
         </>
+      )}
+      {orchestrator && (
+        <span className="avatar-star" aria-label="Orchestrator">
+          ★
+        </span>
       )}
       {look.kind === 'photo' && !image && (
         <svg className="empty-photo" viewBox="0 0 48 48" aria-hidden="true">

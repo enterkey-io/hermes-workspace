@@ -1,11 +1,31 @@
 # Installed-owner implementation status
 
-This file tracks the 0.4.2 combined-plugin patch and the earlier published
+This file tracks the 0.5.0 combined-plugin update and the earlier published
 0.3.0 owner-login preview. It is not production certification or a claim that an
 owner's remote Hermes has been upgraded. The default distribution is now one
 installable plugin; independent app hosting remains optional.
 
 Implemented and exercised locally:
+
+- The conversation UI follows the reviewed three-pane hierarchy: pinned pebbles,
+  compact sectioned rows, role chips/native previews, crew avatar stacks,
+  bounded message bubbles/native timestamps/authors, compact composer and the
+  selected identity/routines panel. Accessible tablet/phone drawers support
+  focus containment, Escape, browser Back and restoration. No unsupported
+  attachment/voice/Library/Computer controls are offered.
+- Live authoritative roster reconciliation covers local changes, model proposals,
+  outside native metadata/profile changes, two browsers and missed events.
+  Native read clocks use active message row IDs; read cursors only advance.
+  Profile incarnation witnesses survive rename and distinguish clones/reused
+  names. Old sessions, drafts, handles and approvals cannot bind to replacements.
+- Native pins/order, Hide/Unhide, scoped routine pause/resume and exact owner-
+  reviewed deletion. Native deletion protects the default/lead, direct reports,
+  active sessions and live crews. Hermes 0.21.7 can report files removed with
+  identity settlement pending; that remains a partial receipt, never a false
+  success or automatic destructive retry. Inspection never repeats deletion.
+- New presentation/read-cursor tables are optional schema-1 additions. Code
+  rollback preserves them, owner login and unrelated native state. See
+  [update guidance](UPDATES.md) and [local evidence](compatibility/preview-0.5.0-local.json).
 
 - Pebble Crew branding and maintained repository references. Primary-agent
   detection returns the existing native display name, and onboarding explicitly

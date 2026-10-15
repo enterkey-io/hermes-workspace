@@ -1,7 +1,7 @@
 """User-owned bridge. Static app hosting never proxies these requests."""
 
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 import hmac
 import json
 import os
@@ -62,9 +62,30 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
     async def lifespan(app):
         check_native_adapter()
         await native.start()
+        async def watch_roster():
+            revision = None
+            while True:
+                await asyncio.sleep(4)
+                if not workspace or not any(c.get('streaming') for c in clients.values()):
+                    continue
+                try:
+                    snapshot = await workspace.invoke('workspace.snapshot', {})
+                    if snapshot['revision'] != revision:
+                        revision = snapshot['revision']
+                        for queue in tuple(native.listeners):
+                            try:
+                                queue.put_nowait({'type': 'workspace.changed'})
+                            except asyncio.QueueFull:
+                                pass  # Each visible browser also reconciles periodically.
+                except Exception:
+                    pass  # Do not replace the last valid roster with an empty one.
+        watcher = asyncio.create_task(watch_roster())
         try:
             yield
         finally:
+            watcher.cancel()
+            with suppress(asyncio.CancelledError):
+                await watcher
             await native.stop()
             if workspace:
                 workspace.store.db.close()
@@ -295,6 +316,9 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                     if event.get("type") == "bridge.resync":
                         yield json.dumps(event) + "\n\n"
                         break
+                    if event.get('type') == 'workspace.changed':
+                        yield '{"type":"workspace.changed"}\n\n'
+                        continue
                     if event.get("session_id") in client["sessions"]:
                         yield json.dumps(event, ensure_ascii=False) + "\n\n"
             finally:

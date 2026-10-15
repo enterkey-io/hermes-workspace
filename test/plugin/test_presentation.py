@@ -1,0 +1,202 @@
+import unittest
+from test_workspace import WorkspaceTests
+from bot_web.operations import InvalidOperation
+from bot_web.native import NativeError
+
+
+class PresentationTests(WorkspaceTests):
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        self.stamps = {'default': 'a'*64, 'amy': 'b'*64}
+        call = self.native.call
+        self.deleted = 0
+        self.delete_result = {'state': 'completed', 'files_deleted': True}
+        async def native(method, params):
+            if method == 'bot_web.identities':
+                return {'identities': self.stamps}
+            if method == 'bot_web.lifecycle':
+                self.deleted += 1
+                if isinstance(self.delete_result, Exception):
+                    raise self.delete_result
+                if self.delete_result.get('files_deleted'):
+                    self.native.profiles = [r for r in self.native.profiles if r['name'] != params['profile']]
+                    self.stamps.pop(params['profile'])
+                return self.delete_result
+            if method == 'groups.list':
+                return {'rooms': []}
+            return await call(method, params)
+        self.native.call = native
+        await self.service.invoke('workspace.snapshot', {})
+
+    def spec(self, profile='amy'):
+        state = self.store.read()
+        return {'profile': profile, 'id': state['bots'][profile]['id'], 'expected_revision': state['revision']}
+
+    async def approve_delete(self):
+        spec = self.spec()
+        request_id, _ = self.store.request('default', 'agent.delete', spec)
+        request = next(r for r in self.store.requests() if r['id'] == request_id)
+        return await self.service.invoke('requests.approve', {'id': request_id, 'fingerprint': request['fingerprint'], 'confirmation': 'amy'})
+
+    async def test_external_hide_removes_roster_but_retains_identity_and_unhide(self):
+        original = self.spec()['id']
+        self.native.profiles[1]['ui_meta']['hermes-bots']['hidden'] = True
+        self.service._snapshot = None
+        snapshot = await self.service.invoke('workspace.snapshot', {})
+        self.assertEqual([b['profile'] for b in snapshot['bots']], ['default'])
+        self.assertTrue(snapshot['workspace']['bots'][1]['hidden'])
+        await self.service.invoke('agent.hide', {**self.spec(), 'hidden': False})
+        self.assertEqual(self.spec()['id'], original)
+        self.assertEqual(len(await self.service.ops.roster()), 2)
+
+    async def test_recreated_name_cannot_inherit_handle_approval_or_pin_order(self):
+        old = self.spec()
+        await self.service.invoke('bots.update_handle', {'profile': 'amy', 'handle': 'researcher', 'expected_revision': old['expected_revision']})
+        old = self.spec()
+        self.stamps['amy'] = 'c'*64
+        self.service._snapshot = None
+        await self.service.invoke('workspace.snapshot', {})
+        self.assertNotEqual(self.spec()['id'], old['id'])
+        self.assertNotEqual(self.store.read()['aliases']['researcher'], 'amy')
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('agent.hide', {**old, 'hidden': True})
+        self.assertEqual(self.deleted, 0)
+
+    async def test_unchanged_default_handle_is_reserved_after_recreation(self):
+        self.assertEqual(self.store.read()['bots']['amy']['handle'], 'amy')
+        self.stamps['amy'] = 'd'*64
+        self.service._snapshot = None
+        await self.service.invoke('workspace.snapshot', {})
+        self.assertNotEqual(self.store.read()['bots']['amy']['handle'], 'amy')
+        self.assertTrue(self.store.read()['aliases']['amy'].startswith('!retired:'))
+
+    async def test_proven_native_rename_preserves_identity_and_reporting(self):
+        old = self.spec()['id']
+        self.native.profiles[1]['name'] = 'research'
+        # Even older native rosters without previous_names prove the rename
+        # through the moved directory's private incarnation witness.
+        self.stamps['research'] = self.stamps.pop('amy')
+        self.service._snapshot = None
+        await self.service.invoke('workspace.snapshot', {})
+        self.assertEqual(self.spec('research')['id'], old)
+        self.assertNotIn('amy', self.store.read()['bots'])
+
+    async def test_read_cursors_are_monotonic_scoped_and_do_not_query_model(self):
+        self.native.profiles[1]['canonical_session'].update(message_count=3)
+        self.service._snapshot = None
+        snap = await self.service.invoke('workspace.snapshot', {})
+        bot = snap['workspace']['bots'][1]
+        self.native.profiles[1]['canonical_session']['message_count'] = 5
+        self.service._snapshot = None
+        snap = await self.service.invoke('workspace.snapshot', {})
+        self.assertTrue(snap['workspace']['bots'][1]['unread'])
+        before = len(self.native.calls)
+        await self.service.invoke('presentation.read', {'key': bot['read_key'], 'cursor': 5})
+        await self.service.invoke('presentation.read', {'key': bot['read_key'], 'cursor': 3})
+        self.assertEqual(self.store.db.execute('SELECT cursor FROM read_cursors WHERE key=?', (bot['read_key'],)).fetchone()[0], 5)
+        self.assertFalse(any(m == 'bot_web.models' for m, _ in self.native.calls[before:]))
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('presentation.read', {'key': bot['read_key'], 'cursor': 999})
+
+    async def test_delete_requires_exact_confirmation_and_never_replays(self):
+        spec = self.spec()
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('agent.delete', spec)
+        request_id, _ = self.store.request('default', 'agent.delete', spec)
+        request = self.store.requests()[0]
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('requests.approve', {'id': request_id, 'fingerprint': request['fingerprint'], 'confirmation': 'wrong'})
+        self.assertEqual(self.store.requests()[0]['state'], 'pending')
+        result = await self.approve_delete()
+        self.assertEqual(result['state'], 'completed')
+        self.assertEqual(self.deleted, 1)
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('requests.approve', {'id': request_id, 'fingerprint': request['fingerprint'], 'confirmation': 'amy'})
+        self.assertEqual(self.deleted, 1)
+
+    async def test_uncertain_delete_is_inspected_without_resubmitting(self):
+        self.delete_result = NativeError('test timeout')
+        result = await self.approve_delete()
+        self.assertEqual(result['state'], 'uncertain')
+        request = self.store.requests()[0]
+        checked = await self.service.invoke('requests.reconcile', {'id': request['id']})
+        self.assertTrue(checked['target_present'])
+        self.assertEqual(self.deleted, 1)
+
+    async def test_partial_deletion_preserves_receipt_and_retired_identity(self):
+        self.delete_result = {'state': 'partial', 'files_deleted': True, 'identity_pending': True}
+        result = await self.approve_delete()
+        self.assertEqual(result['state'], 'partial')
+        request = self.store.requests()[0]
+        checked = await self.service.invoke('requests.reconcile', {'id': request['id']})
+        self.assertFalse(checked['target_present'])
+        self.assertEqual(self.deleted, 1)
+
+    async def test_default_and_manager_are_protected(self):
+        root = self.spec('default')
+        self.service._approved_delete = root['id']
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('agent.delete', root)
+        state = self.store.read()
+        state['bots']['default']['manager'] = 'amy'
+        self.store.save(state, state['revision'])
+        self.service._approved_delete = self.spec()['id']
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('agent.delete', self.spec())
+        self.assertEqual(self.deleted, 0)
+
+    async def test_pin_order_cas_rejects_stale_and_untyped_ids(self):
+        identity = self.spec()['id']
+        await self.service.invoke('presentation.order', {'ids': [identity], 'expected_revision': 0})
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('presentation.order', {'ids': [], 'expected_revision': 0})
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('presentation.order', {'ids': [{}], 'expected_revision': 1})
+
+    async def test_live_crew_membership_blocks_deletion_without_mutation(self):
+        call = self.native.call
+        async def native(method, params):
+            if method == 'groups.list':
+                return {'rooms': [{'room_id': 'live-crew', 'members': [{'profile': 'amy'}]}]}
+            return await call(method, params)
+        self.native.call = native
+        result = await self.approve_delete()
+        self.assertEqual(result['state'], 'pending')
+        self.assertIn('live crew', result['result']['reason'])
+        self.assertEqual(self.deleted, 0)
+
+
+class IncarnationTests(unittest.TestCase):
+    def test_restart_rename_clone_and_reused_name(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        import shutil
+        from bot_web.lifecycle_native import incarnation
+        with TemporaryDirectory() as root:
+            profile = Path(root) / 'original'
+            profile.mkdir()
+            identity = incarnation(profile)
+            self.assertEqual(identity, incarnation(profile))
+            renamed = profile.rename(Path(root) / 'renamed')
+            self.assertEqual(identity, incarnation(renamed))
+            clone = Path(root) / 'cloned'
+            shutil.copytree(renamed, clone)
+            self.assertNotEqual(identity, incarnation(clone))
+            shutil.rmtree(renamed)
+            renamed.mkdir()
+            self.assertNotEqual(identity, incarnation(renamed))
+
+    def test_symlink_identity_is_rejected(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from bot_web.lifecycle_native import incarnation
+        with TemporaryDirectory() as root:
+            path = Path(root)
+            target = path / 'outside'
+            target.write_text('private')
+            profile = path / 'profile'
+            profile.mkdir()
+            (profile / '.pebble-crew-identity').symlink_to(target)
+            with self.assertRaises(OSError):
+                incarnation(profile)
+            self.assertEqual(target.read_text(), 'private')

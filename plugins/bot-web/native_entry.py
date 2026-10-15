@@ -12,6 +12,8 @@ def main():
     register_connections(Path(__file__).parent)
     from models_native import register as register_models
     register_models()
+    from lifecycle_native import register as register_lifecycle
+    register_lifecycle()
     start_hosted_room_service()
     try:
         entry.main()

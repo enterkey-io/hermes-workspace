@@ -78,7 +78,7 @@ class WorkspaceTests(unittest.IsolatedAsyncioTestCase):
         before = len(self.native.calls)
         with self.assertRaises(InvalidOperation):
             await self.service.invoke('requests.approve', {'id': request_id, 'fingerprint': 'wrong'})
-        self.assertTrue(all(method in {'profiles.list', 'bot_web.models'} for method, _ in self.native.calls[before:]))
+        self.assertTrue(all(method in {'profiles.list', 'bot_web.models', 'bot_web.identities'} for method, _ in self.native.calls[before:]))
         denied = await self.service.invoke('requests.deny', {'id': request_id, 'fingerprint': request['fingerprint']})
         self.assertEqual(denied['state'], 'denied')
         with self.assertRaises(InvalidOperation):

@@ -83,7 +83,7 @@ for directory in ("apps", "packages", "plugins", "scripts", "test", "docs", ".gi
             source.append((path, str(path.relative_to(root))))
 for name in ("README.md", "PROGRESS.md", "IMPLEMENTATION_PLAN.md", "WEB_APP_PLAN.md", "LICENSE", "release.json",
              "package.json", "package-lock.json", "tsconfig.json", "eslint.config.mjs", "vitest.config.ts",
-             "playwright.config.ts", "playwright.avatar.config.ts", "playwright.owner.config.ts", "vite.client.config.ts", "vite.web.config.ts", ".nvmrc", ".gitignore",
+             "playwright.config.ts", "playwright.chat.config.ts", "playwright.avatar.config.ts", "playwright.owner.config.ts", "vite.client.config.ts", "vite.web.config.ts", ".nvmrc", ".gitignore",
              ".prettierrc.json", ".prettierignore"):
     source.append((root / name, name))
 archive("workspace-source-preview.zip", source)

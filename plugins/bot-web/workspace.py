@@ -20,7 +20,7 @@ from .native import NativeError
 
 SHAPES = {'pebble', 'beacon', 'petal', 'kite', 'arch'}
 COLORS = {'iris', 'citron', 'clay', 'lagoon', 'rose', 'sky', 'white'}
-ACTIONS = {'agent.enable', 'agent.create', 'agent.update', 'agent.attach'}
+ACTIONS = {'agent.enable', 'agent.create', 'agent.update', 'agent.attach', 'agent.hide', 'agent.delete'}
 
 
 def workspace_path():
@@ -40,6 +40,8 @@ class WorkspaceStore:
             CREATE TABLE IF NOT EXISTS workspace(id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, spec TEXT NOT NULL, fingerprint TEXT NOT NULL, state TEXT NOT NULL, result TEXT, created INTEGER NOT NULL, UNIQUE(actor,fingerprint));
         ''')
+        from .presentation import init_store
+        init_store(self.db)
         self.db.execute('INSERT OR IGNORE INTO workspace VALUES(1,0,?)', (json.dumps({'schema': 1, 'id': str(uuid.uuid4()), 'bots': {}, 'teams': [], 'orchestrator': None, 'initialized': False, 'aliases': {}}),))
         self.db.commit()
 
@@ -111,9 +113,9 @@ def normalize_photo(data):
 
 
 class WorkspaceService:
-    METHODS = {'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
+    METHODS = {'workspace.snapshot', 'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose', 'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
         'bots.update_handle', 'bots.appearance.get', 'bots.appearance.update', 'roles.update', 'teams.save',
-        'models.describe', 'agent.model', 'agent.create', 'agent.update', 'agent.attach', 'requests.list', 'requests.approve', 'requests.deny',
+        'models.describe', 'agent.model', 'agent.create', 'agent.update', 'agent.attach', 'requests.reconcile', 'requests.list', 'requests.approve', 'requests.deny',
         'connections.add', 'connections.permissions', 'connections.set_key', 'connections.list', 'connections.test', 'services.catalog', 'agent.capabilities'}
 
     def __init__(self, ops, store, primary=None):
@@ -123,22 +125,33 @@ class WorkspaceService:
     def handles(self, operation):
         return operation in self.METHODS
 
-    async def sync(self):
+    async def sync(self, include_model=True):
         state = self.store.read()
+        before = json.dumps(state, sort_keys=True)
         profiles = await self.ops.profiles()
+        from .presentation import identities, bind
+        stamps = await identities(self, state, profiles)
         changed = False
-        try:
-            model = await self.ops.gateway.call('bot_web.models', {'action': 'describe'})
-        except NativeError:
-            model = None
-        if state.get('model_grant') != model:
-            state['model_grant'] = model
-            changed = True
+        if include_model:
+            try:
+                model = await self.ops.gateway.call('bot_web.models', {'action': 'describe'})
+            except NativeError:
+                model = None
+            if state.get('model_grant') != model:
+                state['model_grant'] = model
+                changed = True
         for row in profiles:
             name = row['name']
             if name not in state['bots']:
                 meta = row.get('ui_meta', {}).get('hermes-bots') or {}
-                state['bots'][name] = {'id': str(uuid.uuid4()), 'profile': name, 'handle': 'hermes' if name == 'default' else name,
+                handle = 'hermes' if name == 'default' else name
+                if handle in state['aliases']:
+                    handle = handle[:23]+'-'+uuid.uuid4().hex[:6]
+                marker = row.get('ui_meta', {}).get('pebble-crew') or {}
+                restored_id = marker.get('id') if marker.get('incarnation') == stamps.get(name) and stamps.get(name) else None
+                if restored_id and (not isinstance(restored_id, str) or not re.fullmatch('[0-9a-f-]{36}', restored_id) or any(b['id'] == restored_id for b in state['bots'].values())):
+                    restored_id = None
+                state['bots'][name] = {'id': restored_id or str(uuid.uuid4()), 'profile': name, 'handle': handle,
                     'role': {'title': '', 'description': '', 'responsibilities': '', 'boundaries': '', 'expectedOutputs': ''},
                     'enrolled': isinstance(row.get('ui_meta', {}).get('hermes-bots'), dict), 'manager': state['orchestrator'], 'team': None, 'appearance': {'kind': 'photo' if row.get('has_avatar') else 'shape', 'shape': 'pebble', 'color': 'iris'}}
                 # Preserve native avatar data. Workspace shape contract is deliberately versioned.
@@ -148,7 +161,23 @@ class WorkspaceService:
                     except InvalidOperation:
                         pass
                 changed = True
-        if changed:
+            meta = row.get('ui_meta', {}).get('hermes-bots') or {}
+            if 'sectionId' in meta:
+                section_id, section_name = meta.get('sectionId'), meta.get('sectionName')
+                if section_id is None:
+                    state['bots'][name]['team'] = None
+                elif isinstance(section_id, str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', section_id) and isinstance(section_name, str) and 0 < len(section_name.strip()) <= 80:
+                    team = next((t for t in state['teams'] if t['id'] == section_id), None)
+                    if team is None:
+                        state['teams'].append({'id': section_id, 'name': section_name.strip()})
+                    else:
+                        team['name'] = section_name.strip()
+                    state['bots'][name]['team'] = section_id
+            native_role = meta.get('workspaceRole')
+            if isinstance(native_role, dict) and set(native_role) == set(state['bots'][name]['role']) and all(isinstance(v, str) and len(v) <= 1000 for v in native_role.values()):
+                state['bots'][name]['role'] = deepcopy(native_role)
+            await bind(self, row, state['bots'][name], stamps.get(name))
+        if changed or json.dumps(state, sort_keys=True) != before:
             state = self.store.save(state, state['revision'])
         result = deepcopy(state)
         result['bots'] = [{**state['bots'][r['name']], **self.ops.summary(r)} for r in profiles]
@@ -209,8 +238,15 @@ class WorkspaceService:
             return await self._invoke(operation, params)
 
     async def _invoke(self, operation, params):
-        snapshot, profiles = await self.sync()
+        from . import presentation
+        if operation == 'workspace.snapshot':
+            fields(params, [])
+            return await presentation.snapshot(self)
+        self._snapshot = None
+        snapshot, profiles = await self.sync(include_model=operation in {'workspace.describe', 'workspace.detect_primary', 'models.describe', 'agent.model', 'agent.create'})
         state = self.store.read()
+        if operation in {'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose'}:
+            return await presentation.invoke(self, operation, params, state, profiles)
         if operation in {'room.send', 'room.log'}:
             from .room_identity import translate_send, translate_log
             fields(params, ['room_id', 'event_id', 'text'] if operation == 'room.send' else ['room_id', 'since_seq'])
@@ -234,14 +270,27 @@ class WorkspaceService:
             if chosen not in state['bots'] or row is None:
                 return {'outcome': 'needs_operator_binding', 'complete': False}
             return {'outcome': 'detected', 'complete': True, 'profile': chosen, 'evidence': evidence, 'revision': state['revision'], 'bot': {**state['bots'][chosen], **self.ops.summary(row)}}
+        if operation == 'requests.reconcile':
+            fields(params, ['id'])
+            request = next((r for r in self.store.requests() if r['id'] == params['id']), None)
+            if not request or request['action'] != 'agent.delete' or request['state'] not in {'executing', 'partial', 'uncertain'}:
+                raise InvalidOperation('No uncertain deletion to inspect')
+            target = state['bots'].get(request['spec']['profile'])
+            # Observation only: never replay the destructive native call. A replacement
+            # profile is a different identity and is never touched by this receipt.
+            same = target and target['id'] == request['spec']['id'] and target.get('available')
+            return {'state': request['state'], 'target_present': bool(same),
+                'message': 'Original profile is still present; inspect native lifecycle status in Hermes.' if same else 'Original profile is absent. Native identity settlement may still need attention in Hermes. Deletion has not been replayed.'}
         if operation == 'requests.list':
             fields(params, [])
             return {'requests': self.store.requests()}
         if operation in {'requests.approve', 'requests.deny'}:
-            fields(params, ['id', 'fingerprint'])
-            request = next((r for r in self.store.requests() if r['id'] == params['id']), None)
+            request = next((r for r in self.store.requests() if r['id'] == params.get('id')), None)
+            fields(params, ['id', 'fingerprint', *(['confirmation'] if request and request['action'] == 'agent.delete' and operation == 'requests.approve' else [])])
             if not request or request['state'] != 'pending' or request['fingerprint'] != params['fingerprint']:
                 raise InvalidOperation('Request changed or is no longer pending')
+            if request['action'] == 'agent.delete' and operation.endswith('approve') and params.get('confirmation') != request['spec']['profile']:
+                raise InvalidOperation('Type the exact profile name to confirm deletion')
             status = 'denied' if operation.endswith('deny') else 'executing'
             with self.store.db:
                 changed = self.store.db.execute('UPDATE requests SET state=? WHERE id=? AND state=?', (status, request['id'], 'pending')).rowcount
@@ -251,10 +300,18 @@ class WorkspaceService:
                 return {'state': status}
             # Mark before dispatch: a crash cannot cause a duplicate automatic native mutation.
             try:
+                if request['action'] == 'agent.delete':
+                    self._approved_delete = request['spec']['id']
                 result = await self._invoke(request['action'], request['spec'])
-                status = 'completed' if result.get('state', 'completed') == 'completed' else 'partial'
-            except (InvalidOperation, NativeError):
+                status = result.get('state', 'completed')
+                if status == 'blocked':
+                    status = 'pending'
+            except InvalidOperation as error:
+                result, status = {'error': str(error)}, 'failed'
+            except NativeError:
                 result, status = {'error': 'Native result needs reconciliation. Do not resubmit creation.'}, 'uncertain'
+            finally:
+                self._approved_delete = None
             with self.store.db:
                 self.store.db.execute('UPDATE requests SET state=?,result=? WHERE id=?', (status, json.dumps(result), request['id']))
             return {'state': status, 'result': result}
@@ -330,7 +387,7 @@ class WorkspaceService:
         if operation == 'agent.create':
             fields(params, ['name', 'display_name', 'soul', 'role', 'model_source', 'model_fingerprint', 'skills', 'toolsets', 'manager', 'team', 'expected_revision'])
             name = bounded(params['name'], 40, False)
-            if not re.fullmatch(r'[a-z][a-z0-9-]{1,39}', name) or name in state['bots']:
+            if not re.fullmatch(r'[a-z][a-z0-9-]{1,39}', name) or (name in state['bots'] and state['bots'][name].get('available', True)):
                 raise InvalidOperation('Choose a new profile name')
             if params['expected_revision'] != state['revision'] or not state['initialized']:
                 raise InvalidOperation('Workspace changed', 'STALE_REVISION')

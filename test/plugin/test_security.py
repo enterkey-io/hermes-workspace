@@ -30,6 +30,8 @@ class Native:
 
     async def call(self, method, params):
         self.calls.append((method, params))
+        if method == "bot_web.lifecycle":
+            return {"incarnation": getattr(self, "incarnation", "a"*64)}
         if method == "profiles.list":
             return {"bot_mode_protocol": True, "profiles": [
                 {"name": "alpha", "ui_meta": {"hermes-bots": {"title": "Alpha"}},
@@ -193,3 +195,15 @@ class NativeFailureTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SessionIncarnationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_old_open_session_cannot_send_to_recreated_profile_name(self):
+        native = Native()
+        ops = BotOperations(native)
+        await ops.invoke('bot.open', {'profile': 'alpha'})
+        native.incarnation = 'b'*64
+        before = len(native.calls)
+        with self.assertRaises(InvalidOperation):
+            await ops.invoke('chat.send', {'session_id': 'live-alpha', 'text': 'must not dispatch'})
+        self.assertFalse(any(method == 'prompt.submit' for method, _ in native.calls[before:]))

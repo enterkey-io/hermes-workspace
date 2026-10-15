@@ -211,6 +211,9 @@ async def exercise(root, home, port, *, seed_only=False):
         assert (approval_target / "keep.txt").exists(), "Denied action must not execute"
         await ops.invoke("chat.send", {"session_id": sid, "text": "nativestop: a cancellable native turn"})
         assert await asyncio.to_thread(Model.slow_started.wait, 10), "Slow native turn never started"
+        stamp = await ops.stamp('alpha')
+        guarded = await gateway.call('bot_web.lifecycle', {'action': 'delete', 'profile': 'alpha', 'incarnation': stamp})
+        assert guarded['state'] == 'blocked' and (home / 'profiles/alpha').exists(), guarded
         stopped = await ops.invoke("chat.stop", {"session_id": sid})
         assert stopped.get("status") == "interrupted"
         await idle()
@@ -230,10 +233,52 @@ async def exercise(root, home, port, *, seed_only=False):
         routines = await ops.invoke("routines.list", {"profile": "alpha"})
         assert routines.get("scoped") == "alpha"
         assert {job["name"] for job in routines["jobs"]} == {"alpha-routine"}
+        # Real scoped mutation and native deletion, entirely within this disposable home.
+        job_id = routines['jobs'][0]['job_id']
+        await ops.invoke('routines.set_enabled', {'profile': 'alpha', 'job_id': job_id, 'enabled': False})
+        assert (await ops.invoke('routines.list', {'profile': 'alpha'}))['jobs'][0]['enabled'] is False
+        assert (await ops.invoke('routines.list', {'profile': 'beta'}))['jobs'][0]['enabled'] is True
+        await ops.invoke('routines.set_enabled', {'profile': 'alpha', 'job_id': job_id, 'enabled': True})
+        from bot_web.workspace import WorkspaceStore, WorkspaceService
+        from bot_web.operations import InvalidOperation
+        store = WorkspaceStore(home / 'bot-web' / 'lifecycle-test.sqlite')
+        service = WorkspaceService(ops, store)
+        created = await gateway.call('profiles.create', {'name': 'delete-probe', 'description': 'Synthetic lifecycle check', 'soul': 'Synthetic disposable persona', 'no_alias': True, 'no_skills': True, 'clone_channels': False, 'mirror_credentials': False})
+        assert created.get('ok') is True
+        await ops.enable_existing('delete-probe')
+        snapshot = await service.invoke('workspace.snapshot', {})
+        bot = next(b for b in snapshot['workspace']['bots'] if b['profile'] == 'delete-probe')
+        alpha_clock = next(b for b in snapshot['workspace']['bots'] if b['profile'] == 'alpha')
+        assert alpha_clock['cursor_type'] == 'row' and alpha_clock['cursor'] > 0
+        spec = {'profile': 'delete-probe', 'id': bot['id'], 'expected_revision': snapshot['workspace']['revision']}
+        request_id, _ = store.request('owner', 'agent.delete', spec)
+        request = next(r for r in store.requests() if r['id'] == request_id)
+        approved = {'id': request_id, 'fingerprint': request['fingerprint'], 'confirmation': 'delete-probe'}
+        removed = await service.invoke('requests.approve', approved)
+        assert removed['state'] in {'completed', 'partial'}, removed
+        if removed['state'] == 'partial':
+            observed = await service.invoke('requests.reconcile', {'id': request_id})
+            assert observed['target_present'] is False
+            assert observed['state'] == 'partial'
+        assert not (home / 'profiles/delete-probe').exists()
+        try:
+            await service.invoke('requests.approve', approved)
+            raise AssertionError('Repeated destructive approval was accepted')
+        except InvalidOperation:
+            pass
+        await gateway.stop()
+        await gateway.start()
+        assert 'delete-probe' not in {p['name'] for p in await ops.profiles()}
+        recreated = await gateway.call('profiles.create', {'name': 'delete-probe', 'no_alias': True, 'no_skills': True, 'clone_channels': False, 'mirror_credentials': False})
+        assert recreated.get('ok') is True
+        current = await service.invoke('workspace.describe', {})
+        assert next(b for b in current['bots'] if b['profile'] == 'delete-probe')['id'] != bot['id']
+        store.db.close()
         print(json.dumps({"native_bot_mode": "pass", "canonical_continuity": "pass",
             "native_message_agent_injection": "pass", "owner_scoped_routines": "pass",
             "native_teammate_delivery": "pass", "native_room_driver_execution": "pass",
             "native_denied_approval": "pass", "native_stop": "pass",
+            "native_profile_deletion_restart_name_reuse": "pass", "native_active_delete_guard": "pass", "native_read_row_clock": "pass", "native_deletion_outcome": removed["state"], "native_routine_toggle": "pass",
             "model_turns": Model.turns, "hermes_version": gateway.build["version"],
             "revision": gateway.build["revision"], "distribution_version": gateway.build["distribution_version"],
             "evidence": "real-runtime-local"}))

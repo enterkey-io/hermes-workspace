@@ -31,3 +31,11 @@ requires account access and a reviewed D1 transaction, never a public reset link
 There is no unattended automatic update channel or release signing/provenance
 claim yet. SHA256SUMS plus the release manifest verify the published package set;
 keep production certification separate from development preview evidence.
+
+0.5.0 adds optional presentation/read-cursor tables without changing the workspace
+schema. Old code ignores them; keep them during rollback. Profile incarnation
+witnesses and the separate `pebble-crew` native metadata namespace must survive
+code-only updates. Pending 0.5 Delete/Hide requests are unsupported by older code;
+never approve them after downgrade. Return to the matching release to review
+them. A same-name profile restored by copying to a new directory receives a new
+incarnation and does not inherit a destructive approval or retired public handle.

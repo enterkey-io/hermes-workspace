@@ -5,7 +5,7 @@ installable plugin. It includes the web app, local administrator login and nativ
 integration, served through one owner-controlled address. All state stays on the
 owner's infrastructure; no vendor account, content store or relay is required.
 
-The combined-plugin candidate is **0.4.2-preview.1** (integration 0.4.2). This is a
+The combined-plugin candidate is **0.5.0-preview.1** (integration 0.5.0). This is a
 development preview, not production certification. A version in source does not
 mean its release is published or an owner's host was upgraded. See
 [implementation status](docs/IMPLEMENTATION_STATUS.md).
@@ -34,7 +34,7 @@ valid TLS and any local-network permission.
 ## Workspace features
 
 Existing-agent discovery/enrollment, native canonical chats, streaming, approvals,
-Stop, existing rooms and bot-owned routines. Teams and editable roles/reporting,
+Stop, existing crews and bot-owned routine controls. A sectioned rail with pins, native previews and read state, crew participants, per-conversation drafts and scroll positions, and responsive details/navigation drawers. Native Hide/Unhide and owner-reviewed Delete update the roster automatically, including changes made outside the app. Teams and editable roles/reporting,
 one starred orchestrator, public-handle routing and saved appearances. A real
 `workspace_agents` plugin tool and bundled skill submit exact management proposals
 for owner review; models cannot self-approve or grant privileges.
@@ -55,7 +55,7 @@ Hermes or model requests. See the [avatar plan](docs/AVATAR_SYSTEM_PLAN.md).
 ## Interface work and owner reports
 
 The [interface implementation plan](docs/PEBBLE_CREW_UI_PLAN.md) records the
-Astra review and the next UI/data milestones. The [bug and improvement list](docs/BUGS_AND_IMPROVEMENTS.md) tracks owner reports, acceptance criteria and release status.
+Astra review and the completed conversation/UI implementation. The [bug and improvement list](docs/BUGS_AND_IMPROVEMENTS.md) tracks owner reports, acceptance criteria and release status.
 
 ## Development
 

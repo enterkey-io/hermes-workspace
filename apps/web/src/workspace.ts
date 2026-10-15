@@ -19,6 +19,15 @@ export type WorkspaceBot = {
   managed: boolean;
   enrolled: boolean;
   canonical: boolean;
+  available?: boolean;
+  hidden?: boolean;
+  pinned?: boolean;
+  pin_configured?: boolean;
+  preview?: string;
+  cursor?: number;
+  cursor_type?: 'row' | 'count';
+  read_key?: string;
+  unread?: boolean;
   manager: string | null;
   team: string | null;
   appearance: Appearance;

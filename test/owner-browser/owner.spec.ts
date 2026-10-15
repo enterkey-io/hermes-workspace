@@ -96,9 +96,7 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled({ timeout: 30000 });
   const sessionCookie = (await context.cookies()).find((c) => c.name.includes('session_token'));
   expect(sessionCookie).toMatchObject({ httpOnly: true, secure: true, sameSite: 'Strict' });
-  await expect(
-    page.getByRole('navigation', { name: 'Bots' }).getByText('@aurora', { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('.chat-header').getByText('@aurora', { exact: true })).toBeVisible();
   await page.waitForTimeout(2500); // accelerated server lease is 1s; authenticated heartbeats must keep it alive.
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled({ timeout: 30000 });
   expect(sends).toBe(0);

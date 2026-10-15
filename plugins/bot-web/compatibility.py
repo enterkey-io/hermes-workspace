@@ -31,7 +31,10 @@ SUPPORTED_BUILDS = [{'version': '0.21.0',
             '../tools/mcp_oauth.py': '0cf8740181d06f487fba64e52d98590b92f2e4934c2e635be89caa6d5c39a988',
             '../agent/turn_context.py': '86a4f6c61183167850046b025a8f5c7b8601fb910f8a9ee464535afccc541c06',
             '../agent/turn_finalizer.py': '584ade4613a11565c2ccd48546327adb9682f58ec70ace9d02921c3c240c14d5',
-            '../providers/__init__.py': 'eb55ccb80726aa2d4c8f1294a4ca8fdab82fc6f34b8c374b423b821d8012980b'}},
+            '../providers/__init__.py': 'eb55ccb80726aa2d4c8f1294a4ca8fdab82fc6f34b8c374b423b821d8012980b',
+            '../hermes_state.py': '696fd2d37d66a599228f5b1be5d5b76423b744149c83a2fbd59bf3f45a5f3891',
+            '../hermes_state_messages.py': None,
+            '../hermes_cli/profile_identity.py': None}},
  {'version': '0.21.7',
   'revision': 'af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a',
   'server_requests': True,
@@ -57,7 +60,10 @@ SUPPORTED_BUILDS = [{'version': '0.21.0',
             '../tools/mcp_oauth.py': '21f6f2ecbfe2a5a913be9a475704be3c5c69e31a4befa633ce00866aed207cbb',
             '../agent/turn_context.py': '7f22179bf7db0cc3009f24422750e3ec729f0ad4f7253705fd3df3116c75fb3d',
             '../agent/turn_finalizer.py': '9000e17a4a0dba03b1d97cc10fe4184addcca685520ca0c9e6c6ef2cb97d1f25',
-            '../providers/__init__.py': '796d3ee0ed3aea06afc21525ec19dc39f17091845fa1e3f9be485acaa058423a'}}]
+            '../providers/__init__.py': '796d3ee0ed3aea06afc21525ec19dc39f17091845fa1e3f9be485acaa058423a',
+            '../hermes_state.py': 'b76fc6af3b7f37ee1de1be62379acb08d56069796eaf3bdf253a480be704e578',
+            '../hermes_state_messages.py': '5d81a781e61650d04e7d239fae5a59d1aa65632a029b1e14ad9ccb113de93a62',
+            '../hermes_cli/profile_identity.py': '4e5932710a34fa4fc2439ba8b1dfcf75789dfbd2ef26df22074b2e3b6b5b244c'}}]
 
 def inspect_native_adapter():
     try:

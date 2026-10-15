@@ -27,6 +27,7 @@ class BotOperations:
     def __init__(self, gateway):
         self.gateway = gateway
         self.sessions = {}
+        self.session_incarnations = {}
         self.open_lock = asyncio.Lock()
 
     async def profiles(self):
@@ -37,7 +38,8 @@ class BotOperations:
 
     async def roster(self):
         return [row for row in await self.profiles()
-                if isinstance(row.get("ui_meta", {}).get("hermes-bots"), dict)]
+                if isinstance(row.get("ui_meta", {}).get("hermes-bots"), dict)
+                and row['ui_meta']['hermes-bots'].get('hidden') is not True]
 
     @staticmethod
     def summary(row):
@@ -48,7 +50,12 @@ class BotOperations:
                 "name": (meta or {}).get("title") or row.get("display_name") or row["name"],
                 "description": (meta or {}).get("description") or row.get("description") or "",
                 "managed": managed,
-                "canonical": bool((row.get("canonical_session") or {}).get("id"))}
+                "canonical": bool((row.get("canonical_session") or {}).get("id")),
+                "hidden": meta.get('hidden') is True, "pinned": meta.get('pinned') is True,
+                "pin_configured": 'pinned' in meta,
+                "preview": str((row.get('canonical_session') or {}).get('preview') or '')[:500],
+                "cursor": max(0, int((row.get('canonical_session') or {}).get('live_message_count', (row.get('canonical_session') or {}).get('message_count')) or 0)),
+                "conversation_id": str((row.get('canonical_session') or {}).get('resolved_id') or (row.get('canonical_session') or {}).get('id') or ''), **row.get('_presentation_clock', {})}
 
     async def enable_existing(self, profile):
         identifier(profile)
@@ -97,6 +104,13 @@ class BotOperations:
                 raise NativeError("Native canonical chat not confirmed")
             return self.summary(bot)
 
+    async def stamp(self, profile):
+        result = await self.gateway.call('bot_web.lifecycle', {'action': 'inspect', 'profile': profile})
+        stamp = result.get('incarnation')
+        if not isinstance(stamp, str) or not re.fullmatch('[0-9a-f]{64}', stamp):
+            raise NativeError('Native profile identity unavailable')
+        return stamp
+
     async def bot(self, profile):
         identifier(profile)
         for bot in await self.roster():
@@ -124,10 +138,15 @@ class BotOperations:
                 if not canonical or not canonical.get("id"):
                     # Do not resurrect deliberately retired chats or fork a second canonical.
                     raise InvalidOperation("Open this bot's Bot Chat once in Hermes first")
+                stamp = await self.stamp(bot["name"])
                 live = await self.gateway.call("session.resume", {"profile": bot["name"],
                     "session_id": canonical["id"]})
                 sid = identifier(live["session_id"])
+                if await self.stamp(bot['name']) != stamp:
+                    await self.gateway.call('session.close', {'session_id': sid})
+                    raise InvalidOperation('Profile changed while opening this conversation')
                 self.sessions[sid] = bot["name"]
+                self.session_incarnations[sid] = stamp
                 return {"session_id": sid, "profile": bot["name"],
                         "canonical_id": canonical["id"], "messages": live.get("messages", []),
                         "inflight": live.get("inflight"), "running": live.get("running") is True}
@@ -139,6 +158,8 @@ class BotOperations:
             if sid not in self.sessions:
                 raise InvalidOperation("Open the managed bot first")
             await self.bot(self.sessions[sid])
+            if await self.stamp(self.sessions[sid]) != self.session_incarnations.get(sid):
+                raise InvalidOperation('This conversation belongs to a retired profile; open the current pebble')
             native_params = {"session_id": sid}
             method = {"chat.send": "prompt.submit", "chat.stop": "session.interrupt",
                       "chat.history": "session.history", "chat.approvals": "approval.pending",
@@ -167,6 +188,19 @@ class BotOperations:
             await self.bot(params["profile"])
             return await self.gateway.call("cron.manage", {"profile": params["profile"],
                 "action": "list", "include_disabled": True})
+        if operation == 'routines.set_enabled':
+            fields(params, ['profile', 'job_id', 'enabled'])
+            await self.bot(params['profile'])
+            if type(params['enabled']) is not bool:
+                raise InvalidOperation('Enabled must be boolean')
+            listed = await self.gateway.call('cron.manage', {'profile': params['profile'], 'action': 'list', 'include_disabled': True})
+            job = next((j for j in listed.get('jobs', []) if (j.get('job_id') or j.get('id')) == params['job_id']), None)
+            if not job:
+                raise InvalidOperation('Routine no longer belongs to this pebble')
+            result = await self.gateway.call('cron.manage', {'profile': params['profile'], 'action': 'resume' if params['enabled'] else 'pause', 'name': params['job_id']})
+            if result.get('success') is not True:
+                raise NativeError('Routine change was not confirmed')
+            return result
         if operation == "rooms.list":
             fields(params, [])
             return await self.gateway.call("groups.list", {"limit": 100, "offset": 0})

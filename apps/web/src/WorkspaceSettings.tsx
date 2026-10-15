@@ -5,6 +5,7 @@ import { workspaceState } from './workspace';
 import type { WorkspaceState, WorkspaceBot, Appearance, Role } from './workspace';
 import { OwnerAccount } from './OwnerAccount';
 import { ConnectionCard } from './ConnectionCard';
+import { RequestReview } from './chat/RequestReview';
 import { AvatarChooser } from './AgentAvatar';
 type Row = Record<string, unknown>;
 export function WorkspaceSettings({
@@ -13,17 +14,23 @@ export function WorkspaceSettings({
   onChange,
   onClose,
   owner = false,
+  initialTab = 'agents',
+  initialProfile,
 }: {
   owner?: boolean;
+  initialTab?: 'agents' | 'teams' | 'requests' | 'connections' | 'account';
+  initialProfile?: string | undefined;
   client: BotBridgeClient;
   state: WorkspaceState;
   onChange: (s: WorkspaceState) => void;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<'agents' | 'teams' | 'requests' | 'connections' | 'account'>(
-    'agents',
+    initialTab,
   );
-  const [profile, setProfile] = useState(state.orchestrator ?? state.bots[0]?.profile ?? '');
+  const [profile, setProfile] = useState(
+    initialProfile ?? state.orchestrator ?? state.bots[0]?.profile ?? '',
+  );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -32,6 +39,16 @@ export function WorkspaceSettings({
   const [catalog, setCatalog] = useState<Row[]>([]);
   const [teamName, setTeamName] = useState('');
   const bot = state.bots.find((b) => b.profile === profile);
+  useEffect(() => {
+    if (tab !== 'requests') return;
+    const timer = setInterval(() => {
+      void client
+        .invoke('requests.list', {})
+        .then((d) => setRequests((d as { requests: Row[] }).requests))
+        .catch(() => undefined);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [tab, client]);
   useEffect(() => {
     if (tab === 'requests')
       void client
@@ -82,7 +99,6 @@ export function WorkspaceSettings({
     <section className="settings-panel" aria-label="Settings">
       <header>
         <div>
-          <p className="eyebrow">YOUR WORKSPACE</p>
           <h1>Settings</h1>
         </div>
         <button onClick={onClose}>Done</button>
@@ -187,37 +203,24 @@ export function WorkspaceSettings({
           </p>
           {!requests.length && <p>No team requests yet.</p>}
           {requests.map((r) => (
-            <article className="request-card" key={String(r.id)}>
-              <h3>
-                {String(r.action)} · {String(r.actor)}
-              </h3>
-              <p>Status: {String(r.state)}</p>
-              <pre>{JSON.stringify(r.spec, null, 2)}</pre>
-              {r.result != null && <pre>{JSON.stringify(r.result, null, 2)}</pre>}
-              {r.state === 'pending' && (
-                <div className="choice-row">
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      void mutate('requests.deny', { id: r.id, fingerprint: r.fingerprint })
-                    }
-                  >
-                    Deny
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      void mutate('requests.approve', {
-                        id: r.id,
-                        fingerprint: r.fingerprint,
-                      })
-                    }
-                  >
-                    Approve exact request
-                  </button>
-                </div>
-              )}
-            </article>
+            <RequestReview
+              key={String(r.id)}
+              request={r}
+              busy={busy}
+              onDecision={(approve, confirmation) =>
+                void mutate(approve ? 'requests.approve' : 'requests.deny', {
+                  id: r.id,
+                  fingerprint: r.fingerprint,
+                  ...(confirmation == null ? {} : { confirmation }),
+                })
+              }
+              onInspect={() => {
+                void client
+                  .invoke('requests.reconcile', { id: r.id })
+                  .then((value) => setNotice(String((value as Row).message)))
+                  .catch((e) => setError(safeError(e).message));
+              }}
+            />
           ))}
         </>
       )}

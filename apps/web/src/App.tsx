@@ -1,21 +1,27 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { normalizeEndpoint, safeError } from '@hermes-client/core';
 import { BotBridgeClient } from '@hermes-client/protocol';
 import type { BridgeEvent } from '@hermes-client/protocol';
 import { FirstRun } from './FirstRun';
 import { AgentPicker } from './AgentPicker';
-import { MessageBody, CopyMessage } from './MessageBody';
+import { nativeMessages as transcript, roomMessages } from './conversation';
+import type { ChatMessage as Message } from './conversation';
+import { RosterLoader } from './chat/roster';
+import { Rail, PebbleAvatar, CrewAvatar } from './chat/Rail';
+import type { ChatBot as Bot } from './chat/Rail';
+import { Transcript } from './chat/Transcript';
+import { Inspector } from './chat/Inspector';
+import { Icon } from './chat/Icon';
+import { Drawer } from './chat/Drawer';
+import { RequestReview } from './chat/RequestReview';
 import type { OwnerConnection } from './OwnerShell';
 import { WorkspaceSetup } from './WorkspaceSetup';
 import { WorkspaceSettings } from './WorkspaceSettings';
-import { AgentAvatar } from './AgentAvatar';
 import { workspaceState } from './workspace';
-import type { WorkspaceState } from './workspace';
+import type { WorkspaceState, WorkspaceBot } from './workspace';
 import type { Activity } from './avatar-lab/engine';
 
 type Row = Record<string, unknown>;
-type Bot = { profile: string; name: string; description: string; canonical: boolean };
-type Message = { role: string; text: string };
 type Selection = { kind: 'bot'; bot: Bot; sessionId: string } | { kind: 'room'; room: Row };
 
 function object(value: unknown): Row {
@@ -29,17 +35,13 @@ function rows(value: unknown): Row[] {
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
-function transcript(value: unknown): Message[] {
-  return rows(value)
-    .filter((m) => ['user', 'assistant', 'tool'].includes(text(m.role)))
-    .map((m) => ({ role: text(m.role), text: text(m.text) || text(m.name) }));
-}
 
 export function App({ owner }: { owner?: OwnerConnection }) {
   const ownerRef = useRef(owner);
   ownerRef.current = owner;
   const [workspace, setWorkspace] = useState<WorkspaceState>();
   const [settings, setSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'agents' | 'requests'>('agents');
   const [agentStates, setAgentStates] = useState<Record<string, Activity>>({});
   const sessionProfiles = useRef(new Map<string, string>());
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -54,10 +56,13 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const [client, setClient] = useState<BotBridgeClient>();
   const current = useRef<BotBridgeClient | undefined>(undefined);
   const selected = useRef<Selection | undefined>(undefined);
+  const selectionConnection = useRef<BotBridgeClient | undefined>(undefined);
   const selectGeneration = useRef(0);
   const eventVersion = useRef(0);
   const [bots, setBots] = useState<Bot[]>([]);
   const [rooms, setRooms] = useState<Row[]>([]);
+  const roomsRef = useRef(rooms);
+  roomsRef.current = rooms;
   const [selection, setSelection] = useState<Selection>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [routines, setRoutines] = useState<Row[]>([]);
@@ -73,6 +78,22 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const [streamState, setStreamState] = useState<'opening' | 'live' | 'lost'>('opening');
   const [error, setError] = useState('');
   const [nav, setNav] = useState(false);
+  const [details, setDetails] = useState(false);
+  const [routinePending, setRoutinePending] = useState('');
+  const [stopping, setStopping] = useState(false);
+  const [pinOrder, setPinOrder] = useState<string[]>([]);
+  const preferencesRevision = useRef(0);
+  const [review, setReview] = useState<Row>();
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
+  const [removedDraft, setRemovedDraft] = useState('');
+  const rosterLoader = useRef(new RosterLoader());
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
+  const scrollPositions = useRef(new Map<string, { top: number; follow: boolean }>());
+  const closeNav = useCallback(() => setNav(false), []);
+  const closeDetails = useCallback(() => setDetails(false), []);
+  const closeReview = useCallback(() => setReview(undefined), []);
   const [pickingAgents, setPickingAgents] = useState(false);
   const transcriptPane = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
@@ -80,8 +101,47 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const focusOnReady = useRef(false);
   const drafts = useRef(new Map<string, string>());
   const [showLatest, setShowLatest] = useState(false);
+  const displayedRead = useRef<{ key: string; cursor: number } | undefined>(undefined);
+  const acknowledgedRead = useRef(new Map<string, number>());
+  function observedHistory(target: Selection, native: unknown) {
+    if (target.kind !== 'bot' || !Array.isArray(native)) return;
+    const bot = workspaceRef.current?.bots.find((b) => b.id === target.bot.id);
+    // Only acknowledge a native roster cursor covered by the loaded history.
+    // A later background snapshot cannot mark unseen messages as read.
+    if (
+      bot?.read_key &&
+      typeof bot.cursor === 'number' &&
+      (bot.cursor_type === 'row'
+        ? Math.max(0, ...native.map((m) => Number(m?.row_id) || 0))
+        : native.length) >= bot.cursor
+    )
+      displayedRead.current = { key: bot.read_key, cursor: bot.cursor };
+  }
+  function acknowledgeRead() {
+    const seen = displayedRead.current;
+    if (
+      !seen ||
+      !current.current ||
+      document.visibilityState !== 'visible' ||
+      !followLatest.current ||
+      pickingAgents ||
+      settings
+    )
+      return;
+    if ((acknowledgedRead.current.get(seen.key) ?? -1) >= seen.cursor) return;
+    const connection = current.current;
+    acknowledgedRead.current.set(seen.key, seen.cursor);
+    void connection
+      .invoke('presentation.read', seen)
+      .catch(() => acknowledgedRead.current.delete(seen.key));
+  }
+  useEffect(() => {
+    acknowledgeRead();
+  }, [messages, workspace, settings, pickingAgents]);
   const draftKey = (target: Selection) =>
-    target.kind === 'bot' ? `bot:${target.bot.profile}` : `room:${text(target.room.room_id)}`;
+    target.kind === 'bot'
+      ? `bot:${target.bot.id ?? target.bot.profile}`
+      : `room:${text(target.room.room_id)}`;
 
   function fail(error: unknown) {
     setError(safeError(error).message);
@@ -98,6 +158,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     current.current?.disconnect();
     current.current = undefined;
     selected.current = undefined;
+    selectionConnection.current = undefined;
     setClient(undefined);
     setSelection(undefined);
     setBots([]);
@@ -112,6 +173,11 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     setBlocked(false);
     setStreamState('opening');
     setError('');
+    displayedRead.current = undefined;
+    acknowledgedRead.current.clear();
+    scrollPositions.current.clear();
+    setRemovedDraft('');
+    setReview(undefined);
     setPickingAgents(false);
     drafts.current.clear();
     focusOnReady.current = false;
@@ -246,17 +312,34 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     setShowLatest(false);
     const pane = transcriptPane.current;
     if (pane) pane.scrollTop = pane.scrollHeight;
+    acknowledgeRead();
   }
 
   async function refreshHistory(connection: BotBridgeClient, target: Selection) {
-    if (target.kind !== 'bot') return;
+    if (target.kind !== 'bot' || selectionConnection.current !== connection) return;
     const data = object(await connection.invoke('chat.history', { session_id: target.sessionId }));
-    if (current.current === connection && selected.current === target)
+    if (current.current === connection && selected.current === target) {
+      observedHistory(target, data.messages);
       setMessages(transcript(data.messages));
+    }
+    const saved = scrollPositions.current.get(draftKey(target));
+    if (saved && !saved.follow) {
+      followLatest.current = false;
+      setShowLatest(true);
+      requestAnimationFrame(() => {
+        if (transcriptPane.current) transcriptPane.current.scrollTop = saved.top;
+      });
+    }
   }
 
   async function receive(connection: BotBridgeClient, event: BridgeEvent) {
     if (current.current !== connection) return;
+    if (event.type === 'workspace.changed') {
+      await loadRoster(connection, true);
+      return;
+    }
+    if (event.type === 'tool.complete' || event.type === 'message.complete')
+      void loadRoster(connection).catch(fail);
     if (event.type === 'bridge.ready') {
       setStreamState('live');
       setBlocked(false);
@@ -297,6 +380,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     if (event.type === 'message.delta') setStream((old) => old + text(payload.text));
     if (event.type === 'message.complete') {
       setRunning(false);
+      setStopping(false);
       setStream('');
       setActivity(payload.status === 'error' ? 'Turn failed' : 'Ready');
       if (payload.status === 'error')
@@ -315,36 +399,124 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     if (event.type === 'error') setError('Hermes reported an error. Refresh before retrying.');
   }
 
-  async function loadRoster(connection: BotBridgeClient) {
-    const roster = object(await connection.invoke('bots.list', {}));
-    const managed = rows(roster.bots).map((b) => ({
-      profile: text(b.profile),
-      name: text(b.name),
-      description: text(b.description),
-      canonical: b.canonical === true,
-    }));
-    const nativeRooms = object(await connection.invoke('rooms.list', {}));
-    const loadedRooms = rows(nativeRooms.rooms);
-    if (current.current !== connection) return;
-    setBots(managed);
-    setRooms(loadedRooms);
-    if (connection.supportsWorkspace) {
-      const state = workspaceState(await connection.invoke('workspace.describe', {}));
-      if (current.current === connection) setWorkspace(state);
-    }
+  async function loadRoster(connection: BotBridgeClient, invalidate = false) {
+    return rosterLoader.current.load(
+      connection,
+      async () => {
+        if (connection.supportsWorkspace) {
+          const data = object(await connection.invoke('workspace.snapshot', {}));
+          if (current.current !== connection) return;
+          const state = workspaceState(data.workspace);
+          setWorkspace(state);
+          workspaceRef.current = state;
+          setBots(state.bots.filter((b) => b.managed && !b.hidden));
+          const loadedRooms = rows(data.rooms);
+          setRooms(loadedRooms);
+          const prefs = object(data.preferences);
+          setPinOrder(Array.isArray(prefs.pin_order) ? prefs.pin_order.map(String) : []);
+          preferencesRevision.current = Number(prefs.revision) || 0;
+          const target = selected.current;
+          const surviving =
+            target?.kind === 'bot'
+              ? state.bots.find((b) => b.id === target.bot.id && b.managed && !b.hidden)
+              : undefined;
+          const roomSurviving =
+            target?.kind === 'room'
+              ? loadedRooms.some((r) => r.room_id === target.room.room_id)
+              : true;
+          if (
+            target &&
+            ((target.kind === 'bot' && !surviving) || (target.kind === 'room' && !roomSurviving))
+          ) {
+            selectGeneration.current++;
+            selected.current = undefined;
+            setSelection(undefined);
+            setRemovedDraft(currentDraft.current);
+            setDraft('');
+            setMessages([]);
+            setStream('');
+            setRunning(false);
+            setStopping(false);
+            setApprovals([]);
+            setRoutines([]);
+            setError('This conversation is no longer in your sidebar.');
+            autoOpened.current = true;
+            restoreProfile.current = '';
+            restoreRoom.current = '';
+          }
+          if (surviving && target?.kind === 'bot' && target.bot.profile !== surviving.profile) {
+            // Reopen a proven native rename, retaining this incarnation's draft.
+            restoreProfile.current = surviving.profile;
+            autoOpened.current = false;
+          }
+          if (
+            surviving &&
+            target?.kind === 'bot' &&
+            surviving.read_key &&
+            displayedRead.current?.key === surviving.read_key &&
+            typeof surviving.cursor === 'number' &&
+            surviving.cursor > displayedRead.current.cursor
+          ) {
+            await refreshHistory(connection, target);
+          }
+          const req = object(await connection.invoke('requests.list', {}));
+          if (current.current === connection)
+            setRequestCount(rows(req.requests).filter((r) => r.state === 'pending').length);
+        } else {
+          const roster = object(await connection.invoke('bots.list', {}));
+          const nativeRooms = object(await connection.invoke('rooms.list', {}));
+          if (current.current !== connection) return;
+          setBots(
+            rows(roster.bots).map((b) => ({
+              profile: text(b.profile),
+              name: text(b.name),
+              description: text(b.description),
+              canonical: b.canonical === true,
+            })),
+          );
+          setRooms(rows(nativeRooms.rooms));
+        }
+      },
+      invalidate,
+    );
   }
-
-  async function reloadRoster() {
-    if (!client || busy) return;
-    setBusy(true);
-    setError('');
-    try {
-      await loadRoster(client);
-    } catch (error) {
-      if (current.current === client) fail(error);
-    } finally {
-      if (current.current === client) setBusy(false);
-    }
+  useEffect(() => {
+    if (!client || streamState !== 'live') return;
+    let gone = false,
+      timer: ReturnType<typeof setTimeout>,
+      failures = 0;
+    const tick = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          await loadRoster(client);
+          failures = 0;
+        } catch {
+          failures = Math.min(failures + 1, 3);
+        }
+      }
+      if (!gone) timer = setTimeout(() => void tick(), 5000 * 2 ** failures);
+    };
+    const focus = () => {
+      if (document.visibilityState === 'visible') void loadRoster(client).catch(() => undefined);
+    };
+    timer = setTimeout(() => void tick(), 5000);
+    window.addEventListener('focus', focus);
+    document.addEventListener('visibilitychange', focus);
+    return () => {
+      gone = true;
+      clearTimeout(timer);
+      window.removeEventListener('focus', focus);
+      document.removeEventListener('visibilitychange', focus);
+    };
+  }, [client, streamState]);
+  function rememberScroll() {
+    const target = selected.current,
+      pane = transcriptPane.current;
+    if (target && pane)
+      scrollPositions.current.set(draftKey(target), {
+        top: pane.scrollTop,
+        follow: followLatest.current,
+      });
   }
 
   async function connect(endpoint: string, token: string) {
@@ -365,7 +537,9 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       const established = connection;
       void connection
         .events((event) => {
-          void receive(established, event).catch(fail);
+          void receive(established, event).catch((error) => {
+            if (current.current === established) fail(error);
+          });
         })
         .catch(() => {
           if (current.current === established) {
@@ -394,9 +568,11 @@ export function App({ owner }: { owner?: OwnerConnection }) {
 
   async function open(bot: Bot) {
     if (!client || streamState !== 'live' || !bot.canonical) return;
+    rememberScroll();
     const generation = ++selectGeneration.current;
     selected.current = undefined;
     setSelection(undefined);
+    displayedRead.current = undefined;
     setMessages([]);
     setStream('');
     setApprovals([]);
@@ -407,7 +583,9 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     setPickingAgents(false);
     followLatest.current = true;
     setShowLatest(false);
-    setDraft(drafts.current.get(`bot:${bot.profile}`) ?? '');
+    setDraft(drafts.current.get(`bot:${bot.id ?? bot.profile}`) ?? '');
+    setRemovedDraft('');
+    setStopping(false);
     try {
       const data = object(await client.invoke('bot.open', { profile: bot.profile }));
       if (generation !== selectGeneration.current || current.current !== client) return;
@@ -418,8 +596,18 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         [bot.profile]: data.running === true ? 'working' : 'ready',
       }));
       selected.current = target;
+      selectionConnection.current = client;
       setSelection(target);
+      observedHistory(target, data.messages);
       setMessages(transcript(data.messages));
+      const saved = scrollPositions.current.get(draftKey(target));
+      if (saved && !saved.follow) {
+        followLatest.current = false;
+        setShowLatest(true);
+        requestAnimationFrame(() => {
+          if (transcriptPane.current) transcriptPane.current.scrollTop = saved.top;
+        });
+      }
       const inflight = data.inflight ? object(data.inflight) : {};
       setRunning(data.running === true);
       setStream(text(inflight.assistant));
@@ -439,6 +627,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         selected.current === target &&
         version === eventVersion.current
       ) {
+        observedHistory(target, snapshot.messages);
         setMessages(transcript(snapshot.messages));
         setRunning(snapshot.running === true);
         setStream(snapshot.inflight ? text(object(snapshot.inflight).assistant) : '');
@@ -454,14 +643,17 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   }
 
   function openRoom(room: Row) {
+    rememberScroll();
     setPickingAgents(false);
     selectGeneration.current++;
     const target: Selection = { kind: 'room', room };
     selected.current = target;
+    selectionConnection.current = client;
     setSelection(target);
     setDraft(drafts.current.get(draftKey(target)) ?? '');
     followLatest.current = true;
     setShowLatest(false);
+    displayedRead.current = undefined;
     setMessages([]);
     setStream('');
     setApprovals([]);
@@ -518,14 +710,19 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               ? 'Room members are working'
               : 'Native room driver ready',
         );
-        setMessages(
-          [...events.values()]
-            .filter((e) => text(object(e.payload).text))
-            .map((e) => ({
-              role: text(e.kind) === 'message.user' ? 'user' : 'assistant',
-              text: text(object(e.payload).text),
-            })),
+        setMessages(roomMessages([...events.values()]));
+        const room = roomsRef.current.find(
+          (r) => r.room_id === (selection?.kind === 'room' ? selection.room.room_id : ''),
         );
+        if (
+          room &&
+          typeof room.read_key === 'string' &&
+          typeof room.cursor === 'number' &&
+          cursor >= room.cursor
+        )
+          displayedRead.current = { key: room.read_key, cursor: room.cursor };
+        setRunning(driver.working === true);
+        if (driver.working !== true) setStopping(false);
       } catch (error) {
         if (!disposed) fail(error);
       }
@@ -590,6 +787,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     if (!client || !selection) return;
     const connection = client,
       target = selection;
+    if (stopping) return;
+    setStopping(true);
     try {
       await client.invoke(
         selection.kind === 'bot' ? 'chat.stop' : 'room.stop',
@@ -600,7 +799,10 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       if (current.current === connection && selected.current === target)
         setActivity('Stop requested');
     } catch (error) {
-      if (current.current === connection && selected.current === target) fail(error);
+      if (current.current === connection && selected.current === target) {
+        setStopping(false);
+        fail(error);
+      }
     }
   }
   async function approve(approval: Row, choice: string) {
@@ -631,21 +833,99 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     }
   }
 
-  const detailsContent = (
-    <>
-      <p className="section-label">ACTIVITY</p>
-      <p className="activity">{activity}</p>
+  async function presentationAction(operation: string, params: Row) {
+    if (!client) return;
+    try {
+      await client.invoke(operation, params);
+      await loadRoster(client, true);
+    } catch (e) {
+      fail(e);
+    }
+  }
+  async function visibility(bot: WorkspaceBot, hidden: boolean) {
+    await presentationAction('agent.hide', {
+      profile: bot.profile,
+      id: bot.id,
+      expected_revision: workspace!.revision,
+      hidden,
+    });
+  }
+  async function proposeDelete(bot: WorkspaceBot) {
+    if (!client || !workspace) return;
+    try {
+      const result = object(
+        await client.invoke('agent.propose', {
+          action: 'agent.delete',
+          spec: { profile: bot.profile, id: bot.id, expected_revision: workspace.revision },
+        }),
+      );
+      const list = object(await client.invoke('requests.list', {}));
+      setReview(rows(list.requests).find((r) => r.id === result.request_id));
+    } catch (e) {
+      fail(e);
+    }
+  }
+  async function decideReview(approve: boolean, confirmation?: string) {
+    if (!client || !review) return;
+    setReviewBusy(true);
+    try {
+      await client.invoke(approve ? 'requests.approve' : 'requests.deny', {
+        id: review.id,
+        fingerprint: review.fingerprint,
+        ...(confirmation == null ? {} : { confirmation }),
+      });
+      const list = object(await client.invoke('requests.list', {}));
+      setReview(rows(list.requests).find((r) => r.id === review.id));
+      await loadRoster(client, true);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+  async function toggleRoutine(r: Row) {
+    if (!client || selection?.kind !== 'bot' || routinePending) return;
+    const target = selection,
+      id = text(r.job_id) || text(r.id);
+    setRoutinePending(id);
+    try {
+      await client.invoke('routines.set_enabled', {
+        profile: target.bot.profile,
+        job_id: id,
+        enabled: r.enabled === false || r.paused === true || r.state === 'paused',
+      });
+      const data = object(await client.invoke('routines.list', { profile: target.bot.profile }));
+      if (selected.current === target) setRoutines(rows(data.jobs ?? []));
+    } catch (e) {
+      fail(e);
+    } finally {
+      setRoutinePending('');
+    }
+  }
+  const detailsContent = client && (
+    <Inspector
+      bot={selection?.kind === 'bot' ? selection.bot : undefined}
+      room={selection?.kind === 'room' ? selection.room : undefined}
+      workspace={workspace}
+      client={client}
+      activity={activity}
+      routines={routines}
+      pending={routinePending}
+      onToggle={(r) => void toggleRoutine(r)}
+      onEdit={() => {
+        setSettingsTab('agents');
+        setSettings(true);
+        setDetails(false);
+      }}
+    >
       {approvals.map((approval) => (
         <section className="approval" key={text(approval.request_id)}>
-          <h2>Approval needed</h2>
+          <h3>Approval needed</h3>
           <p>
             {text(approval.command) ||
               text(approval.description) ||
-              (approval.approval
-                ? text(object(approval.approval).command) ||
-                  text(object(approval.approval).description)
-                : '') ||
-              'Hermes requested permission for an action.'}
+              (approval.approval ? text(object(approval.approval).command) : '') ||
+              'Hermes requested permission.'}
           </p>
           <div>
             <button disabled={blocked} onClick={() => void approve(approval, 'deny')}>
@@ -657,24 +937,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
           </div>
         </section>
       ))}
-      <p className="section-label">
-        ROUTINES <span>{routines.length}</span>
-      </p>
-      {routines.map((routine, i) => (
-        <section className="routine" key={text(routine.id) || i}>
-          <strong>{text(routine.name) || 'Routine'}</strong>
-          <p>{text(routine.schedule_display) || text(routine.schedule)}</p>
-          <small>{routine.enabled === false ? 'Paused' : 'Scheduled by Hermes'}</small>
-        </section>
-      ))}
-      {!routines.length && (
-        <p className="empty-note">
-          {selection?.kind === 'bot'
-            ? 'No routines on this bot’s profile.'
-            : 'Choose a bot to see its routines.'}
-        </p>
-      )}
-    </>
+    </Inspector>
   );
 
   if (!client)
@@ -721,226 +984,183 @@ export function App({ owner }: { owner?: OwnerConnection }) {
 
   const title =
     selection?.kind === 'bot'
-      ? selection.bot.name
+      ? (bots.find((b) => b.id === selection.bot.id && b.profile === selection.bot.profile)?.name ??
+        selection.bot.name)
       : selection?.kind === 'room'
         ? text(selection.room.name)
         : 'Chats';
+  const rail = (
+    <Rail
+      bots={bots}
+      rooms={rooms}
+      workspace={workspace}
+      client={client}
+      selected={
+        selection?.kind === 'bot'
+          ? selection.bot.profile
+          : selection?.kind === 'room'
+            ? text(selection.room.room_id)
+            : undefined
+      }
+      states={agentStates}
+      online={streamState === 'live'}
+      pinOrder={pinOrder}
+      onOpen={(bot) => {
+        if (bot.canonical) void open(bot);
+        else setPickingAgents(true);
+      }}
+      onRoom={openRoom}
+      onAdd={() => {
+        setPickingAgents(true);
+        setNav(false);
+        setSettings(false);
+      }}
+      onSettings={() => {
+        setSettingsTab('agents');
+        setSettings(true);
+        setPickingAgents(false);
+        setNav(false);
+      }}
+      onPin={(bot, pinned) =>
+        void presentationAction('agent.pin', {
+          profile: bot.profile,
+          id: bot.id,
+          expected_revision: workspace!.revision,
+          pinned,
+        })
+      }
+      onVisibility={(bot, hidden) => void visibility(bot, hidden)}
+      onDelete={(bot) => void proposeDelete(bot)}
+      onOrder={(ids) =>
+        void presentationAction('presentation.order', {
+          ids,
+          expected_revision: preferencesRevision.current,
+        })
+      }
+      owner={!!owner}
+      onLogout={() => {
+        disconnect();
+        if (owner) void owner.logout();
+      }}
+    />
+  );
   return (
-    <main className="workspace">
-      <aside className={`sidebar ${nav ? 'visible' : ''}`}>
-        <div className="sidebar-title">Pebble Crew</div>
-        <button
-          onClick={() => {
-            setPickingAgents(true);
-            setNav(false);
-          }}
-          disabled={busy || streamState !== 'live'}
-        >
-          Add existing agents
-        </button>
-        {client.supportsWorkspace && (
-          <button
-            onClick={() => {
-              setSettings(true);
-              setPickingAgents(false);
-              setNav(false);
+    <main className={`workspace ${settings ? 'editing' : ''}`}>
+      <aside className="sidebar">{rail}</aside>
+      {nav && (
+        <Drawer title="navigation" onClose={closeNav}>
+          {rail}
+        </Drawer>
+      )}
+      <section className="conversation" aria-label="Conversation">
+        {settings && workspace ? (
+          <WorkspaceSettings
+            initialTab={settingsTab}
+            initialProfile={selection?.kind === 'bot' ? selection.bot.profile : undefined}
+            client={client}
+            owner={!!owner}
+            state={workspace}
+            onChange={(state) => {
+              setWorkspace(state);
+              void loadRoster(client).catch(fail);
             }}
-          >
-            Settings
-          </button>
-        )}
-        <p className="section-label">
-          YOUR BOTS <span>{bots.length}</span>
-        </p>
-        <nav aria-label="Bots">
-          {[...bots]
-            .sort((a, b) => {
-              const team = (p: string) =>
-                workspace?.teams.findIndex(
-                  (t) => t.id === workspace.bots.find((x) => x.profile === p)?.team,
-                ) ?? -1;
-              return team(a.profile) - team(b.profile);
-            })
-            .map((bot, index, all) => (
-              <div key={bot.profile}>
-                {workspace &&
-                  (() => {
-                    const teamId = workspace.bots.find((b) => b.profile === bot.profile)?.team;
-                    const previous = index
-                      ? workspace.bots.find((b) => b.profile === all[index - 1]?.profile)?.team
-                      : null;
-                    return teamId && teamId !== previous ? (
-                      <p className="section-label">
-                        {workspace.teams.find((t) => t.id === teamId)?.name}
-                      </p>
-                    ) : null;
-                  })()}
-                <button
-                  key={bot.profile}
-                  className={
-                    selection?.kind === 'bot' && selection.bot.profile === bot.profile
-                      ? 'selected bot'
-                      : 'bot'
-                  }
-                  onClick={() => {
-                    if (bot.canonical) void open(bot);
-                    else {
-                      setPickingAgents(true);
-                      setNav(false);
-                    }
-                  }}
-                  disabled={busy || streamState !== 'live'}
-                >
-                  {workspace?.bots.find((b) => b.profile === bot.profile) ? (
-                    <AgentAvatar
-                      id={workspace.bots.find((b) => b.profile === bot.profile)!.id}
-                      profile={bot.profile}
-                      client={client}
-                      look={workspace.bots.find((b) => b.profile === bot.profile)!.appearance}
-                      orchestrator={workspace.orchestrator === bot.profile}
-                      state={agentStates[bot.profile] ?? 'ready'}
-                    />
-                  ) : (
-                    <span className="avatar" aria-hidden>
-                      {bot.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  <span>
-                    <strong>{bot.name}</strong>
-                    {workspace && (
-                      <small>
-                        @{workspace.bots.find((b) => b.profile === bot.profile)?.handle}
-                      </small>
-                    )}
-                    <small>
-                      {!bot.canonical ? 'Set up Bot Chat' : bot.description || 'Bot Chat'}
-                    </small>
-                  </span>
-                </button>
-              </div>
-            ))}
-        </nav>
-        {!bots.length && (
-          <p className="empty-note">Choose Add existing agents to bring your Hermes agents here.</p>
-        )}
-        <button disabled={busy || streamState !== 'live'} onClick={() => void reloadRoster()}>
-          Refresh bots
-        </button>
-        <p className="section-label">
-          ROOMS <span>{rooms.length}</span>
-        </p>
-        <nav aria-label="Rooms">
-          {rooms.map((room) => (
-            <button
-              key={text(room.room_id)}
-              className={
-                selection?.kind === 'room' && selection.room.room_id === room.room_id
-                  ? 'selected room'
-                  : 'room'
-              }
-              disabled={busy || streamState !== 'live'}
-              onClick={() => openRoom(room)}
-            >
-              # <span>{text(room.name) || text(room.room_id)}</span>
-            </button>
-          ))}
-        </nav>
-        {!rooms.length && (
-          <p className="empty-note">Your existing Hermes rooms will appear here.</p>
-        )}
-        <div className="connection">
-          <span className={`connection-dot ${streamState}`} />
-          {streamState === 'live'
-            ? 'Connected to Hermes'
-            : streamState === 'lost'
-              ? 'Live updates disconnected'
-              : 'Connecting live updates…'}{' '}
-          <button
-            onClick={() => {
-              disconnect();
-              if (owner) void owner.logout();
-            }}
-          >
-            {owner ? 'Sign out' : 'Disconnect'}
-          </button>
-        </div>
-      </aside>
-      <section className="conversation">
-        {client.supportsWorkspace && workspace && (!workspace.initialized || settings) ? (
-          !workspace.initialized ? (
-            <WorkspaceSetup
-              client={client}
-              onComplete={(state, profile, welcome) => {
-                setWorkspace(state);
-                restoreProfile.current = profile;
-                welcomeProfile.current = welcome ? profile : '';
-                autoOpened.current = false;
-                void loadRoster(client).catch(fail);
-              }}
-            />
-          ) : (
-            <WorkspaceSettings
-              client={client}
-              owner={!!owner}
-              state={workspace}
-              onChange={(state) => {
-                setWorkspace(state);
-                void loadRoster(client).catch(fail);
-              }}
-              onClose={() => setSettings(false)}
-            />
-          )
+            onClose={() => setSettings(false)}
+          />
         ) : (
           <>
-            <header>
+            <header className="chat-header">
               <button
-                className="mobile-nav"
+                className="icon-button mobile-nav"
                 aria-label="Toggle navigation"
-                onClick={() => setNav(!nav)}
+                onClick={() => setNav(true)}
               >
-                ☰
+                <Icon name="menu" />
               </button>
-              <div>
-                <h1>{title}</h1>
-                <p>
-                  {selection?.kind === 'room'
-                    ? 'Hermes drives this discussion'
-                    : 'Ongoing conversation · History on your Hermes'}
-                </p>
+              <div className="chat-title">
+                {selection?.kind === 'bot' && (
+                  <PebbleAvatar
+                    bot={selection.bot}
+                    workspace={workspace}
+                    client={client}
+                    state={agentStates[selection.bot.profile]}
+                  />
+                )}
+                {selection?.kind === 'room' && (
+                  <CrewAvatar room={selection.room} workspace={workspace} client={client} />
+                )}
+                <div>
+                  <h1>{title}</h1>
+                  {selection?.kind === 'bot' && (
+                    <p>
+                      {workspace?.bots.find((b) => b.profile === selection.bot.profile)?.role
+                        .title ||
+                        `@${workspace?.bots.find((b) => b.profile === selection.bot.profile)?.handle ?? selection.bot.profile}`}
+                    </p>
+                  )}
+                </div>
               </div>
-              {selection?.kind === 'bot' && (
+              <div className="header-actions">
+                {requestCount > 0 && (
+                  <button
+                    className="request-count"
+                    onClick={() => {
+                      setSettingsTab('requests');
+                      setSettings(true);
+                    }}
+                  >
+                    {requestCount} to review
+                  </button>
+                )}
+                {selection?.kind === 'bot' && (
+                  <button
+                    className="icon-button"
+                    aria-label="Refresh"
+                    title="Refresh conversation"
+                    onClick={() => void refreshHistory(client, selection).catch(fail)}
+                  >
+                    <Icon name="refresh" />
+                  </button>
+                )}
                 <button
-                  onClick={() => {
-                    void refreshHistory(client, selection).catch(fail);
-                  }}
+                  className="icon-button details-trigger"
+                  aria-label="Show details"
+                  onClick={() => setDetails(true)}
                 >
-                  Refresh
+                  <Icon name="info" />
+                  {approvals.length > 0 && <span className="unread-dot" />}
                 </button>
-              )}
+              </div>
             </header>
             {(error || (blocked && streamState !== 'opening')) && (
               <div className="error banner" role="alert">
-                {error ||
-                  'Event continuity was lost. Disconnect and reconnect before sending again.'}
+                {error || 'Reconnecting to Hermes…'}
                 {streamState === 'lost' && (
                   <button onClick={owner ? scheduleReconnect : disconnect}>
                     {owner ? 'Try reconnecting now' : 'Disconnect and reconnect'}
                   </button>
                 )}
+                <button
+                  className="icon-button"
+                  aria-label="Dismiss error"
+                  onClick={() => setError('')}
+                >
+                  <Icon name="close" />
+                </button>
               </div>
             )}
             <div
               ref={transcriptPane}
+              className={`transcript ${pickingAgents ? 'choosing-agents' : ''}`}
+              role={pickingAgents ? undefined : 'log'}
+              aria-live={pickingAgents ? undefined : 'off'}
               onScroll={(event) => {
                 if (pickingAgents) return;
                 const pane = event.currentTarget;
-                const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 96;
-                followLatest.current = nearBottom;
-                setShowLatest(!nearBottom);
+                followLatest.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 96;
+                setShowLatest(!followLatest.current);
+                rememberScroll();
+                acknowledgeRead();
               }}
-              className={`transcript ${pickingAgents ? 'choosing-agents' : ''}`}
-              role={pickingAgents ? undefined : 'log'}
-              aria-live={pickingAgents ? undefined : 'polite'}
             >
               {pickingAgents ? (
                 <AgentPicker
@@ -953,80 +1173,43 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                   }}
                 />
               ) : (
-                !selection && (
-                  <div className="welcome">
-                    <p className="eyebrow">
-                      {streamState === 'live'
-                        ? 'CONNECTED TO YOUR HERMES'
-                        : streamState === 'lost'
-                          ? 'CONNECTION NEEDS ATTENTION'
-                          : 'STARTING LIVE UPDATES'}
-                    </p>
-                    {streamState !== 'live' ? (
-                      <>
-                        <h2>
-                          {streamState === 'lost'
-                            ? 'Live updates are disconnected.'
-                            : 'Connecting…'}
-                        </h2>
-                        <p>
-                          {streamState === 'lost'
-                            ? 'Pairing and the initial lists worked. The live connection needs to work before you can chat.'
-                            : 'Browser access is approved. Waiting for the live connection before you can chat.'}
-                        </p>
-                      </>
-                    ) : !rooms.length && !bots.some((bot) => bot.canonical) ? (
-                      <>
-                        <h2>Choose your Hermes agents.</h2>
-                        <p>
-                          Your existing agents keep their SOUL, memory and skills. Choose which ones
-                          you want to use here.
-                        </p>
+                <Transcript
+                  messages={messages}
+                  title={title}
+                  crew={selection?.kind === 'room'}
+                  stream={stream}
+                  running={running}
+                  authorName={(name) =>
+                    workspace?.bots.find(
+                      (b) =>
+                        b.profile === name ||
+                        b.handle === name.replace('@', '') ||
+                        (name === 'hermes' && b.profile === 'default'),
+                    )?.name ?? name
+                  }
+                >
+                  {!selection && (
+                    <div className="welcome">
+                      <h2>{streamState !== 'live' ? 'Connecting…' : 'Choose a conversation'}</h2>
+                      {streamState === 'live' && !bots.length && (
                         <button onClick={() => setPickingAgents(true)}>Add existing agents</button>
-                      </>
-                    ) : (
-                      <>
-                        <h2>Who’s up next?</h2>
-                        <p>
-                          Choose a bot for its ongoing conversation,
-                          <br />
-                          or open a room to work together.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )
-              )}
-              {!pickingAgents && selection && !messages.length && !stream && (
-                <p className="empty-chat">Your conversation is ready.</p>
-              )}
-              {!pickingAgents &&
-                messages.map((message, i) => (
-                  <article key={i} className={`message ${message.role}`}>
-                    <small>
-                      {message.role === 'user' ? 'You' : message.role === 'tool' ? 'Tool' : title}
-                    </small>
-                    {message.role === 'user' ? (
-                      <p>{message.text}</p>
-                    ) : (
-                      <MessageBody text={message.text} />
-                    )}
-                    <CopyMessage text={message.text} />
-                  </article>
-                ))}
-              {!pickingAgents && stream && (
-                <article className="message assistant">
-                  <small>{title}</small>
-                  <MessageBody text={stream} />
-                  <span className="caret" aria-hidden>
-                    ▍
-                  </span>
-                </article>
-              )}
-              {!pickingAgents && running && !stream && (
-                <p className="thinking" role="status">
-                  Working…
-                </p>
+                      )}
+                    </div>
+                  )}
+                  {selection && !messages.length && !stream && !running && (
+                    <p className="empty-chat">Say hello to {title}.</p>
+                  )}
+                  {removedDraft && (
+                    <section className="recovered-draft">
+                      <h3>Unsent draft</h3>
+                      <p className="preserve-whitespace">{removedDraft}</p>
+                      <button onClick={() => void navigator.clipboard.writeText(removedDraft)}>
+                        Copy draft
+                      </button>
+                      <button onClick={() => setRemovedDraft('')}>Dismiss</button>
+                    </section>
+                  )}
+                </Transcript>
               )}
             </div>
             {!pickingAgents && (
@@ -1036,16 +1219,15 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                     ↓ Latest messages
                   </button>
                 )}
-                <details className="compact-details" open={approvals.length > 0 ? true : undefined}>
-                  <summary>
-                    Activity & routines{approvals.length ? ' · Approval needed' : ''}
-                  </summary>
-                  {detailsContent}
-                </details>
+                {approvals.length > 0 && (
+                  <button className="approval-nudge" onClick={() => setDetails(true)}>
+                    Approval needed · Review
+                  </button>
+                )}
                 <div className="composer">
                   <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
+                    onSubmit={(e) => {
+                      e.preventDefault();
                       void send();
                     }}
                   >
@@ -1053,54 +1235,70 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                       ref={composer}
                       rows={1}
                       aria-label="Message"
-                      placeholder={
-                        selection ? `Message ${title}…` : 'Choose a bot or room to begin'
-                      }
+                      placeholder={selection ? `Message ${title}` : 'Choose a conversation'}
                       value={draft}
-                      disabled={!selection || busy || blocked || pickingAgents}
+                      disabled={!selection || busy || blocked}
                       maxLength={16000}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setDraft(value);
-                        if (selected.current) drafts.current.set(draftKey(selected.current), value);
+                      onChange={(e) => {
+                        setDraft(e.target.value);
+                        if (selected.current)
+                          drafts.current.set(draftKey(selected.current), e.target.value);
                       }}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key === 'Enter' &&
-                          !event.shiftKey &&
-                          !event.nativeEvent.isComposing
-                        ) {
-                          event.preventDefault();
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
                           void send();
                         }
                       }}
                     />
-                    <div className="composer-actions">
-                      <span>{running ? 'Hermes is working' : 'Shift + Enter for a new line'}</span>
-                      {(running || selection?.kind === 'room') && (
-                        <button type="button" onClick={() => void stop()}>
-                          Stop
-                        </button>
-                      )}
+                    {running ? (
                       <button
-                        className="primary"
-                        disabled={
-                          !selection || !draft.trim() || busy || running || blocked || pickingAgents
-                        }
-                        aria-label="Send message"
+                        type="button"
+                        className="stop-button"
+                        aria-label={stopping ? 'Stopping' : 'Stop'}
+                        disabled={stopping || blocked}
+                        onClick={() => void stop()}
                       >
-                        ↑
+                        <span />
+                        {stopping && 'Stopping…'}
                       </button>
-                    </div>
+                    ) : (
+                      <button
+                        className="send-button"
+                        aria-label="Send message"
+                        disabled={!selection || !draft.trim() || busy || blocked}
+                      >
+                        <Icon name="send" />
+                      </button>
+                    )}
                   </form>
-                  <p className="composer-note">Direct connection · History lives on your server</p>
                 </div>
               </>
             )}
           </>
         )}
       </section>
-      <aside className="details-panel">{detailsContent}</aside>
+      <aside className="details-panel">{!settings && detailsContent}</aside>
+      {details && (
+        <Drawer title="details" onClose={closeDetails}>
+          {detailsContent}
+        </Drawer>
+      )}
+      {review && (
+        <Drawer title="Review deletion" onClose={closeReview}>
+          <RequestReview
+            request={review}
+            busy={reviewBusy}
+            onDecision={(a, c) => void decideReview(a, c)}
+            onInspect={() =>
+              void client
+                .invoke('requests.reconcile', { id: review.id })
+                .then((r) => setError(text(object(r).message)))
+                .catch(fail)
+            }
+          />
+        </Drawer>
+      )}
     </main>
   );
 }

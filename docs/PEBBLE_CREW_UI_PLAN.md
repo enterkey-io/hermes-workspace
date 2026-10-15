@@ -242,7 +242,7 @@ Do not add attachment, voice, Library or Computer controls until their scoped
 native flows exist. The first visual milestone should cover the working core
 surface with no inert features.
 
-## Implementation sequence
+## Implementation sequence (implemented in 0.5.0)
 
 1. **Baseline and contracts.** Create populated synthetic fixtures for pinned
    pebbles, sections, crews, messages, routines, approvals and reconnect. Verify
@@ -320,3 +320,32 @@ native reply semantics, preference rollback and deletion lifecycle coordination
 within the milestones above. The supplied reference provides enough visual
 direction to begin; these checks do not require another round of aesthetic
 questions.
+
+## 0.5.0 implementation record
+
+The five milestones above are implemented for the working conversation core.
+Production components live under `apps/web/src/chat`; tests use those components
+with populated synthetic data and real native gateways in isolated homes.
+`workspace.snapshot`/`workspace.changed` and `RosterLoader` reconcile native
+changes without querying model authorization. The renderer and native transport
+remain shared with onboarding and future clients.
+
+Read state uses native active-message row IDs (crew sequence numbers) and stable
+profile/canonical/crew creation scope. Pins mirror Hermes; order and read cursors
+live privately in optional SQLite records. A native private identity witness
+survives rename; copied/recreated directories get new identities. The bridge also
+rejects old open-session handles after a profile is replaced.
+
+The default/lead, managers with direct reports and active native sessions cannot
+be deleted. Both pinned Hermes versions freeze crew membership, so the adapter
+blocks deletion of a live crew member instead of inventing a membership mutation
+or leaving a reusable name in that roster. Native partial/uncertain outcomes
+remain durable and observable, and are never automatically replayed.
+
+Reply metadata and voice/attachments/Library/Computer remain intentionally absent
+under the conditional feature scope above. Drafts and reading positions persist
+through switching/reconnect in browser memory; reload/cross-device draft storage
+was explicitly outside this milestone. Owner-host deployment, Linux boot and
+container replacement verification remain installation-specific; local fixtures
+do not certify those environments. See the current verification report and bug
+tracker for the distinction between implementation, publication and deployment.
