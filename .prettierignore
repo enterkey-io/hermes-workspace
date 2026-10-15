@@ -7,3 +7,6 @@ docs/compatibility/*.json
 apps/web/public/install.html
 apps/web/public/install.md
 apps/web/public/connection.json
+
+**/worker-configuration.d.ts
+**/artifacts/

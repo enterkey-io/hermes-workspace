@@ -1,0 +1,19 @@
+# Install with absolute owner-specific paths; persistent state is outside releases.
+[Unit]
+Description=Private Hermes Workspace owner service
+After=network.target
+[Service]
+Type=simple
+User=workspace
+WorkingDirectory=/opt/workspace/current
+ExecStart=/usr/bin/node /opt/workspace/current/apps/owner-node/dist/main.mjs serve --state /var/lib/workspace-owner --port 8081
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/workspace-owner
+[Install]
+WantedBy=multi-user.target

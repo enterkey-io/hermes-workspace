@@ -1,6 +1,6 @@
 {
   "name": "hermes-bot-mode-app",
-  "version": "0.2.4-preview.2",
+  "version": "0.3.0-preview.1",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -8,15 +8,15 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "python3 scripts/build-guide.py && tsc --noEmit && vite build --config vite.client.config.ts && vite build --config vite.web.config.ts",
+    "build": "python3 scripts/build-guide.py && tsc --noEmit && vite build --config vite.client.config.ts && vite build --config vite.web.config.ts && npm run build:owner",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build",
+    "check": "npm run typecheck && npm run typecheck:worker && npm run lint && npm run format:check && npm test && npm run build",
     "lint": "eslint .",
     "format": "prettier --write packages apps scripts *.config.* README.md docs test .github .prettierrc.json tsconfig.json package.json",
     "format:check": "prettier --check packages apps scripts *.config.* README.md docs test .github .prettierrc.json tsconfig.json package.json",
@@ -28,9 +28,17 @@
     "test:native": "python3 scripts/fixture/native_smoke.py",
     "serve": "node scripts/serve-static.mjs",
     "package": "npm run build && python3 scripts/package.py",
-    "test:avatars": "playwright test --config playwright.avatar.config.ts"
+    "test:avatars": "playwright test --config playwright.avatar.config.ts",
+    "build:owner": "esbuild apps/owner-node/main.ts --bundle --platform=node --format=esm --packages=external --outfile=apps/owner-node/dist/main.mjs",
+    "serve:owner": "node apps/owner-node/dist/main.mjs serve",
+    "typecheck:worker": "tsc --noEmit -p apps/owner-worker/tsconfig.json",
+    "test:owner-worker": "node scripts/test-owner-worker.mjs",
+    "test:owner-browser": "node scripts/test-owner-browser.mjs"
   },
   "dependencies": {
+    "better-auth": "1.7.10",
+    "jose": "6.2.3",
+    "kysely": "0.29.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
@@ -42,12 +50,14 @@
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
     "eslint": "10.12.0",
     "prettier": "3.9.10",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4",
-    "vitest": "5.0.4"
+    "vitest": "5.0.4",
+    "wrangler": "4.151.0"
   },
   "packageManager": "npm@11.12.1"
 }

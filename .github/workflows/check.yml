@@ -16,6 +16,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run check
+      - run: npm run test:owner-worker
       - run: npx playwright install --with-deps chromium
       - run: npm run test:avatars
       - run: npm audit --omit=dev --audit-level=high

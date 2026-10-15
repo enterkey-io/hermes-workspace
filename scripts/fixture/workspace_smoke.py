@@ -1,0 +1,209 @@
+"""Real native workspace enrollment/metadata/persona and plugin tool fixture.
+Only disposable homes and a deterministic loopback model; no owner/provider access.
+"""
+import asyncio
+from http.server import ThreadingHTTPServer
+import io
+import json
+import os
+from pathlib import Path
+import shutil
+import sys
+import tempfile
+import time
+import threading
+from native_smoke import Model, load_plugin
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class WorkspaceModel(Model):
+    requests = []
+    proposed = False
+    described = False
+    handed = False
+    room_handed = False
+
+    def do_POST(self):
+        payload = self.rfile.read(int(self.headers['Content-Length']))
+        data = json.loads(payload)
+        self.requests.append(data)
+        names = {t.get('function', {}).get('name') for t in data.get('tools', [])}
+        user = str(next((m.get('content') for m in reversed(data.get('messages', [])) if m.get('role') == 'user'), ''))
+        name, arguments, reply = None, None, None
+        if 'Synthetic room routing proof' in user and 'SYNTHETIC_EXISTING_AURORA_PERSONALITY' in json.dumps(data.get('messages', [])):
+            WorkspaceModel.room_handed = True
+            reply = '@maker Room handoff proof'
+        if 'Synthetic public-handle handoff' in user and not WorkspaceModel.handed and 'message_agent' in names:
+            WorkspaceModel.handed = True
+            name, arguments = 'message_agent', {'target': 'maker', 'message': 'Public handle routing proof'}
+        elif 'Synthetic new-agent model verification' in user and not WorkspaceModel.described:
+            WorkspaceModel.described = True
+            name, arguments = 'workspace_agents', {'action': 'describe', 'spec': {}}
+            if name not in names and 'tool_call' in names:
+                name, arguments = 'tool_call', {'calls': [{'name': name, 'arguments': arguments}]}
+        elif not WorkspaceModel.proposed and 'workspace_agents' in names:
+            WorkspaceModel.proposed = True
+            name, arguments = 'workspace_agents', {'action': 'agent.enable', 'spec': {'profile': 'engineer', 'initialize_chat': True}}
+        if name or reply:
+            message = {'role': 'assistant', 'content': reply} if reply else {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'workspace-propose', 'type': 'function', 'function': {'name': name, 'arguments': json.dumps(arguments)}}]}
+            reason = 'stop' if reply else 'tool_calls'
+            response = {'created': int(time.time()), 'id': 'fixture-proposal', 'object': 'chat.completion', 'model': 'fixture-model', 'choices': [{'index': 0, 'message': message, 'finish_reason': reason}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1, 'total_tokens': 2}}
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream' if data.get('stream') else 'application/json')
+            self.end_headers()
+            if data.get('stream'):
+                delta = message if reply else {'role': 'assistant', 'tool_calls': [{'index': 0, **response['choices'][0]['message']['tool_calls'][0]}]}
+                for part, finish in [(delta, None), ({}, reason)]:
+                    chunk = {**response, 'object': 'chat.completion.chunk', 'choices': [{'index': 0, 'delta': part, 'finish_reason': finish}]}
+                    self.wfile.write(('data: ' + json.dumps(chunk) + '\n\n').encode())
+                self.wfile.write(b'data: [DONE]\n\n')
+            else:
+                self.wfile.write(json.dumps(response).encode())
+            return
+        self.rfile = io.BytesIO(payload)
+        super().do_POST()
+
+
+async def verify(home):
+    from bot_web.native import NativeGateway
+    from bot_web.operations import BotOperations, InvalidOperation
+    from bot_web.workspace import WorkspaceStore, WorkspaceService
+    native = NativeGateway()
+    await native.start()
+    store = WorkspaceStore(home / 'bot-web' / 'workspace.sqlite')
+    ops = BotOperations(native)
+    workspace = WorkspaceService(ops, store)
+    try:
+        await native.call('profiles.create', {'name': 'engineer', 'no_alias': True, 'no_skills': True, 'mirror_credentials': False})
+        soul = (home / 'SOUL.md').read_bytes()
+        detection = await workspace.invoke('workspace.detect_primary', {})
+        assert detection['profile'] == 'default', detection
+        initialized = await workspace.invoke('workspace.initialize', {'profile': 'default', 'handle': 'aurora', 'appearance': {'kind': 'shape', 'shape': 'petal', 'color': 'white'}, 'photo': None, 'expected_revision': detection['revision']})
+        assert initialized['initialized'] and initialized['orchestrator'] == 'default'
+        assert Model.turns == 0
+        assert (home / 'SOUL.md').read_bytes() == soul
+        root = next(b for b in initialized['bots'] if b['profile'] == 'default')
+        # Round-trip native metadata merge preserves unrelated/unknown namespace fields.
+        await workspace.mirror('default', {'fixtureUnknown': {'keep': True}})
+        await workspace.invoke('bots.update_handle', {'profile': 'default', 'handle': 'aurora', 'expected_revision': initialized['revision']})
+        roster = await ops.profiles()
+        assert next(r for r in roster if r['name'] == 'default')['ui_meta']['hermes-bots']['fixtureUnknown'] == {'keep': True}
+        opened = await ops.invoke('bot.open', {'profile': 'default'})
+        queue = asyncio.Queue()
+        native.listeners.add(queue)
+        await ops.invoke('chat.send', {'session_id': opened['session_id'], 'text': 'Synthetic workspace tool and context verification'})
+        async with asyncio.timeout(60):
+            while True:
+                event = await queue.get()
+                if event.get('type') == 'message.complete' and event.get('session_id') == opened['session_id']:
+                    break
+        all_payloads = json.dumps(WorkspaceModel.requests)
+        assert 'workspace_agents' in all_payloads, 'Plugin tool not exposed to native model'
+        assert 'Current owner workspace metadata' in all_payloads and '@aurora' in all_payloads, 'Live identity missing from native turn'
+        requests = store.requests()
+        if not requests:
+            print(json.dumps({'history': await ops.invoke('chat.history', {'session_id': opened['session_id']}), 'fixture_tool_results': [m for r in WorkspaceModel.requests for m in r.get('messages', []) if m.get('role') == 'tool']}))
+        assert len(requests) == 1 and requests[0]['actor'] == 'default' and requests[0]['state'] == 'pending', requests
+        assert not any(r['name'] == 'engineer' for r in await ops.roster()), 'Model proposal executed before owner approval'
+        approved = await workspace.invoke('requests.approve', {'id': requests[0]['id'], 'fingerprint': requests[0]['fingerprint']})
+        assert approved['state'] == 'completed', approved
+        assert any(r['name'] == 'engineer' for r in await ops.roster())
+        # Genuinely new native identity, with one explicitly approved model grant.
+        current = await workspace.invoke('workspace.describe', {})
+        model = current['model_grant']
+        assert model['supported'] is True, model
+        created = await workspace.invoke('agent.create', {'name': 'new-researcher', 'display_name': 'New Researcher', 'soul': 'SYNTHETIC_NEW_RESEARCHER_PERSONALITY', 'role': 'Research synthetic fixtures', 'model_source': 'default', 'model_fingerprint': model['fingerprint'], 'skills': [], 'toolsets': ['workspace', 'skills'], 'manager': 'default', 'team': None, 'expected_revision': current['revision']})
+        assert created['state'] == 'completed', created
+        from hermes_cli.profiles import get_profile_dir
+        created_home = Path(get_profile_dir('new-researcher'))
+        assert (created_home / 'SOUL.md').read_text() == 'SYNTHETIC_NEW_RESEARCHER_PERSONALITY'
+        assert 'UNRELATED_TEST_KEY' not in (created_home / '.env').read_text()
+        capabilities = await native.call('profiles.describe', {'name': 'new-researcher'})
+        from agent.skill_utils import ESSENTIAL_SKILLS
+        assert {s['name'] for s in capabilities['skills'] if s['enabled']} <= ESSENTIAL_SKILLS, 'Fresh bot inherited optional skills'
+        new_chat = await ops.invoke('bot.open', {'profile': 'new-researcher'})
+        await ops.invoke('chat.send', {'session_id': new_chat['session_id'], 'text': 'Synthetic new-agent model verification'})
+        async with asyncio.timeout(60):
+            while True:
+                event = await queue.get()
+                if event.get('type') == 'message.complete' and event.get('session_id') == new_chat['session_id']:
+                    if event.get('payload', {}).get('status') == 'error':
+                        import hermes_yaml as yaml
+                        saved = yaml.safe_load((created_home / 'config.yaml').read_text()) or {}
+                        print(json.dumps({'synthetic_target_model': saved.get('model'), 'synthetic_provider_config': {key: {field: value for field, value in definition.items() if field not in {'api_key', 'token', 'password'}} for key, definition in (saved.get('providers') or {}).items()}}))
+                    assert event.get('payload', {}).get('status') != 'error', event
+                    break
+        assert 'Native fixture reply' in json.dumps(await ops.invoke('chat.history', {'session_id': new_chat['session_id']}))
+        assert 'SYNTHETIC_NEW_RESEARCHER_PERSONALITY' in json.dumps(WorkspaceModel.requests)
+        assert (home / 'SOUL.md').read_bytes() == soul
+        assert 'native_profile\\\": \\\"new-researcher' in json.dumps(WorkspaceModel.requests) or any('new-researcher' in str(m.get('content')) for r in WorkspaceModel.requests for m in r.get('messages', []) if m.get('role') == 'tool'), 'Named caller did not receive its own context'
+        current = await workspace.invoke('workspace.describe', {})
+        await workspace.invoke('bots.update_handle', {'profile': 'new-researcher', 'handle': 'maker', 'expected_revision': current['revision']})
+        root_chat = await ops.invoke('bot.open', {'profile': 'default'})
+        await ops.invoke('chat.send', {'session_id': root_chat['session_id'], 'text': 'Synthetic public-handle handoff'})
+        async with asyncio.timeout(60):
+            while True:
+                await asyncio.sleep(0.2)
+                current_chat = await ops.invoke('bot.open', {'profile': 'new-researcher'})
+                history = await ops.invoke('chat.history', {'session_id': current_chat['session_id']})
+                if 'Public handle routing proof' in json.dumps(history):
+                    break
+        assert WorkspaceModel.handed, 'Model never called native message_agent with the public alias'
+        await native.call('groups.create', {'room_id': 'public-handles-room', 'name': 'Public handles', 'members': [
+            {'member_id': 'root', 'profile': 'default', 'handle': 'hermes', 'display_name': 'Aurora'},
+            {'member_id': 'researcher', 'profile': 'new-researcher', 'handle': 'new-researcher', 'display_name': 'Maker'}]})
+        sent = await workspace.invoke('room.send', {'room_id': 'public-handles-room', 'event_id': 'public-room-proof', 'text': '@aurora Synthetic room routing proof'})
+        assert sent.get('driver_started') is True, sent
+        try:
+            async with asyncio.timeout(25):
+                while True:
+                    await asyncio.sleep(0.2)
+                    room_log = await workspace.invoke('room.log', {'room_id': 'public-handles-room', 'since_seq': 0})
+                    events = room_log.get('events', [])
+                    if any(e.get('kind') == 'message.member' and e.get('actor', {}).get('id') == 'researcher' for e in events):
+                        break
+        except TimeoutError:
+            print(json.dumps({'synthetic_room_log': room_log, 'synthetic_room_state': await ops.invoke('room.state', {'room_id': 'public-handles-room'}), 'room_model_received': WorkspaceModel.room_handed}))
+            raise
+        assert '@aurora Synthetic room routing proof' in json.dumps(room_log), room_log
+        assert '@maker Room handoff proof' in json.dumps(room_log), room_log
+        assert 'For this room only' in json.dumps(WorkspaceModel.requests)
+        native_log = await native.call('groups.log', {'room_id': 'public-handles-room', 'since_seq': 0, 'limit': 100})
+        assert '@new-researcher Room handoff proof' in json.dumps(native_log), native_log
+        # A stale revision cannot overwrite a newer identity.
+        try:
+            await workspace.invoke('bots.update_handle', {'profile': 'default', 'handle': 'wrong', 'expected_revision': initialized['revision']})
+        except InvalidOperation:
+            pass
+        else:
+            raise AssertionError('Stale write accepted')
+        persisted = WorkspaceStore(home / 'bot-web' / 'workspace.sqlite')
+        assert persisted.read()['bots']['default']['id'] == root['id']
+        persisted.db.close()
+        print(json.dumps({'workspace': 'pass', 'revision': native.build['revision'], 'native_primary': 'pass', 'same_soul': 'pass', 'real_model_management_proposal': 'pass', 'caller_binding': 'pass', 'owner_approval': 'pass', 'live_public_handle_context': 'pass', 'new_agent_distinct_persona_and_real_model_turn': 'pass', 'single_provider_grant': 'pass', 'named_profile_management_context': 'pass', 'public_handle_native_dm': 'pass', 'public_handle_native_room_handoff': 'pass', 'metadata_merge': 'pass', 'stale_write_rejected': 'pass', 'model': 'synthetic-loopback-only'}))
+    finally:
+        store.db.close()
+        await native.stop()
+
+
+def main():
+    with tempfile.TemporaryDirectory(prefix='workspace-native-') as directory:
+        home = Path(directory) / 'home'
+        home.mkdir()
+        os.environ.clear()
+        os.environ.update(PATH=f'{Path(sys.executable).parent}:/usr/bin:/bin', HERMES_HOME=str(home), HERMES_RUNTIME_DIR=str(Path(directory) / 'runtime'), PYTHONPYCACHEPREFIX=str(Path(directory) / 'pycache'), PYTHONUNBUFFERED='1', NO_PROXY='127.0.0.1,localhost', HERMES_NO_AUTO_INSTALL='1')
+        model = ThreadingHTTPServer(('127.0.0.1', 0), WorkspaceModel)
+        threading.Thread(target=model.serve_forever, daemon=True).start()
+        shutil.copytree(ROOT / 'plugins/bot-web', home / 'plugins/bot-web', ignore=shutil.ignore_patterns('__pycache__'))
+        (home / '.env').write_text('UNRELATED_TEST_KEY=synthetic-do-not-clone\n')
+        (home / 'SOUL.md').write_text('SYNTHETIC_EXISTING_AURORA_PERSONALITY\n')
+        (home / 'config.yaml').write_text('model:\n  default: fixture-model\n  provider: custom:fixture\nproviders:\n  fixture:\n    base_url: http://127.0.0.1:' + str(model.server_port) + '/v1\n    api_key: fixture-only\nagent:\n  max_turns: 3\n  bot_mode_protocol: true\n  stream: false\ntools:\n  tool_search:\n    enabled: \'off\'\nplugins:\n  enabled: [bot-web]\n  entries:\n    bot-web:\n      enabled: true\n')
+        load_plugin(ROOT)
+        try:
+            asyncio.run(verify(home))
+        finally:
+            model.shutdown()
+
+if __name__ == '__main__':
+    main()

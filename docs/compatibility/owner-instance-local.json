@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-10-15",
+  "release": "0.3.0-preview.1",
+  "evidenceLevel": "isolated-local-development",
+  "productCertified": false,
+  "ownerHostUpgraded": false,
+  "nativeRevisions": [
+    "29112bef099274229cadff79cdff7bf7b99c4b77",
+    "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a"
+  ],
+  "checks": {
+    "typescript_lint_format_build": "pass",
+    "node_unit_tests": 64,
+    "python_boundary_tests": 47,
+    "owner_node_atomic_bootstrap_login_restart_logout": "pass",
+    "owner_worker_real_local_workerd_d1": "pass",
+    "owner_browser_both_native_builds": "pass",
+    "idle_heartbeats_beyond_accelerated_lease": "pass",
+    "automatic_ticket_renewal": "pass",
+    "offline_recovery_draft_no_replayed_sends": "pass",
+    "native_gateway_restart_recovery": "pass",
+    "photos_native_storage_shape_switch_and_reuse": "pass",
+    "teams_roles_password_change": "pass",
+    "native_proposal_owner_review_caller_binding": "pass",
+    "new_agent_own_soul_restricted_provider_actual_model_turn": "pass",
+    "native_public_handle_dm_and_room_handoff": "pass",
+    "builtin_ollama_cloud_single_key_grant_zero_prompts": "pass",
+    "native_mcp_bearer_discovery_per_tool_cas": "pass",
+    "native_dashboard_oauth_pkce": "pass",
+    "owner_package_production_install_and_standalone_start": "pass",
+    "worker_deployment_dry_run": "pass",
+    "dependency_audit": "zero known vulnerabilities"
+  },
+  "limits": [
+    "Only disposable homes, synthetic credentials, local models and loopback services were used.",
+    "Browser tests use a test-certificate exception; they are not a trusted TLS deployment certification.",
+    "Ticket renewal timers and lease idle times are accelerated in tests.",
+    "Actual remote owner installation, supervision and installed update/rollback remain unverified.",
+    "Standing management grants, dependency/result coordination and general partial-operation recovery remain planned.",
+    "OAuth/auth-pool model sharing and absent local service packages require native setup."
+  ]
+}

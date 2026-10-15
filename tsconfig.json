@@ -20,5 +20,6 @@
       "@hermes-client/protocol": ["./packages/hermes-client/src/index.ts"]
     }
   },
-  "include": ["apps", "packages", "test", "*.config.ts"]
+  "include": ["apps", "packages", "test", "*.config.ts"],
+  "exclude": ["apps/owner-worker"]
 }

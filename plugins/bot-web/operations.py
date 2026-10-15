@@ -7,7 +7,9 @@ from .native import NativeError
 
 
 class InvalidOperation(Exception):
-    pass
+    def __init__(self, message, code="INVALID_PARAMETERS"):
+        super().__init__(message)
+        self.code = code
 
 
 def fields(params, allowed):

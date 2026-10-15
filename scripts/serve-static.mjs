@@ -14,6 +14,7 @@ const downloads = existsSync(resolve(root, 'downloads'))
   ? resolve(root, 'downloads')
   : resolve(scriptDirectory, '../artifacts/packages');
 const downloadable = new Set([
+  'workspace-owner-preview.zip',
   'workspace-web-preview.zip',
   'workspace-plugin-preview.zip',
   'workspace-source-preview.zip',

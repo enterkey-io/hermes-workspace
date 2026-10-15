@@ -11,7 +11,7 @@ import time
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse, RedirectResponse
 
 from .native import NativeError, NativeGateway
 from .operations import BotOperations, InvalidOperation
@@ -46,11 +46,16 @@ def configuration():
     return token, origins, hosts
 
 
-def create_app(token, origins, hosts, gateway=None):
+def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, public_callback=None):
     native = gateway or NativeGateway()
     ops = BotOperations(native)
+    if workspace is None and gateway is None:
+        from .workspace import WorkspaceService, WorkspaceStore, workspace_path
+        from .setup import installed_primary
+        workspace = WorkspaceService(ops, WorkspaceStore(workspace_path()), primary=installed_primary())
     clients = {}
     pairing = BrowserPairing()
+    owner_trust = trust
 
     @asynccontextmanager
     async def lifespan(app):
@@ -60,6 +65,8 @@ def create_app(token, origins, hosts, gateway=None):
             yield
         finally:
             await native.stop()
+            if workspace:
+                workspace.store.db.close()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -86,7 +93,8 @@ def create_app(token, origins, hosts, gateway=None):
             for name in (b"host", b"origin", b"authorization", b"content-length", b"x-bot-connection"):
                 if sum(k == name for k, _ in scope["headers"]) > 1:
                     return await reject(400)
-            if host not in hosts or origin not in origins or scope.get("query_string"):
+            callback = bool(public_callback and owner_trust and scope["method"] == "GET" and scope["path"] == "/v1/oauth/callback")
+            if host not in hosts or (not callback and (origin not in origins or scope.get("query_string"))) or (callback and origin and origin not in origins):
                 return await reject(403)
             if scope["method"] == "OPTIONS":
                 requested = headers.get(b"access-control-request-headers", b"").decode("latin1").lower()
@@ -101,15 +109,24 @@ def create_app(token, origins, hosts, gateway=None):
             supplied = headers.get(b"authorization", b"")
             principal = "operator" if hmac.compare_digest(supplied, ("Bearer " + token).encode()) else (
                 pairing.principal(supplied[7:].decode("latin1"), origin) if supplied.startswith(b"Bearer ") else None)
+            ticket = None
+            if owner_trust and supplied.startswith(b"Bearer "):
+                ticket = owner_trust.verify(supplied[7:].decode("latin1"), origin)
+                if ticket:
+                    principal = ticket["principal"]
+            scope["bot.ticket_expires"] = ticket["expires"] if ticket else None
             public_pair = scope["method"] == "POST" and scope["path"] in {"/v1/pairing/request", "/v1/pairing/claim"}
-            if not public_pair and not principal:
+            if owner_trust and public_pair:
+                return await reject(403)
+            if not public_pair and not callback and not principal:
                 return await reject(401)
             if scope["path"] in {"/v1/pairing/approve", "/v1/pairing/revoke"} and principal != "operator":
                 return await reject(403)
             scope["bot.principal"] = principal
             scope["bot.origin"] = origin
+            body_limit = 3_000_000 if scope["path"] == "/v1/avatar" else MAX_BODY
             try:
-                if int(headers.get(b"content-length", b"0")) > MAX_BODY:
+                if int(headers.get(b"content-length", b"0")) > body_limit:
                     return await reject(413)
             except ValueError:
                 return await reject(400)
@@ -118,7 +135,7 @@ def create_app(token, origins, hosts, gateway=None):
                 nonlocal consumed
                 message = await receive()
                 consumed += len(message.get("body", b""))
-                if consumed > MAX_BODY:
+                if consumed > body_limit:
                     raise InvalidOperation("Request too large")
                 return message
             async def secured_send(message):
@@ -138,11 +155,13 @@ def create_app(token, origins, hosts, gateway=None):
         if client["principal"] != request.scope.get("bot.principal"):
             raise InvalidOperation("Connection belongs to another browser")
         client["touched"] = time.monotonic()
+        if request.scope.get("bot.ticket_expires"):
+            client["expires"] = request.scope["bot.ticket_expires"]
         return client
 
     @app.exception_handler(InvalidOperation)
     async def invalid(request, error):
-        return JSONResponse({"error": "Operation unavailable or invalid. Refresh and check the connection."}, 400)
+        return JSONResponse({"error": "Operation unavailable or invalid. Refresh and check the connection.", "code": error.code if error.code in {"STALE_REVISION", "HANDLE_TAKEN", "INVALID_REPORTING", "MODEL_UNAVAILABLE", "REQUIRES_SETUP", "INVALID_PHOTO", "INVALID_PARAMETERS"} else "INVALID_PARAMETERS"}, 409 if error.code == "STALE_REVISION" else 400)
 
     @app.exception_handler(NativeError)
     async def native_error(request, error):
@@ -151,17 +170,26 @@ def create_app(token, origins, hosts, gateway=None):
     @app.post("/v1/connect")
     async def connect(request: Request):
         for key in list(clients):
-            if time.monotonic() - clients[key]["touched"] > LEASE_SECONDS:
+            idle = clients[key]
+            expired = time.monotonic() - idle["touched"] > LEASE_SECONDS
+            abandoned = idle["principal"] == request.scope["bot.principal"] and not idle["streaming"] and idle.get("ended") is not None and time.monotonic() - idle["ended"] > 1
+            if expired or abandoned:
                 clients.pop(key)
         if len(clients) >= 8:
             return JSONResponse({"error": "Connection limit reached"}, 429)
         connection = secrets.token_urlsafe(32)
         clients[connection] = {"touched": time.monotonic(), "streaming": False,
-                               "inflight": 0, "sessions": set(), "principal": request.scope["bot.principal"]}
+                               "inflight": 0, "sessions": set(), "principal": request.scope["bot.principal"],
+                               "expires": request.scope.get("bot.ticket_expires"), "ended": None}
         build = getattr(native, "build", None) or {}
-        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": "0.2.4",
-                "capabilities": {"existing_agents": True},
+        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": "0.3.0",
+                "capabilities": {"existing_agents": True, "owner_login": owner_trust is not None, "workspace": bool(workspace)},
                 "hermes_version": build.get("version"), "hermes_revision": build.get("revision")}
+
+    @app.post("/v1/renew")
+    async def renew(request: Request):
+        lease(request)
+        return {"renewed": True}
 
     @app.delete("/v1/connect")
     async def disconnect(request: Request):
@@ -171,6 +199,7 @@ def create_app(token, origins, hosts, gateway=None):
             pairing.grants.pop(client["principal"], None)
         return {"disconnected": True}
 
+    @app.post("/v1/avatar")
     @app.post("/v1/rpc")
     async def rpc(request: Request):
         client = lease(request)
@@ -189,14 +218,41 @@ def create_app(token, origins, hosts, gateway=None):
             operation, params = data["operation"], data["params"]
             if not isinstance(operation, str) or not isinstance(params, dict):
                 raise InvalidOperation("Invalid operation")
+            if request.url.path == "/v1/avatar" and operation not in {"bots.appearance.update", "workspace.initialize"}:
+                raise InvalidOperation("Avatar operation required")
             if operation.startswith("chat.") and params.get("session_id") not in client["sessions"]:
                 raise InvalidOperation("Session belongs to another connection")
-            result = await ops.invoke(operation, params)
+            if operation in {"connections.auth_start", "connections.auth_status", "connections.auth_cancel"}:
+                if not public_callback or not owner_trust:
+                    raise InvalidOperation("Owner enrollment and a fixed HTTPS callback are required")
+                required = {"profile", "name"} if operation.endswith("start") else {"id"}
+                if set(params) != required:
+                    raise InvalidOperation("Invalid authorization request")
+                action = {"connections.auth_start": "start", "connections.auth_status": "status", "connections.auth_cancel": "cancel"}[operation]
+                result = await native.call("bot_web.connections.oauth", {**params, "action": action, **({"callback": public_callback} if action == "start" else {})})
+            else:
+                result = await (workspace.invoke(operation, params) if workspace and workspace.handles(operation) else ops.invoke(operation, params))
             if operation == "bot.open":
                 client["sessions"].add(result["session_id"])
             return {"result": result}
+        except (TypeError, KeyError, ValueError) as error:
+            raise InvalidOperation("Invalid operation values") from error
         finally:
             client["inflight"] -= 1
+
+    @app.get("/v1/oauth/callback")
+    async def oauth_callback(request: Request):
+        if not public_callback or not owner_trust:
+            raise InvalidOperation("Authorization is unavailable")
+        pairs = list(request.query_params.multi_items())
+        if len(pairs) > 4 or len({k for k, _ in pairs}) != len(pairs) or any(k not in {"code", "state", "error", "iss"} or not v or len(v) > 4096 for k, v in pairs):
+            raise InvalidOperation("Invalid authorization callback")
+        data = dict(pairs)
+        if not data.get("state") or bool(data.get("code")) == bool(data.get("error")):
+            raise InvalidOperation("Invalid authorization callback")
+        await native.call("bot_web.connections.oauth", {"action": "callback", "id": None, **{key: data.get(key) for key in ["code", "state", "error", "iss"]}})
+        # Strip provider query values from the visible URL and never reflect them in HTML/logs.
+        return RedirectResponse(owner_trust.value["origin"], status_code=303)
 
     @app.get("/v1/events")
     async def events(request: Request):
@@ -210,7 +266,8 @@ def create_app(token, origins, hosts, gateway=None):
         def active():
             return (clients.get(connection) is client
                     and time.monotonic() - client["touched"] <= LEASE_SECONDS
-                    and pairing.alive(client["principal"]))
+                    and ((client.get("expires") is not None and time.time() < client["expires"])
+                         or (client.get("expires") is None and pairing.alive(client["principal"]))))
         async def stream():
             try:
                 # Flush headers immediately and acknowledge an authenticated stream.
@@ -220,6 +277,9 @@ def create_app(token, origins, hosts, gateway=None):
                     # Filtered native traffic must not restart the browser's heartbeat clock.
                     remaining = next_heartbeat - time.monotonic()
                     if remaining <= 0:
+                        # An authenticated, actively streamed browser is not idle. Ticket/grant
+                        # expiry remains an independent hard boundary; heartbeats never extend it.
+                        client["touched"] = time.monotonic()
                         yield '{"type":"bridge.heartbeat"}\n'
                         next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
                         continue
@@ -237,6 +297,7 @@ def create_app(token, origins, hosts, gateway=None):
             finally:
                 native.listeners.discard(queue)
                 client["streaming"] = False
+                client["ended"] = time.monotonic()
         return StreamingResponse(stream(), media_type="application/x-ndjson",
                                  headers={"X-Accel-Buffering": "no"})
 
@@ -286,6 +347,11 @@ def serve():
         settings = read_settings()
         token, origins, hosts = settings["token"], set(settings["origins"]), {settings["host"]}
         port = settings["port"]
+    from .trust import OwnerTrust
+    trust = OwnerTrust.installed()
+    if trust and "settings" not in locals():
+        raise ValueError("Owner enrollment requires persistent bridge settings")
     # Bind loopback only. Remote HTTPS uses a user-owned reverse proxy/tunnel.
-    uvicorn.run(create_app(token, origins, hosts), host="127.0.0.1", port=port,
+    callback = settings["bridge_url"] + "/v1/oauth/callback" if trust else None
+    uvicorn.run(create_app(token, origins, hosts, trust=trust, public_callback=callback), host="127.0.0.1", port=port,
                 access_log=False, proxy_headers=False, log_level="warning")

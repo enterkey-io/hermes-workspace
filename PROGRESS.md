@@ -134,7 +134,6 @@ Pinned native source distinguishes root/default identity, sticky CLI selection a
 
 This pass adds and reconciles plans only. It does not change application/plugin code or versions, install management tools, edit owner profiles, send model prompts, restart services, or deploy a release. The implementation plan must prove owner authentication and persistent issuer trust first, then primary identity/handle routing, resumable native onboarding, management/runtime policy, native connections and the complete independently hosted install/update/recovery workflow. Unverified launch gates remain closed.
 
-
 ## Original avatar study, photos and implementation authorization
 
 An explicitly requested Astra medium review produced docs/AVATAR_SYSTEM_PLAN.md. It recommends original SVG faces, a portable geometry/pose/state contract and a shared deadline scheduler; native renderer/framework decisions and production performance remain separate gates. The owner approved the working visual direction, requested white in the palette and made user-supplied photos a first-class alternative. Onboarding plans now include handle + avatar/color/photo in the detected-primary confirmation step, with the same appearance controls later in Settings.
@@ -144,3 +143,45 @@ The isolated /avatar-lab.html entry demonstrates five original shapes, seven col
 57 unit tests and six dedicated browser cases pass, including white, actual changing poses, pause, reduced motion, roster cleanup/offscreen behavior, a simulated visibility boundary, phone layout and local photo/remove/disguised-SVG rejection. Real OS background/minimize behavior is not certified: available automation tabs remain visible. Scoped headless sampler/SVG-write measurements and bundled sizes are recorded in docs/compatibility/avatar-demo.json; these are not total rendering, CPU, GPU, energy or native-client measurements. No owner Hermes profile, bridge, private configuration or service was changed.
 
 The owner then explicitly authorized implementing the rest of Astra's planned system improvements inline. Work now proceeds through the owner-auth/trust vertical slice, primary detection/handles/appearance, native onboarding, management/runtime authorization, native connections and installer/migration/recovery, following docs/ONBOARDING_AND_CONNECTIONS_IMPLEMENTATION_PLAN.md. This authorization replaces the earlier plan-only scope; remaining functionality must not be represented as completed until built and verified.
+
+## Installed-owner implementation and idle-disconnect repair
+
+The owner authorized inline implementation of the Astra plans and then reported an
+idle disconnect. The 0.2.4 preview had expiring in-memory browser grants/leases and
+no automatic recovery. The 0.3 candidate implements a real owner-hosted Better
+Auth administrator login with atomic one-use bootstrap, Node/SQLite and
+Worker/D1 adapters, persistent app-issuer trust on Hermes, five-minute in-memory
+browser tickets, renewal, authenticated heartbeat lease keepalive and automatic
+reconnection. Reconnection restores canonical state and unsent drafts while sends
+are blocked; it never repeats an uncertain send or approval. The old technical
+preview remains available until the remote integration can be upgraded.
+
+The implementation includes primary detection/operator binding, public handles,
+real-profile enrollment, one orchestrator and validated reporting graph, team
+sections, editable role cards, model-callable reviewed management proposals and
+manage-team skill, new native profiles with their own SOUL and an explicit narrow
+model grant, tools/skills, native service cards/authentication/per-tool access, and
+animated or photo avatars in onboarding/settings/sidebar. Shape switching retains
+the native photo asset. No SOUL/history/model credentials pass through app login
+storage or vendor systems. The native adapter now covers the additional methods
+and hook surfaces with build-specific fingerprints; no native core file is patched.
+
+64 Node unit and 47 Python boundary cases pass. Real native synthetic fixtures on
+both supported revisions cover caller-bound proposals, exact owner review, a new
+agent's own persona and actual local-model turn, restricted built-in Ollama Cloud
+key grants with no prompt, native public-handle DM/room handoffs, MCP discovery,
+per-tool CAS and dashboard OAuth with PKCE. Owner browser acceptance on both builds
+covers login/onboarding, idle keepalive, ticket renewal, offline and native gateway
+restart recovery with preserved draft/no replay, teams/roles, photo switching,
+password change and ordinary login. Local Workerd/D1 auth and restart tests,
+Cloudflare bundle dry run, extracted production owner-package installation and
+standalone startup pass. Dependency audit reports zero known vulnerabilities.
+
+Install/update guidance now covers independent app and Hermes hosts, persistent
+owner state/trust, real supervision, fixed callback routing, one-agent verification,
+immutable GitHub packages without a required fork, private backups and CLI recovery.
+Local development evidence does not certify the remote owner's deployment. Full
+standing grants, durable task dependencies/results, broader partial-operation repair,
+native activation/credential rollback and independently installed update/supervision
+acceptance remain explicitly open in docs/IMPLEMENTATION_STATUS.md. No production
+launch gate is promoted merely from these fixture results.

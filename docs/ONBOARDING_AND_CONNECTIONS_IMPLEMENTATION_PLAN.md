@@ -1,5 +1,9 @@
 # Execution plan: owner onboarding, identity and connections
 
+> This is the original design/acceptance plan. For current implementation and
+> verification status, see [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Historical preview limitations below describe the planning baseline.
+
 15 October 2026. **Unimplemented plan, not a completion report.** Companion to [product behavior and evidence](ONBOARDING_AND_CONNECTIONS_PLAN.md). Work is ordered to preserve the working native Bot Mode preview while replacing preview pairing with a private installed product. No owner deployment, real provider calls or releases are authorized by this planning document.
 
 ## Delivery order and blocking spikes

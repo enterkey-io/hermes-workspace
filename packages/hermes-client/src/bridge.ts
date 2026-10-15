@@ -18,13 +18,24 @@ export class BotBridgeClient {
   #token: string;
   #connection = '';
   #existingAgents = false;
+  #workspace = false;
+  #rpcActive = 0;
+  readonly #rpcWaiting: (() => void)[] = [];
+
+  get supportsWorkspace(): boolean {
+    return this.#workspace;
+  }
 
   get supportsExistingAgents(): boolean {
     return this.#existingAgents;
   }
 
   constructor(endpoint: Endpoint, token: string, fetcher = fetch) {
-    if (!/^[A-Za-z0-9_-]{43,128}$/.test(token)) throw new ClientError('INVALID_CREDENTIAL');
+    if (
+      !/^(?:[A-Za-z0-9_-]{43,128}|[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.test(token) ||
+      token.length > 4096
+    )
+      throw new ClientError('INVALID_CREDENTIAL');
     this.#endpoint = endpoint;
     this.#token = token;
     // Native browser fetch requires its global receiver, never the client object.
@@ -43,11 +54,41 @@ export class BotBridgeClient {
       !!data.capabilities && record(data.capabilities).existing_agents === true;
     this.#connection = data.connection;
     this.#existingAgents = existingAgents;
+    this.#workspace = !!data.capabilities && record(data.capabilities).workspace === true;
   }
 
   async invoke(operation: string, params: Readonly<Record<string, unknown>>): Promise<unknown> {
     if (!this.#connection) throw new ClientError('DISCONNECTED');
-    return record(await this.#request('v1/rpc', 'POST', { operation, params })).result;
+    const generation = this.#lifetime.capture();
+    // Leave capacity for connection maintenance. Queue before dispatch; never retry
+    // an already dispatched mutation just because its acknowledgement was lost.
+    if (this.#rpcWaiting.length >= 64) throw new ClientError('RPC_FAILED');
+    if (this.#rpcActive >= 3) await new Promise<void>((done) => this.#rpcWaiting.push(done));
+    else this.#rpcActive++;
+    try {
+      this.#lifetime.assertCurrent(generation);
+      return record(
+        await this.#request(
+          ['bots.appearance.update', 'workspace.initialize'].includes(operation)
+            ? 'v1/avatar'
+            : 'v1/rpc',
+          'POST',
+          { operation, params },
+        ),
+      ).result;
+    } finally {
+      const next = this.#rpcWaiting.shift();
+      if (next)
+        next(); // Transfer this reserved slot to the next caller.
+      else this.#rpcActive--;
+    }
+  }
+
+  async renew(token: string): Promise<void> {
+    if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) || token.length > 4096)
+      throw new ClientError('INVALID_CREDENTIAL');
+    this.#token = token;
+    await this.#request('v1/renew', 'POST');
   }
 
   async #request(route: string, method: 'POST' | 'DELETE', body?: unknown): Promise<unknown> {
@@ -59,7 +100,7 @@ export class BotBridgeClient {
       const url = endpointUrl(this.#endpoint, route);
       const response = await this.#fetch(url, this.#options(controller, method, body));
       this.#lifetime.assertCurrent(generation);
-      this.#check(response, url);
+      await this.#check(response, url);
       const data = await readBoundedJson(response, 4 * 1024 * 1024);
       this.#lifetime.assertCurrent(generation);
       return data;
@@ -89,7 +130,30 @@ export class BotBridgeClient {
     };
   }
 
-  #check(response: Response, url: URL): void {
+  async #check(response: Response, url: URL): Promise<void> {
+    if (
+      !response.ok &&
+      [400, 409, 422].includes(response.status) &&
+      (!response.url || response.url === url.href)
+    ) {
+      let code: unknown;
+      try {
+        code = record(await readBoundedJson(response, 4096)).code;
+      } catch {
+        /* Untrusted diagnostics never enter user-visible errors. */
+      }
+      const known = [
+        'STALE_REVISION',
+        'HANDLE_TAKEN',
+        'INVALID_REPORTING',
+        'MODEL_UNAVAILABLE',
+        'REQUIRES_SETUP',
+        'INVALID_PHOTO',
+        'INVALID_PARAMETERS',
+      ] as const;
+      const match = known.find((item) => item === code);
+      throw new ClientError(match ?? 'RPC_FAILED');
+    }
     if (!response.ok || (response.url && response.url !== url.href)) {
       void response.body?.cancel();
       throw new ClientError(
@@ -108,7 +172,7 @@ export class BotBridgeClient {
     try {
       const url = endpointUrl(this.#endpoint, 'v1/events');
       const response = await this.#fetch(url, this.#options(controller, 'GET'));
-      this.#check(response, url);
+      await this.#check(response, url);
       if (
         !response.body ||
         response.headers.get('Content-Type')?.split(';')[0]?.trim() !== 'application/x-ndjson'
@@ -157,10 +221,10 @@ export class BotBridgeClient {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 3000);
       // Capture headers before erasing credentials; independent of cancelled chat requests.
-      void this.#fetch(
-        endpointUrl(this.#endpoint, 'v1/connect'),
-        this.#options(controller, 'DELETE'),
-      )
+      void this.#fetch(endpointUrl(this.#endpoint, 'v1/connect'), {
+        ...this.#options(controller, 'DELETE'),
+        keepalive: true,
+      })
         .then((response) => response.body?.cancel())
         .catch(() => undefined)
         .finally(() => clearTimeout(timer));
@@ -169,6 +233,7 @@ export class BotBridgeClient {
     this.#token = '';
     this.#connection = '';
     this.#existingAgents = false;
+    this.#workspace = false;
     for (const controller of this.#active) controller.abort();
     this.#active.clear();
   }

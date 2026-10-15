@@ -1,0 +1,3 @@
+# Generate with the owner installer, then copy privately to .dev.vars.
+# Never commit actual settings; signingKey and authSecret are owner secrets.
+OWNER_SETTINGS="{}"

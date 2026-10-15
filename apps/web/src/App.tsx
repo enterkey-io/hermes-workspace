@@ -5,6 +5,13 @@ import type { BridgeEvent } from '@hermes-client/protocol';
 import { FirstRun } from './FirstRun';
 import { AgentPicker } from './AgentPicker';
 import { MessageBody, CopyMessage } from './MessageBody';
+import type { OwnerConnection } from './OwnerShell';
+import { WorkspaceSetup } from './WorkspaceSetup';
+import { WorkspaceSettings } from './WorkspaceSettings';
+import { AgentAvatar } from './AgentAvatar';
+import { workspaceState } from './workspace';
+import type { WorkspaceState } from './workspace';
+import type { Activity } from './avatar-lab/engine';
 
 type Row = Record<string, unknown>;
 type Bot = { profile: string; name: string; description: string; canonical: boolean };
@@ -28,7 +35,22 @@ function transcript(value: unknown): Message[] {
     .map((m) => ({ role: text(m.role), text: text(m.text) || text(m.name) }));
 }
 
-export function App() {
+export function App({ owner }: { owner?: OwnerConnection }) {
+  const ownerRef = useRef(owner);
+  ownerRef.current = owner;
+  const [workspace, setWorkspace] = useState<WorkspaceState>();
+  const [settings, setSettings] = useState(false);
+  const [agentStates, setAgentStates] = useState<Record<string, Activity>>({});
+  const sessionProfiles = useRef(new Map<string, string>());
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const renewTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const reconnectAttempt = useRef(0);
+  const connectGeneration = useRef(0);
+  const autoOpened = useRef(false);
+  const restoreProfile = useRef('');
+  const restoreRoom = useRef('');
+  const welcomeProfile = useRef('');
+  const disposed = useRef(false);
   const [client, setClient] = useState<BotBridgeClient>();
   const current = useRef<BotBridgeClient | undefined>(undefined);
   const selected = useRef<Selection | undefined>(undefined);
@@ -41,6 +63,8 @@ export function App() {
   const [routines, setRoutines] = useState<Row[]>([]);
   const [approvals, setApprovals] = useState<Row[]>([]);
   const [draft, setDraft] = useState('');
+  const currentDraft = useRef(draft);
+  currentDraft.current = draft;
   const [stream, setStream] = useState('');
   const [activity, setActivity] = useState('Ready');
   const [running, setRunning] = useState(false);
@@ -63,6 +87,13 @@ export function App() {
     setError(safeError(error).message);
   }
   function disconnect() {
+    connectGeneration.current++;
+    clearTimeout(reconnectTimer.current);
+    clearTimeout(renewTimer.current);
+    setWorkspace(undefined);
+    setAgentStates({});
+    sessionProfiles.current.clear();
+    setSettings(false);
     selectGeneration.current++;
     current.current?.disconnect();
     current.current = undefined;
@@ -87,7 +118,106 @@ export function App() {
     followLatest.current = true;
     setShowLatest(false);
   }
-  useEffect(() => () => current.current?.disconnect(), []);
+  useEffect(() => {
+    disposed.current = false;
+    if (ownerRef.current) void connectOwner();
+    const recover = () => {
+      if (ownerRef.current) scheduleReconnect();
+    };
+    window.addEventListener('online', recover);
+    window.addEventListener('offline', recover);
+    return () => {
+      window.removeEventListener('online', recover);
+      window.removeEventListener('offline', recover);
+      disposed.current = true;
+      connectGeneration.current++;
+      clearTimeout(reconnectTimer.current);
+      clearTimeout(renewTimer.current);
+      current.current?.disconnect();
+    };
+  }, []);
+  async function connectOwner() {
+    const generation = ++connectGeneration.current;
+    try {
+      const credential = await ownerRef.current!.ticket();
+      if (disposed.current || generation !== connectGeneration.current) return;
+      await connect(credential.bridgeUrl, credential.ticket);
+      if (disposed.current || generation !== connectGeneration.current) return;
+      reconnectAttempt.current = 0;
+      scheduleRenew();
+    } catch {
+      if (!disposed.current && generation === connectGeneration.current) scheduleReconnect();
+    }
+  }
+  function scheduleRenew() {
+    clearTimeout(renewTimer.current);
+    renewTimer.current = setTimeout(async () => {
+      const connection = current.current;
+      if (!connection || !ownerRef.current || disposed.current) return;
+      try {
+        const next = await ownerRef.current.ticket();
+        if (current.current !== connection) return;
+        await connection.renew(next.ticket);
+        scheduleRenew();
+      } catch {
+        if (current.current === connection) scheduleReconnect();
+      }
+    }, 240000);
+  }
+  function scheduleReconnect() {
+    if (!ownerRef.current || disposed.current) return;
+    connectGeneration.current++;
+    clearTimeout(renewTimer.current);
+    clearTimeout(reconnectTimer.current);
+    setBlocked(true);
+    setStreamState('lost');
+    setActivity('Reconnecting to Hermes…');
+    const target = selected.current;
+    if (target) {
+      restoreProfile.current = target.kind === 'bot' ? target.bot.profile : '';
+      restoreRoom.current = target.kind === 'room' ? text(target.room.room_id) : '';
+      drafts.current.set(draftKey(target), currentDraft.current);
+    }
+    const delay = Math.min(30000, 1000 * 2 ** Math.min(reconnectAttempt.current++, 5));
+    reconnectTimer.current = setTimeout(() => {
+      if (disposed.current) return;
+      current.current?.disconnect();
+      current.current = undefined;
+      autoOpened.current = false;
+      void connectOwner();
+    }, delay);
+  }
+  useEffect(() => {
+    if (!client || streamState !== 'live' || busy || autoOpened.current || !workspace?.initialized)
+      return;
+    if (restoreRoom.current) {
+      const room = rooms.find((r) => text(r.room_id) === restoreRoom.current);
+      restoreRoom.current = '';
+      if (room) {
+        autoOpened.current = true;
+        openRoom(room);
+        return;
+      }
+    }
+    const profile = restoreProfile.current || workspace.orchestrator;
+    const bot = bots.find((b) => b.profile === profile);
+    if (!bot) return;
+    autoOpened.current = true;
+    restoreProfile.current = '';
+    void open(bot).then(async () => {
+      if (welcomeProfile.current === bot.profile) {
+        welcomeProfile.current = '';
+        try {
+          await client.invoke('workspace.welcome', { profile: bot.profile });
+          await loadRoster(client);
+        } catch {
+          setError(
+            'Your agent’s welcome could not be confirmed. Check the chat before asking again.',
+          );
+        }
+      }
+    });
+  }, [client, streamState, busy, workspace, bots, rooms]);
   useLayoutEffect(() => {
     const pane = transcriptPane.current;
     if (pane && followLatest.current && !pickingAgents) pane.scrollTop = pane.scrollHeight;
@@ -133,12 +263,27 @@ export function App() {
       setActivity('Ready');
       return;
     }
+    const profile = sessionProfiles.current.get(event.session_id ?? '');
+    if (profile) {
+      const state: Activity | undefined =
+        event.type === 'approval.request'
+          ? 'attention'
+          : event.type === 'message.start' || event.type === 'tool.start'
+            ? 'working'
+            : event.type === 'message.complete'
+              ? event.payload?.status === 'error'
+                ? 'attention'
+                : 'done'
+              : undefined;
+      if (state) setAgentStates((old) => ({ ...old, [profile]: state }));
+    }
     const target = selected.current;
     if (event.type === 'bridge.resync') {
       setBlocked(true);
       setStreamState('lost');
       setActivity('Live updates disconnected');
-      setError('Event continuity was lost. Disconnect and reconnect before sending again.');
+      setError('Live updates were interrupted. Reconnecting and checking the conversation…');
+      if (ownerRef.current) scheduleReconnect();
       return;
     }
     if (!target || target.kind !== 'bot' || event.session_id !== target.sessionId) return;
@@ -183,6 +328,10 @@ export function App() {
     if (current.current !== connection) return;
     setBots(managed);
     setRooms(loadedRooms);
+    if (connection.supportsWorkspace) {
+      const state = workspaceState(await connection.invoke('workspace.describe', {}));
+      if (current.current === connection) setWorkspace(state);
+    }
   }
 
   async function reloadRoster() {
@@ -208,6 +357,7 @@ export function App() {
     try {
       connection = new BotBridgeClient(normalizeEndpoint(endpoint, import.meta.env.DEV), token);
       current.current = connection;
+      autoOpened.current = false;
       await connection.connect();
       await loadRoster(connection);
       if (current.current !== connection) return;
@@ -217,13 +367,18 @@ export function App() {
         .events((event) => {
           void receive(established, event).catch(fail);
         })
-        .catch((error) => {
+        .catch(() => {
           if (current.current === established) {
             setBlocked(true);
             setStreamState('lost');
             setActivity('Live updates disconnected');
+            if (ownerRef.current) {
+              setError('Hermes is temporarily unreachable. Reconnecting automatically…');
+              scheduleReconnect();
+              return;
+            }
             setError(
-              `Browser access was approved and the bot list loaded, but live updates stopped (${safeError(error).code}). Your Hermes agent needs to check the /v1/events stream through your connection route. Disconnect and reconnect before sending again.`,
+              'Live updates were interrupted. This older preview connection needs to be reopened. The owner-login update adds automatic recovery.',
             );
           }
         });
@@ -257,6 +412,11 @@ export function App() {
       const data = object(await client.invoke('bot.open', { profile: bot.profile }));
       if (generation !== selectGeneration.current || current.current !== client) return;
       const target: Selection = { kind: 'bot', bot, sessionId: text(data.session_id) };
+      sessionProfiles.current.set(target.sessionId, bot.profile);
+      setAgentStates((old) => ({
+        ...old,
+        [bot.profile]: data.running === true ? 'working' : 'ready',
+      }));
       selected.current = target;
       setSelection(target);
       setMessages(transcript(data.messages));
@@ -521,7 +681,48 @@ export function App() {
     </>
   );
 
-  if (!client) return <FirstRun onConnect={connect} />;
+  if (!client)
+    return owner ? (
+      <main className="owner-entry">
+        <div className="owner-card">
+          <h1>Opening your Hermes…</h1>
+          <p role="status">{activity}</p>
+          {error && <p className="error">{error}</p>}
+          <button onClick={() => void owner.logout()}>Sign out</button>
+        </div>
+      </main>
+    ) : (
+      <FirstRun onConnect={connect} />
+    );
+
+  if (client.supportsWorkspace && workspace && !workspace.initialized)
+    return (
+      <main className="onboarding-shell">
+        <header>
+          <span className="wordmark">Workspace</span>
+          {owner && (
+            <button
+              onClick={() => {
+                disconnect();
+                void owner.logout();
+              }}
+            >
+              Sign out
+            </button>
+          )}
+        </header>
+        <WorkspaceSetup
+          client={client}
+          onComplete={(state, profile, welcome) => {
+            setWorkspace(state);
+            restoreProfile.current = profile;
+            welcomeProfile.current = welcome ? profile : '';
+            autoOpened.current = false;
+            void loadRoster(client).catch(fail);
+          }}
+        />
+      </main>
+    );
 
   const title =
     selection?.kind === 'bot'
@@ -542,36 +743,87 @@ export function App() {
         >
           Add existing agents
         </button>
+        {client.supportsWorkspace && (
+          <button
+            onClick={() => {
+              setSettings(true);
+              setPickingAgents(false);
+              setNav(false);
+            }}
+          >
+            Workspace settings
+          </button>
+        )}
         <p className="section-label">
           YOUR BOTS <span>{bots.length}</span>
         </p>
         <nav aria-label="Bots">
-          {bots.map((bot) => (
-            <button
-              key={bot.profile}
-              className={
-                selection?.kind === 'bot' && selection.bot.profile === bot.profile
-                  ? 'selected bot'
-                  : 'bot'
-              }
-              onClick={() => {
-                if (bot.canonical) void open(bot);
-                else {
-                  setPickingAgents(true);
-                  setNav(false);
-                }
-              }}
-              disabled={busy || streamState !== 'live'}
-            >
-              <span className="avatar" aria-hidden>
-                {bot.name.slice(0, 1).toUpperCase()}
-              </span>
-              <span>
-                <strong>{bot.name}</strong>
-                <small>{!bot.canonical ? 'Set up Bot Chat' : bot.description || 'Bot Chat'}</small>
-              </span>
-            </button>
-          ))}
+          {[...bots]
+            .sort((a, b) => {
+              const team = (p: string) =>
+                workspace?.teams.findIndex(
+                  (t) => t.id === workspace.bots.find((x) => x.profile === p)?.team,
+                ) ?? -1;
+              return team(a.profile) - team(b.profile);
+            })
+            .map((bot, index, all) => (
+              <div key={bot.profile}>
+                {workspace &&
+                  (() => {
+                    const teamId = workspace.bots.find((b) => b.profile === bot.profile)?.team;
+                    const previous = index
+                      ? workspace.bots.find((b) => b.profile === all[index - 1]?.profile)?.team
+                      : null;
+                    return teamId && teamId !== previous ? (
+                      <p className="section-label">
+                        {workspace.teams.find((t) => t.id === teamId)?.name}
+                      </p>
+                    ) : null;
+                  })()}
+                <button
+                  key={bot.profile}
+                  className={
+                    selection?.kind === 'bot' && selection.bot.profile === bot.profile
+                      ? 'selected bot'
+                      : 'bot'
+                  }
+                  onClick={() => {
+                    if (bot.canonical) void open(bot);
+                    else {
+                      setPickingAgents(true);
+                      setNav(false);
+                    }
+                  }}
+                  disabled={busy || streamState !== 'live'}
+                >
+                  {workspace?.bots.find((b) => b.profile === bot.profile) ? (
+                    <AgentAvatar
+                      id={workspace.bots.find((b) => b.profile === bot.profile)!.id}
+                      profile={bot.profile}
+                      client={client}
+                      look={workspace.bots.find((b) => b.profile === bot.profile)!.appearance}
+                      orchestrator={workspace.orchestrator === bot.profile}
+                      state={agentStates[bot.profile] ?? 'ready'}
+                    />
+                  ) : (
+                    <span className="avatar" aria-hidden>
+                      {bot.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span>
+                    <strong>{bot.name}</strong>
+                    {workspace && (
+                      <small>
+                        @{workspace.bots.find((b) => b.profile === bot.profile)?.handle}
+                      </small>
+                    )}
+                    <small>
+                      {!bot.canonical ? 'Set up Bot Chat' : bot.description || 'Bot Chat'}
+                    </small>
+                  </span>
+                </button>
+              </div>
+            ))}
         </nav>
         {!bots.length && (
           <p className="empty-note">Choose Add existing agents to bring your Hermes agents here.</p>
@@ -608,204 +860,248 @@ export function App() {
             : streamState === 'lost'
               ? 'Live updates disconnected'
               : 'Connecting live updates…'}{' '}
-          <button onClick={disconnect}>Disconnect</button>
+          <button
+            onClick={() => {
+              disconnect();
+              if (owner) void owner.logout();
+            }}
+          >
+            {owner ? 'Sign out' : 'Disconnect'}
+          </button>
         </div>
       </aside>
       <section className="conversation">
-        <header>
-          <button
-            className="mobile-nav"
-            aria-label="Toggle navigation"
-            onClick={() => setNav(!nav)}
-          >
-            ☰
-          </button>
-          <div>
-            <h1>{title}</h1>
-            <p>
-              {selection?.kind === 'room'
-                ? 'Hermes drives this discussion'
-                : 'Ongoing conversation · History on your Hermes'}
-            </p>
-          </div>
-          {selection?.kind === 'bot' && (
-            <button
-              onClick={() => {
-                void refreshHistory(client, selection).catch(fail);
-              }}
-            >
-              Refresh
-            </button>
-          )}
-        </header>
-        {(error || (blocked && streamState !== 'opening')) && (
-          <div className="error banner" role="alert">
-            {error || 'Event continuity was lost. Disconnect and reconnect before sending again.'}
-            {streamState === 'lost' && (
-              <button onClick={disconnect}>Disconnect and reconnect</button>
-            )}
-          </div>
-        )}
-        <div
-          ref={transcriptPane}
-          onScroll={(event) => {
-            if (pickingAgents) return;
-            const pane = event.currentTarget;
-            const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 96;
-            followLatest.current = nearBottom;
-            setShowLatest(!nearBottom);
-          }}
-          className={`transcript ${pickingAgents ? 'choosing-agents' : ''}`}
-          role={pickingAgents ? undefined : 'log'}
-          aria-live={pickingAgents ? undefined : 'polite'}
-        >
-          {pickingAgents ? (
-            <AgentPicker
+        {client.supportsWorkspace && workspace && (!workspace.initialized || settings) ? (
+          !workspace.initialized ? (
+            <WorkspaceSetup
               client={client}
-              connected={streamState === 'live'}
-              onClose={() => setPickingAgents(false)}
-              onDone={async () => {
-                await loadRoster(client);
-                if (current.current === client) setPickingAgents(false);
+              onComplete={(state, profile, welcome) => {
+                setWorkspace(state);
+                restoreProfile.current = profile;
+                welcomeProfile.current = welcome ? profile : '';
+                autoOpened.current = false;
+                void loadRoster(client).catch(fail);
               }}
             />
           ) : (
-            !selection && (
-              <div className="welcome">
-                <p className="eyebrow">
-                  {streamState === 'live'
-                    ? 'CONNECTED TO YOUR HERMES'
-                    : streamState === 'lost'
-                      ? 'CONNECTION NEEDS ATTENTION'
-                      : 'STARTING LIVE UPDATES'}
+            <WorkspaceSettings
+              client={client}
+              owner={!!owner}
+              state={workspace}
+              onChange={(state) => {
+                setWorkspace(state);
+                void loadRoster(client).catch(fail);
+              }}
+              onClose={() => setSettings(false)}
+            />
+          )
+        ) : (
+          <>
+            <header>
+              <button
+                className="mobile-nav"
+                aria-label="Toggle navigation"
+                onClick={() => setNav(!nav)}
+              >
+                ☰
+              </button>
+              <div>
+                <h1>{title}</h1>
+                <p>
+                  {selection?.kind === 'room'
+                    ? 'Hermes drives this discussion'
+                    : 'Ongoing conversation · History on your Hermes'}
                 </p>
-                {streamState !== 'live' ? (
-                  <>
-                    <h2>
-                      {streamState === 'lost' ? 'Live updates are disconnected.' : 'Connecting…'}
-                    </h2>
-                    <p>
-                      {streamState === 'lost'
-                        ? 'Pairing and the initial lists worked. The live connection needs to work before you can chat.'
-                        : 'Browser access is approved. Waiting for the live connection before you can chat.'}
-                    </p>
-                  </>
-                ) : !rooms.length && !bots.some((bot) => bot.canonical) ? (
-                  <>
-                    <h2>Choose your Hermes agents.</h2>
-                    <p>
-                      Your existing agents keep their SOUL, memory and skills. Choose which ones you
-                      want to use here.
-                    </p>
-                    <button onClick={() => setPickingAgents(true)}>Add existing agents</button>
-                  </>
-                ) : (
-                  <>
-                    <h2>Who’s up next?</h2>
-                    <p>
-                      Choose a bot for its ongoing conversation,
-                      <br />
-                      or open a room to work together.
-                    </p>
-                  </>
+              </div>
+              {selection?.kind === 'bot' && (
+                <button
+                  onClick={() => {
+                    void refreshHistory(client, selection).catch(fail);
+                  }}
+                >
+                  Refresh
+                </button>
+              )}
+            </header>
+            {(error || (blocked && streamState !== 'opening')) && (
+              <div className="error banner" role="alert">
+                {error ||
+                  'Event continuity was lost. Disconnect and reconnect before sending again.'}
+                {streamState === 'lost' && (
+                  <button onClick={owner ? scheduleReconnect : disconnect}>
+                    {owner ? 'Try reconnecting now' : 'Disconnect and reconnect'}
+                  </button>
                 )}
               </div>
-            )
-          )}
-          {!pickingAgents && selection && !messages.length && !stream && (
-            <p className="empty-chat">Your conversation is ready.</p>
-          )}
-          {!pickingAgents &&
-            messages.map((message, i) => (
-              <article key={i} className={`message ${message.role}`}>
-                <small>
-                  {message.role === 'user' ? 'You' : message.role === 'tool' ? 'Tool' : title}
-                </small>
-                {message.role === 'user' ? (
-                  <p>{message.text}</p>
-                ) : (
-                  <MessageBody text={message.text} />
-                )}
-                <CopyMessage text={message.text} />
-              </article>
-            ))}
-          {!pickingAgents && stream && (
-            <article className="message assistant">
-              <small>{title}</small>
-              <MessageBody text={stream} />
-              <span className="caret" aria-hidden>
-                ▍
-              </span>
-            </article>
-          )}
-          {!pickingAgents && running && !stream && (
-            <p className="thinking" role="status">
-              Working…
-            </p>
-          )}
-        </div>
-        {!pickingAgents && (
-          <>
-            {showLatest && (
-              <button className="jump-latest" onClick={jumpToLatest}>
-                ↓ Latest messages
-              </button>
             )}
-            <details className="compact-details" open={approvals.length > 0 ? true : undefined}>
-              <summary>Activity & routines{approvals.length ? ' · Approval needed' : ''}</summary>
-              {detailsContent}
-            </details>
-            <div className="composer">
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void send();
-                }}
-              >
-                <textarea
-                  ref={composer}
-                  rows={1}
-                  aria-label="Message"
-                  placeholder={selection ? `Message ${title}…` : 'Choose a bot or room to begin'}
-                  value={draft}
-                  disabled={!selection || busy || blocked || pickingAgents}
-                  maxLength={16000}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setDraft(value);
-                    if (selected.current) drafts.current.set(draftKey(selected.current), value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === 'Enter' &&
-                      !event.shiftKey &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault();
-                      void send();
-                    }
+            <div
+              ref={transcriptPane}
+              onScroll={(event) => {
+                if (pickingAgents) return;
+                const pane = event.currentTarget;
+                const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 96;
+                followLatest.current = nearBottom;
+                setShowLatest(!nearBottom);
+              }}
+              className={`transcript ${pickingAgents ? 'choosing-agents' : ''}`}
+              role={pickingAgents ? undefined : 'log'}
+              aria-live={pickingAgents ? undefined : 'polite'}
+            >
+              {pickingAgents ? (
+                <AgentPicker
+                  client={client}
+                  connected={streamState === 'live'}
+                  onClose={() => setPickingAgents(false)}
+                  onDone={async () => {
+                    await loadRoster(client);
+                    if (current.current === client) setPickingAgents(false);
                   }}
                 />
-                <div className="composer-actions">
-                  <span>{running ? 'Hermes is working' : 'Shift + Enter for a new line'}</span>
-                  {(running || selection?.kind === 'room') && (
-                    <button type="button" onClick={() => void stop()}>
-                      Stop
-                    </button>
-                  )}
-                  <button
-                    className="primary"
-                    disabled={
-                      !selection || !draft.trim() || busy || running || blocked || pickingAgents
-                    }
-                    aria-label="Send message"
-                  >
-                    ↑
-                  </button>
-                </div>
-              </form>
-              <p className="composer-note">Direct connection · History lives on your server</p>
+              ) : (
+                !selection && (
+                  <div className="welcome">
+                    <p className="eyebrow">
+                      {streamState === 'live'
+                        ? 'CONNECTED TO YOUR HERMES'
+                        : streamState === 'lost'
+                          ? 'CONNECTION NEEDS ATTENTION'
+                          : 'STARTING LIVE UPDATES'}
+                    </p>
+                    {streamState !== 'live' ? (
+                      <>
+                        <h2>
+                          {streamState === 'lost'
+                            ? 'Live updates are disconnected.'
+                            : 'Connecting…'}
+                        </h2>
+                        <p>
+                          {streamState === 'lost'
+                            ? 'Pairing and the initial lists worked. The live connection needs to work before you can chat.'
+                            : 'Browser access is approved. Waiting for the live connection before you can chat.'}
+                        </p>
+                      </>
+                    ) : !rooms.length && !bots.some((bot) => bot.canonical) ? (
+                      <>
+                        <h2>Choose your Hermes agents.</h2>
+                        <p>
+                          Your existing agents keep their SOUL, memory and skills. Choose which ones
+                          you want to use here.
+                        </p>
+                        <button onClick={() => setPickingAgents(true)}>Add existing agents</button>
+                      </>
+                    ) : (
+                      <>
+                        <h2>Who’s up next?</h2>
+                        <p>
+                          Choose a bot for its ongoing conversation,
+                          <br />
+                          or open a room to work together.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )
+              )}
+              {!pickingAgents && selection && !messages.length && !stream && (
+                <p className="empty-chat">Your conversation is ready.</p>
+              )}
+              {!pickingAgents &&
+                messages.map((message, i) => (
+                  <article key={i} className={`message ${message.role}`}>
+                    <small>
+                      {message.role === 'user' ? 'You' : message.role === 'tool' ? 'Tool' : title}
+                    </small>
+                    {message.role === 'user' ? (
+                      <p>{message.text}</p>
+                    ) : (
+                      <MessageBody text={message.text} />
+                    )}
+                    <CopyMessage text={message.text} />
+                  </article>
+                ))}
+              {!pickingAgents && stream && (
+                <article className="message assistant">
+                  <small>{title}</small>
+                  <MessageBody text={stream} />
+                  <span className="caret" aria-hidden>
+                    ▍
+                  </span>
+                </article>
+              )}
+              {!pickingAgents && running && !stream && (
+                <p className="thinking" role="status">
+                  Working…
+                </p>
+              )}
             </div>
+            {!pickingAgents && (
+              <>
+                {showLatest && (
+                  <button className="jump-latest" onClick={jumpToLatest}>
+                    ↓ Latest messages
+                  </button>
+                )}
+                <details className="compact-details" open={approvals.length > 0 ? true : undefined}>
+                  <summary>
+                    Activity & routines{approvals.length ? ' · Approval needed' : ''}
+                  </summary>
+                  {detailsContent}
+                </details>
+                <div className="composer">
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void send();
+                    }}
+                  >
+                    <textarea
+                      ref={composer}
+                      rows={1}
+                      aria-label="Message"
+                      placeholder={
+                        selection ? `Message ${title}…` : 'Choose a bot or room to begin'
+                      }
+                      value={draft}
+                      disabled={!selection || busy || blocked || pickingAgents}
+                      maxLength={16000}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setDraft(value);
+                        if (selected.current) drafts.current.set(draftKey(selected.current), value);
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === 'Enter' &&
+                          !event.shiftKey &&
+                          !event.nativeEvent.isComposing
+                        ) {
+                          event.preventDefault();
+                          void send();
+                        }
+                      }}
+                    />
+                    <div className="composer-actions">
+                      <span>{running ? 'Hermes is working' : 'Shift + Enter for a new line'}</span>
+                      {(running || selection?.kind === 'room') && (
+                        <button type="button" onClick={() => void stop()}>
+                          Stop
+                        </button>
+                      )}
+                      <button
+                        className="primary"
+                        disabled={
+                          !selection || !draft.trim() || busy || running || blocked || pickingAgents
+                        }
+                        aria-label="Send message"
+                      >
+                        ↑
+                      </button>
+                    </div>
+                  </form>
+                  <p className="composer-note">Direct connection · History lives on your server</p>
+                </div>
+              </>
+            )}
           </>
         )}
       </section>

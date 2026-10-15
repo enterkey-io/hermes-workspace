@@ -99,3 +99,129 @@ def control(action, code=None, app_origin=None):
     except Exception as error:
         raise ValueError("Cannot complete browser access control. Check that the bridge is running and the code and application origin are current.") from error
     print(f"Browser approved for {origin}. The owner can return to the web app." if action == "approve" else "All browser access revoked; every browser must pair again.")
+
+
+def bind_primary(profile):
+    from hermes_cli.profiles import list_profiles
+    if profile not in {p.name for p in list_profiles()}:
+        raise ValueError('Choose a verified existing native profile')
+    destination = config_path().with_name('primary.json')
+    destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary = destination.with_name('primary.new')
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, 'w') as stream:
+        json.dump({'schema': 1, 'profile': profile}, stream)
+    os.replace(temporary, destination)
+
+
+def installed_primary():
+    path = config_path().with_name('primary.json')
+    if not path.exists():
+        return None
+    value = json.loads(path.read_text())
+    if set(value) != {'schema', 'profile'} or value['schema'] != 1 or not isinstance(value['profile'], str):
+        raise ValueError('Invalid operator primary binding')
+    return value['profile']
+
+
+def sync_runtime():
+    """Update only this integration's installed profile copies, with private rollback."""
+    from .workspace import WorkspaceStore, workspace_path
+    from pathlib import Path
+    from datetime import datetime, timezone
+    import shutil
+    from hermes_cli.profiles import get_profile_dir
+    store = WorkspaceStore(workspace_path())
+    try:
+        profiles = [p for p, b in store.read()['bots'].items() if b.get('enrolled')]
+    finally:
+        store.db.close()
+    source = Path(__file__).parent.resolve()
+    backup_root = workspace_path().parent / 'rollback' / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+    changed = 0
+    for profile in profiles:
+        destination = Path(get_profile_dir(profile)) / 'plugins' / 'bot-web'
+        if destination.resolve() == source:
+            continue
+        if destination.is_symlink():
+            raise ValueError('Refusing to replace a linked plugin directory')
+        if destination.exists():
+            import hermes_yaml as yaml
+            manifest = yaml.safe_load((destination / 'plugin.yaml').read_text())
+            if manifest.get('name') != 'bot-web':
+                raise ValueError('Refusing to replace unrelated plugin code')
+            backup = backup_root / profile
+            backup.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            backup.parent.chmod(0o700)
+            shutil.copytree(destination, backup)
+            backup.chmod(0o700)
+            previous = destination.with_name('.bot-web-previous')
+            if previous.exists():
+                raise ValueError('An earlier runtime update needs reconciliation')
+            os.replace(destination, previous)
+        else:
+            previous = None
+        temporary = destination.with_name('.bot-web-next')
+        try:
+            from .payload import copy_payload
+            if temporary.exists():
+                raise ValueError('An earlier runtime staging directory needs inspection')
+            copy_payload(source, temporary)
+            os.replace(temporary, destination)
+            if previous:
+                shutil.rmtree(previous)
+        except BaseException:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+            if previous and previous.exists() and not destination.exists():
+                os.replace(previous, destination)
+            raise
+        changed += 1
+    print(json.dumps({'runtime_copies_updated': changed, 'private_backups': changed > 0,
+        'next': 'Restart the bridge only after native work is idle. Existing profiles and stores were preserved.'}))
+
+
+def probe():
+    """Full-route operator probe; release its own lease, never revoke browser grants."""
+    from .trust import OwnerTrust
+    import time
+    settings = read_settings()
+    trust = OwnerTrust.installed()
+    if not trust:
+        raise ValueError('Enroll the owner app before installed-owner verification')
+    origin = trust.value['origin']
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+    opener = urllib.request.build_opener(NoRedirect())
+    def request(path, method='GET', connection=None):
+        headers = {'Origin': origin, 'Authorization': 'Bearer '+settings['token']}
+        if connection:
+            headers['X-Bot-Connection'] = connection
+        return opener.open(urllib.request.Request(settings['bridge_url']+path, method=method, headers=headers), timeout=25)
+    connection = None
+    try:
+        with request('/v1/connect', 'POST') as response:
+            connected = json.load(response)
+        connection = connected['connection']
+        with request('/v1/events', connection=connection) as response:
+            ready = json.loads(response.readline())
+            if ready != {'type': 'bridge.ready'}:
+                raise ValueError('Live stream did not become ready')
+            deadline = time.monotonic()+20
+            while time.monotonic() < deadline:
+                event = json.loads(response.readline())
+                if event == {'type': 'bridge.heartbeat'}:
+                    break
+            else:
+                raise ValueError('No heartbeat received')
+        with opener.open(origin+'/.well-known/hermes-workspace.json', timeout=15) as response:
+            binding = json.load(response)
+        if binding != trust.value:
+            raise ValueError('App verification key and enrolled Hermes trust differ')
+        print(json.dumps({'full_https_bridge': 'pass', 'live_stream': 'pass', 'heartbeat': 'pass',
+            'owner_app_trust_matches': True, 'model_calls': 0, 'profiles_changed': 0}))
+    finally:
+        if connection:
+            with request('/v1/connect', 'DELETE', connection) as response:
+                response.read()

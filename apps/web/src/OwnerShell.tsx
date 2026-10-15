@@ -1,0 +1,217 @@
+import { useEffect, useState } from 'react';
+import { App } from './App';
+
+export interface OwnerConnection {
+  ticket: () => Promise<{ ticket: string; bridgeUrl: string }>;
+  logout: () => Promise<void>;
+}
+export class OwnerRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+export async function ownerRequest(path: string, body?: unknown) {
+  const response = await fetch(path, {
+    method: body === undefined ? 'GET' : 'POST',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    redirect: 'error',
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const value: unknown = await response.json();
+  if (!response.ok)
+    throw new OwnerRequestError(
+      value && typeof value === 'object' && 'error' in value && typeof value.error === 'string'
+        ? value.error
+        : 'Sign in to your workspace.',
+      response.status,
+    );
+  return value;
+}
+export function OwnerShell() {
+  const [mode, setMode] = useState<
+    'loading' | 'preview' | 'setup' | 'login' | 'ready' | 'unavailable'
+  >('loading');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [proof, setProof] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function check() {
+    try {
+      const r = await fetch('/api/instance/status', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        redirect: 'error',
+      });
+      if (r.status === 404) {
+        setMode('preview');
+        return;
+      }
+      if (!r.ok) throw new Error();
+      const status = (await r.json()) as { setupRequired: boolean };
+      if (status.setupRequired) {
+        setMode('setup');
+        return;
+      }
+      const session = await ownerRequest('/api/auth/get-session');
+      setMode(session ? 'ready' : 'login');
+    } catch {
+      setMode('unavailable');
+    }
+  }
+  useEffect(() => {
+    void check();
+  }, []);
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      if (mode === 'setup') {
+        if (password !== confirmation) throw new Error('The passwords don’t match.');
+        await ownerRequest('/api/bootstrap', { username, password, proof });
+        setProof('');
+      }
+      await ownerRequest('/api/auth/sign-in/username', { username, password, rememberMe: true });
+      setPassword('');
+      setConfirmation('');
+      setMode('ready');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not sign in.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (mode === 'preview') return <App />;
+  if (mode === 'ready')
+    return (
+      <App
+        owner={{
+          ticket: async () => {
+            try {
+              return (await ownerRequest('/api/hermes/ticket', {})) as {
+                ticket: string;
+                bridgeUrl: string;
+              };
+            } catch (error) {
+              if (error instanceof OwnerRequestError && error.status === 401) setMode('login');
+              throw error;
+            }
+          },
+          logout: async () => {
+            await ownerRequest('/api/auth/sign-out', {});
+            setMode('login');
+          },
+        }}
+      />
+    );
+  return (
+    <main className="owner-entry">
+      <div className="owner-card">
+        <a className="wordmark" href="/">
+          Workspace
+        </a>
+        <p className="eyebrow">YOUR PRIVATE HERMES WORKSPACE</p>
+        <h1>
+          {mode === 'setup'
+            ? 'Make it yours.'
+            : mode === 'loading'
+              ? 'Opening your workspace…'
+              : mode === 'unavailable'
+                ? 'Your workspace needs attention.'
+                : 'Welcome back.'}
+        </h1>
+        {mode === 'unavailable' ? (
+          <>
+            <p>
+              The owner service isn’t available. Your installer can check its service status; your
+              Hermes conversations are still on your server.
+            </p>
+            <button onClick={() => void check()}>Try again</button>
+          </>
+        ) : mode === 'loading' ? null : (
+          <>
+            <p>
+              {mode === 'setup'
+                ? 'Create the administrator login for this installation. Your installer supplied a private setup code to confirm that this workspace belongs to you.'
+                : 'Sign in to pick up where you left off. Your Hermes reconnects automatically.'}
+            </p>
+            <form onSubmit={(e) => void submit(e)}>
+              {mode === 'setup' && (
+                <label>
+                  Private setup code
+                  <input
+                    required
+                    autoComplete="off"
+                    value={proof}
+                    onChange={(e) => setProof(e.target.value.trim())}
+                  />
+                </label>
+              )}
+              <label>
+                Username
+                <input
+                  required
+                  autoComplete="username"
+                  minLength={3}
+                  maxLength={32}
+                  pattern="[A-Za-z0-9_]+"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </label>
+              <label>
+                Password
+                <input
+                  required
+                  type="password"
+                  autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
+                  minLength={mode === 'setup' ? 12 : 1}
+                  maxLength={128}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </label>
+              {mode === 'setup' && (
+                <label>
+                  Confirm password
+                  <input
+                    required
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmation}
+                    onChange={(e) => setConfirmation(e.target.value)}
+                  />
+                </label>
+              )}
+              {error && (
+                <p className="error" role="alert">
+                  {error}
+                </p>
+              )}
+              <button className="primary" disabled={busy}>
+                {busy ? 'Just a moment…' : mode === 'setup' ? 'Create my workspace' : 'Sign in'}
+              </button>
+            </form>
+            {mode === 'login' && (
+              <details>
+                <summary>Forgot your password?</summary>
+                <p>
+                  Your installer can reset the login on your own app host using the owner recovery
+                  command. There is no public password reset or vendor account.
+                </p>
+              </details>
+            )}
+          </>
+        )}
+        <small>Hosted by you · Conversations and agent memory stay on Hermes</small>
+      </div>
+    </main>
+  );
+}

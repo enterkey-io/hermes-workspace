@@ -6,34 +6,58 @@ from pathlib import Path
 
 # Each complete fingerprint set was tested against its exact source revision.
 # Display/package versions alone cannot authorize a native integration.
-SUPPORTED_BUILDS = [
-    {
-        "version": "0.21.0",
-        "revision": "29112bef099274229cadff79cdff7bf7b99c4b77",
-        "server_requests": False,
-        "files": {
-            "methods_session.py": "c4c0b3355be3ecc7f7fdf8ebcbd46fb3f360f9dded5ca9908f96ed0ce7e561d0",
-            "methods_profiles.py": "3846fdf832e3abab7fb3d9b1eafba629da2fd96ff39f9471964490df1697dca4",
-            "methods_groups.py": "f72b3b1768834e276377ed68e2b7efab3d75693da45c22ac06c8be920c19e94c",
-            "methods_prompt.py": "01da1128c98ed1f36928a242e447fb42f40a2d0c385a98c1f4c7f6cc756d4b8a",
-            "entry.py": "f46a94f266c1999dc03a3c17c48a25f34f21403c1b1e57b996855c44e0de3e04",
-            "server.py": "e264c1c7cc2e99051c1e36f4019dd29b739d5b7f1c61b8e364f87ad6039d1900"
-        }
-    },
-    {
-        "version": "0.21.7",
-        "revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
-        "server_requests": True,
-        "files": {
-            "methods_session.py": "c1276744175bc4b7ba9e5b400d0334d551e1b5c526b2e1bd71a2786e0a39b669",
-            "methods_profiles.py": "a60c17e15ed84d3aa7c7523fab226b793f0b573888feba3476350ae926be0991",
-            "methods_groups.py": "902f79272a8cb391de9f25a2c2acd0d5dbbeaf31654f55e410d36536d77cfce2",
-            "methods_prompt.py": "7307dba5aa1df597c99c551b4f344d0e292141e0e6c45f3c3fa2daddb0dbeee9",
-            "entry.py": "2d49339eb0b53b9f24243e886c56722ee055335aeae1d19dfc0896cf7b5223bf",
-            "server.py": "5e51f2b4ad33af95044be68a001d0ae66948d8c116fe8ff28a8e70b378ca3be1"
-        }
-    }
-]
+SUPPORTED_BUILDS = [{'version': '0.21.0',
+  'revision': '29112bef099274229cadff79cdff7bf7b99c4b77',
+  'server_requests': False,
+  'files': {'methods_session.py': 'c4c0b3355be3ecc7f7fdf8ebcbd46fb3f360f9dded5ca9908f96ed0ce7e561d0',
+            'methods_profiles.py': '3846fdf832e3abab7fb3d9b1eafba629da2fd96ff39f9471964490df1697dca4',
+            'methods_groups.py': 'f72b3b1768834e276377ed68e2b7efab3d75693da45c22ac06c8be920c19e94c',
+            'methods_prompt.py': '01da1128c98ed1f36928a242e447fb42f40a2d0c385a98c1f4c7f6cc756d4b8a',
+            'entry.py': 'f46a94f266c1999dc03a3c17c48a25f34f21403c1b1e57b996855c44e0de3e04',
+            'server.py': 'e264c1c7cc2e99051c1e36f4019dd29b739d5b7f1c61b8e364f87ad6039d1900',
+            'prompt_turn.py': None,
+            '../gateway/hosted_rooms.py': '536ac8ce499bdfee2aae6bfcf0e12d3d8d3034fa43dc4a2ab110908a41ec5dfc',
+            'methods_tools.py': 'c8bb48e3856dab38a452e9a53e1b30a054925689bccb44ec6a896d16ab88e0d2',
+            '../hermes_cli/plugins.py': '63cef01ae81a23c859170d36860c9ac257f320266a88640a8b9690952728bba6',
+            '../hermes_cli/plugins_cmd.py': 'fd358229934333bd61c3c9a20e52109ef7e2b78764d6e569badbb127c482a3f0',
+            '../hermes_cli/config.py': 'cbce38a2aeed3838dc768d69ee0b31278a211f64bfec66bf786f571c775b3730',
+            '../hermes_cli/profiles.py': 'edeafa558cea28cc42ce4e80a21489a3176454a48bae9f767d8c179b954e0981',
+            '../hermes_cli/skills_config.py': 'ee053b8474d3038281a765d9817c8606b294e1c6e700239bac10fc3c842e7aaa',
+            '../hermes_cli/web_routers/profiles.py': 'f085ec08a6baab407aa238399e93f501b94ce71896d68dd16bb5d3607f523b7c',
+            '../hermes_cli/web_server_mcp.py': None,
+            '../hermes_cli/web_server.py': 'c56b2f4605f0858704463a4f8ed8f3e44b56bba0f53b0e1839c33a537b4b16f4',
+            '../tools/bot_mode_dm.py': '5670404db997c1e4f783ffb27eb07460888910580e05f95052b52ca8d10ff9dc',
+            '../tools/mcp_dashboard_oauth.py': '5d4c802cfbac15bcb41340556f71626a1b2a543915006423ec6e5f9b30a1fabb',
+            '../tools/mcp_oauth.py': '0cf8740181d06f487fba64e52d98590b92f2e4934c2e635be89caa6d5c39a988',
+            '../agent/turn_context.py': '86a4f6c61183167850046b025a8f5c7b8601fb910f8a9ee464535afccc541c06',
+            '../agent/turn_finalizer.py': '584ade4613a11565c2ccd48546327adb9682f58ec70ace9d02921c3c240c14d5',
+            '../providers/__init__.py': 'eb55ccb80726aa2d4c8f1294a4ca8fdab82fc6f34b8c374b423b821d8012980b'}},
+ {'version': '0.21.7',
+  'revision': 'af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a',
+  'server_requests': True,
+  'files': {'methods_session.py': 'c1276744175bc4b7ba9e5b400d0334d551e1b5c526b2e1bd71a2786e0a39b669',
+            'methods_profiles.py': 'a60c17e15ed84d3aa7c7523fab226b793f0b573888feba3476350ae926be0991',
+            'methods_groups.py': '902f79272a8cb391de9f25a2c2acd0d5dbbeaf31654f55e410d36536d77cfce2',
+            'methods_prompt.py': '7307dba5aa1df597c99c551b4f344d0e292141e0e6c45f3c3fa2daddb0dbeee9',
+            'entry.py': '2d49339eb0b53b9f24243e886c56722ee055335aeae1d19dfc0896cf7b5223bf',
+            'server.py': '5e51f2b4ad33af95044be68a001d0ae66948d8c116fe8ff28a8e70b378ca3be1',
+            'prompt_turn.py': '11cdd2bd0eaae1e044582c25ef56ee74982c851c5a8cadde0d5cb3961ffa5865',
+            '../gateway/hosted_rooms.py': '51c75938d01441e4fceb2fe5f03a9f7e32b53da2c36ab05f20de2405fe19235c',
+            'methods_tools.py': '0e98daa609159ac0d7abc45c7d450429f29cbaf7aa5c96d712b1aeb141d7f130',
+            '../hermes_cli/plugins.py': 'f5a1c27a22025984bbf956b58154ce23914592307bd945d7a1c0167cc443d771',
+            '../hermes_cli/plugins_cmd.py': '25d5f8eb93a125aa13baf43792719d9efec5dda05eb5a8da5a20647b182936fc',
+            '../hermes_cli/config.py': 'a469923872fc1e4d905089bb4cc4af5c8cc4104f9f72a159656205c07cdb80ef',
+            '../hermes_cli/profiles.py': 'a87c2cb824cbf0f10fb618c282612d0f9263798a9e7962e9223984de05b65c94',
+            '../hermes_cli/skills_config.py': '1ee71a1c3d066e57a80eeda67539242d5406dc8cfe45c50edd2ebe7e16a94ee5',
+            '../hermes_cli/web_routers/profiles.py': 'd4206f10b6114e7cd8ac1d049a8f69592c7ac83bd8cc473e0c384bc3030fbf14',
+            '../hermes_cli/web_server_mcp.py': '5c6fc24bea98f504d9b246aa3bbb3ef064d4585848c74ba3bb1bd0d50c2c9811',
+            '../hermes_cli/web_server.py': '14428aa34d4297b81f7dbeb7e8fe2abae0e205a3356d9e341eb22d457ae2e55f',
+            '../tools/bot_mode_dm.py': 'f460093a1b91a9eff6152066df6117743cf5d8111ef86f909dd4e52b86d57386',
+            '../tools/mcp_dashboard_oauth.py': 'e05456bcd667771f50a7426d18562de2ff063046e73c0afb4fa595a87232f4f9',
+            '../tools/mcp_oauth.py': '21f6f2ecbfe2a5a913be9a475704be3c5c69e31a4befa633ce00866aed207cbb',
+            '../agent/turn_context.py': '7f22179bf7db0cc3009f24422750e3ec729f0ad4f7253705fd3df3116c75fb3d',
+            '../agent/turn_finalizer.py': '9000e17a4a0dba03b1d97cc10fe4184addcca685520ca0c9e6c6ef2cb97d1f25',
+            '../providers/__init__.py': '796d3ee0ed3aea06afc21525ec19dc39f17091845fa1e3f9be485acaa058423a'}}]
 
 def inspect_native_adapter():
     try:

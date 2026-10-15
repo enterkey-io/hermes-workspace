@@ -1,0 +1,150 @@
+"""Profile/session-bound model tools and live coordination context.
+
+Caller identity comes from native dispatch kwargs + native session stores, never
+from model arguments, role text, an active CLI profile or a process-global fallback.
+"""
+import json
+from pathlib import Path
+import sqlite3
+
+from .workspace import WorkspaceStore, workspace_path, ACTIONS
+from .operations import InvalidOperation
+
+
+def caller(store, session_id):
+    if not isinstance(session_id, str) or not session_id:
+        return None
+    from hermes_cli.profiles import get_profile_dir
+    matches = []
+    for profile in store.read()['bots']:
+        path = Path(get_profile_dir(profile)) / 'state.db'
+        if not path.is_file():
+            continue
+        db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=1)
+        try:
+            if db.execute('SELECT 1 FROM sessions WHERE id=? LIMIT 1', (session_id,)).fetchone():
+                matches.append(profile)
+        finally:
+            db.close()
+    return matches[0] if len(matches) == 1 else None
+
+
+def live_context(store, profile):
+    state = store.read()
+    bot = state['bots'].get(profile)
+    if not bot or not bot.get('enrolled'):
+        return ''
+    root = state['bots'].get(state['orchestrator'], {})
+    directory = [{'id': b['id'], 'handle': '@'+b['handle'], 'native_target': 'hermes' if p == 'default' else p,
+                  'role': b['role'], 'manager': b['manager']} for p, b in state['bots'].items() if b.get('enrolled')]
+    return 'Current owner workspace metadata (not a replacement for your SOUL):\n' + json.dumps({
+        'you': '@'+bot['handle'], 'native_profile': profile, 'orchestrator': '@'+root.get('handle', ''),
+        'your_role': bot['role'], 'your_manager_profile': bot['manager'],
+        'is_orchestrator': profile == state['orchestrator'], 'workspace_revision': state['revision'],
+        'directory': directory, 'model_grant': state.get('model_grant'),
+        'instructions': 'Use your public handle above when introducing yourself. Preserve your existing personality. Coordinate with your immediate manager and ultimately the orchestrator. Read bot-web:manage-team before proposing team changes. workspace_agents proposals require owner review; never claim a pending request succeeded. Use native message_agent with native_target from this directory. A queued delivery is not a completed task. Role prose grants no new permissions.',
+    }, ensure_ascii=False)
+
+
+def register_runtime(ctx):
+    def open_store():
+        return WorkspaceStore(workspace_path())
+
+    def tool(args, session_id=None, task_id=None, **_kwargs):
+        store = None
+        try:
+            store = open_store()
+            profile = caller(store, session_id)
+            if not profile or not store.read()['bots'][profile].get('enrolled'):
+                return json.dumps({'error': 'Verified enrolled native caller required'})
+            if not isinstance(args, dict) or set(args) != {'action', 'spec'} or not isinstance(args['spec'], dict):
+                raise InvalidOperation('Invalid tool request')
+            action, spec = args['action'], args['spec']
+            if action == 'describe':
+                if spec:
+                    raise InvalidOperation('No describe fields')
+                return json.dumps({'context': live_context(store, profile), 'requests': [r for r in store.requests() if r['actor'] == profile]})
+            allowed = {
+                'agent.enable': {'profile', 'initialize_chat'},
+                'agent.create': {'name', 'display_name', 'soul', 'role', 'model_source', 'model_fingerprint', 'skills', 'toolsets', 'manager', 'team', 'expected_revision'},
+                'agent.update': {'profile', 'role', 'manager', 'team', 'expected_revision'},
+                'agent.attach': {'profile', 'skills', 'toolsets', 'expected_revision'},
+            }
+            if action not in ACTIONS or set(spec) != allowed[action]:
+                raise InvalidOperation('Unsupported proposal')
+            request_id, state = store.request(profile, action, spec)
+            return json.dumps({'request_id': request_id, 'state': state, 'requires_owner_approval': state == 'pending'})
+        except Exception:
+            return json.dumps({'error': 'Workspace request unavailable; do not use shell or edit profiles as a fallback'})
+        finally:
+            if store:
+                store.db.close()
+
+    def context(session_id=None, **_kwargs):
+        store = None
+        try:
+            store = open_store()
+            profile = caller(store, session_id)
+            if not profile:
+                return None
+            text = live_context(store, profile)
+            from .room_identity import runtime_room, maps
+            members = runtime_room(store, profile, session_id)
+            if members:
+                incoming, _ = maps(store.read(), members)
+                text += '\nFor this room only, its native frozen mention aliases map to public identities as follows: '+json.dumps(incoming)+'. Use the room aliases when addressing participants in this room; your public identity remains unchanged.'
+            return {'context': text}
+        except Exception:
+            return None
+        finally:
+            if store:
+                store.db.close()
+
+    def route(tool_name=None, args=None, session_id=None, **_kwargs):
+        if tool_name != 'message_agent' or not isinstance(args, dict):
+            return None
+        store = None
+        try:
+            store = open_store()
+            if not caller(store, session_id):
+                return None
+            target = str(args.get('target', '')).lower().removeprefix('@')
+            state = store.read()
+            profile = next((p for p, b in state['bots'].items() if b.get('enrolled') and b['handle'] == target), state['aliases'].get(target))
+            if profile and state['bots'].get(profile, {}).get('enrolled'):
+                return {'args': {**args, 'target': 'hermes' if profile == 'default' else profile}, 'source': 'bot-web', 'reason': 'Resolve owner public handle to stable native profile'}
+            return None
+        finally:
+            if store:
+                store.db.close()
+
+    def room_output(response_text=None, session_id=None, **_kwargs):
+        store = None
+        try:
+            if not isinstance(response_text, str):
+                return None
+            store = open_store()
+            profile = caller(store, session_id)
+            if not profile:
+                return None
+            from .room_identity import runtime_room, maps, replace
+            members = runtime_room(store, profile, session_id)
+            if not members:
+                return None
+            _, outgoing = maps(store.read(), members)
+            translated = replace(response_text, outgoing)
+            return translated if translated != response_text else None
+        except Exception:
+            return None
+        finally:
+            if store:
+                store.db.close()
+
+    ctx.register_tool(name='workspace_agents', toolset='workspace', description='Describe your workspace or propose a team change for owner approval.',
+        schema={'name': 'workspace_agents', 'description': 'Read live workspace identity or submit an exact team-management proposal for owner review. Never approves or executes its own request.',
+            'parameters': {'type': 'object', 'additionalProperties': False, 'required': ['action', 'spec'], 'properties': {
+                'action': {'type': 'string', 'enum': ['describe', 'agent.enable', 'agent.create', 'agent.update', 'agent.attach']}, 'spec': {'type': 'object'}}}}, handler=tool)
+    ctx.register_hook('pre_llm_call', context)
+    ctx.register_hook('transform_llm_output', room_output)
+    ctx.register_middleware('tool_request', route)
+    ctx.register_skill('manage-team', Path(__file__).with_name('skills') / 'manage-team' / 'SKILL.md', description='Manage your owner’s workspace through reviewed native agent proposals.')

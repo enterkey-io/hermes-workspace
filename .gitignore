@@ -16,3 +16,6 @@ __pycache__/
 .agents/
 .aws/
 .local/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example

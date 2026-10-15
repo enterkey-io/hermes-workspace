@@ -5,6 +5,13 @@ from tui_gateway.methods_groups import start_hosted_room_service, stop_hosted_ro
 
 
 def main():
+    from pathlib import Path
+    from native_extensions import register
+    register(Path(__file__).parent)
+    from connections_native import register as register_connections
+    register_connections(Path(__file__).parent)
+    from models_native import register as register_models
+    register_models()
     start_hosted_room_service()
     try:
         entry.main()

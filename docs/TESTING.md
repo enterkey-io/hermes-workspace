@@ -118,3 +118,37 @@ Owner administrator creation, local login and automatic reconnection are not imp
 After `npm run build`, run `npm run test:avatars`. Set `BOT_WEB_TEST_CHROMIUM` to a local Chromium executable if needed; CI installs Playwright Chromium. These tests use their own loopback static server on port 8092 and never connect to Hermes. They cover shape/color (including white), actual changing poses, interruption/pause, live system reduced motion, large-roster instance cleanup, offscreen pose suspension, phone overflow, local photo replacement/removal and disguised SVG rejection. Photo tests generate a synthetic PNG and verify that selecting it sends no upload.
 
 Headless Chromium does not reliably mark an automation tab hidden when another tab opens, so the automated visibility case explicitly drives the document visibility boundary; it does not certify real OS background/minimized-window behavior. That remains a separate browser/device gate. The measurement case writes ignored `artifacts/avatar-demo-measurements.json`, reporting only JavaScript pose sampling and SVG attribute writes. It does not measure complete rendering, CPU usage, memory, energy or native clients. The [avatar system plan](AVATAR_SYSTEM_PLAN.md) retains those acceptance targets.
+
+## Installed-owner development acceptance (0.3 candidate)
+
+The legacy pairing/browser suite above remains historical preview coverage. The
+owner deployment uses first-use administrator creation and ordinary login instead.
+Run `npm run test:owner-worker` for the real local Workerd/D1 runtime. It creates
+private disposable keys, applies migrations, bootstraps the owner, signs in with
+Better Auth, restarts the runtime, obtains a signed ticket and signs out. It needs
+no Cloudflare account or remote resource.
+
+After building, run `npm run test:owner-browser` with `HERMES_NATIVE_ROOT` and
+`HERMES_NATIVE_PYTHON` pointing at one of the supported isolated checkouts. The
+runner creates disposable app state, HTTPS front ends and a native Hermes bridge;
+`BOT_WEB_TEST_CHROMIUM` can select an installed test browser. It verifies first-use
+admin creation, primary-handle/white-avatar onboarding, secure HttpOnly cookies,
+idle heartbeats beyond an accelerated lease, automatic ticket renewal, offline and
+native-gateway restart recovery, preserved unsent draft and no automatic sends,
+teams/role edits, photo storage and switching, password change, logout and sign-in.
+The certificate exception applies only to disposable loopback tests.
+
+Use each supported Hermes interpreter with `scripts/fixture/workspace_smoke.py`
+for real model-tool proposals and exact owner approvals, selected-persona
+preservation, fresh-agent creation with a restricted model grant and a synthetic
+model turn, deferred tool discovery, live identity and public-handle native DM
+routing. `model_grant_smoke.py` exercises the built-in Ollama Cloud credential
+scope without making any model request; `connections_smoke.py` runs real MCP
+sockets, native bearer storage, discovery, per-tool CAS and dashboard OAuth/PKCE.
+All keys, profiles, services and model responses are synthetic. Never run these
+fixtures against an owner's existing home.
+
+The owner distribution is also extracted outside the repository and installed
+using `npm ci --omit=dev --ignore-scripts`; its initialization and public setup/key
+endpoints must work without source/dev dependencies. None of these tests certifies
+a remote owner's supervision, trusted TLS deployment or installed update/rollback.

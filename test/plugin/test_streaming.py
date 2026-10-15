@@ -117,5 +117,15 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(owner.status_code, 200)
 
 
+    async def test_active_authenticated_heartbeats_keep_an_idle_lease_alive(self):
+        with patch("bot_web.server.HEARTBEAT_SECONDS", 0.02), patch("bot_web.server.LEASE_SECONDS", 0.06):
+            frames, task = await self.stream()
+            for _ in range(8):
+                self.assertEqual(await asyncio.wait_for(frames.get(), 0.3), {"type": "bridge.heartbeat"})
+            self.assertFalse(task.done())
+            renewed = await self.http.post('/v1/renew', headers=self.headers)
+            self.assertEqual(renewed.status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

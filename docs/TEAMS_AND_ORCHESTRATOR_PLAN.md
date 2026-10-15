@@ -1,5 +1,9 @@
 # Teams, orchestrator and agent-management contract
 
+> This is the original design/acceptance plan. For current implementation and
+> verification status, see [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Historical preview limitations below describe the planning baseline.
+
 15 October 2026. Research and proposed implementation contract, **not new running functionality**. No UI changes, owner-profile changes, bridge restart or package release are part of this pass. The current web preview is still 0.2.4-preview.2 with plugin 0.2.4. Owner-admin login and durable reconnect remain required prior work.
 
 ## Intended first use

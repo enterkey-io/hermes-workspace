@@ -239,6 +239,9 @@ def main():
     parser.add_argument("--project", default=str(Path(__file__).resolve().parents[2]))
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--port", type=int, default=8788)
+    parser.add_argument("--diagnostics", action="store_true")
+    parser.add_argument("--owner-trust")
+    parser.add_argument("--short-leases", action="store_true")
     parser.add_argument("--cert")
     parser.add_argument("--key")
     parser.add_argument("--origin", default="https://127.0.0.1:5443")
@@ -262,8 +265,37 @@ def main():
                 asyncio.run(exercise(root, home, model.server_port, seed_only=True))
                 from bot_web.server import create_app
                 import uvicorn
-                uvicorn.run(create_app("f" * 43, {args.origin}, {f"127.0.0.1:{args.port}"}),
-                    host="127.0.0.1", port=args.port, ssl_certfile=args.cert, ssl_keyfile=args.key,
+                if args.diagnostics:
+                    from unittest.mock import patch
+                    original_spawn = asyncio.create_subprocess_exec
+                    async def diagnostic_spawn(*argv, **kwargs):
+                        if any(str(arg).endswith('native_entry.py') for arg in argv):
+                            kwargs['stderr'] = sys.stderr
+                        return await original_spawn(*argv, **kwargs)
+                    patch('bot_web.native.asyncio.create_subprocess_exec', diagnostic_spawn).start()
+                from bot_web.trust import OwnerTrust
+                trust = OwnerTrust(json.loads(Path(args.owner_trust).read_text())) if args.owner_trust else None
+                if args.short_leases:
+                    import bot_web.server as bridge_module
+                    bridge_module.HEARTBEAT_SECONDS = 0.2
+                    bridge_module.LEASE_SECONDS = 1
+                if trust:
+                    from bot_web.native import NativeGateway
+                    from bot_web.operations import BotOperations
+                    from bot_web.workspace import WorkspaceService, WorkspaceStore, workspace_path
+                    gateway = NativeGateway()
+                    workspace = WorkspaceService(BotOperations(gateway), WorkspaceStore(workspace_path()))
+                    app = create_app("f" * 43, {args.origin}, {f"127.0.0.1:{args.port}"}, gateway=gateway, trust=trust, workspace=workspace)
+                    if args.short_leases:
+                        # Test-only control; the bridge boundary still requires operator auth.
+                        @app.post('/fixture/restart-native')
+                        async def restart_native():
+                            await gateway.stop()
+                            await gateway.start()
+                            return {'restarted': True}
+                else:
+                    app = create_app("f" * 43, {args.origin}, {f"127.0.0.1:{args.port}"}, workspace=False)
+                uvicorn.run(app, host="127.0.0.1", port=args.port, ssl_certfile=args.cert, ssl_keyfile=args.key,
                     access_log=False, proxy_headers=False, log_level="warning")
             else:
                 asyncio.run(exercise(root, home, model.server_port))

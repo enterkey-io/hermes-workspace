@@ -10,6 +10,63 @@ function connectedResponse() {
 }
 
 describe('direct Bot Mode bridge', () => {
+  it('bounds concurrent RPC calls and cancels queued mutations on disconnect', async () => {
+    const replies: ((r: Response) => void)[] = [];
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input, options) => {
+      if (String(input).endsWith('/v1/connect')) return connectedResponse();
+      if (options?.method === 'POST') return new Promise<Response>((done) => replies.push(done));
+      throw new Error('Unexpected test route');
+    });
+    const client = new BotBridgeClient(endpoint, token, fetcher);
+    await client.connect();
+    const calls = Array.from({ length: 4 }, (_, i) =>
+      client.invoke('chat.send', { session_id: 'synthetic', text: String(i) }),
+    );
+    const settled = Promise.allSettled(calls);
+    expect(replies).toHaveLength(3);
+    client.disconnect();
+    replies.forEach((done) => done(Response.json({ result: { accepted: true } })));
+    expect(
+      (await settled).every((r) => r.status === 'rejected' && r.reason.code === 'DISCONNECTED'),
+    ).toBe(true);
+    expect(fetcher.mock.calls.filter(([input]) => String(input).endsWith('/v1/rpc'))).toHaveLength(
+      3,
+    );
+  });
+  it('renews an owner ticket without replacing its live connection or replaying a mutation', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(connectedResponse())
+      .mockResolvedValueOnce(Response.json({ renewed: true }));
+    const client = new BotBridgeClient(endpoint, 'header.payload.signature', fetcher);
+    await client.connect();
+    await client.renew('header.next.signature');
+    expect(String(fetcher.mock.calls[1]![0])).toBe('https://personal.example.test/bridge/v1/renew');
+    expect(fetcher.mock.calls[1]![1]).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Bearer header.next.signature', 'X-Bot-Connection': connection },
+    });
+    expect(fetcher.mock.calls).toHaveLength(2);
+  });
+  it('uses only allowlisted error codes and discards untrusted private diagnostics', async () => {
+    for (const [code, expected] of [
+      ['STALE_REVISION', 'STALE_REVISION'],
+      ['PRIVATE_PROVIDER_ERROR', 'RPC_FAILED'],
+    ]) {
+      const client = new BotBridgeClient(
+        endpoint,
+        token,
+        vi
+          .fn<typeof fetch>()
+          .mockResolvedValueOnce(connectedResponse())
+          .mockResolvedValueOnce(
+            Response.json({ code, error: `${token} personal.example.test` }, { status: 409 }),
+          ),
+      );
+      await client.connect();
+      await expect(client.invoke('roles.update', {})).rejects.toMatchObject({ code: expected });
+    }
+  });
   it('negotiates existing-agent support while retaining compatibility with older bridges', async () => {
     const old = new BotBridgeClient(
       endpoint,

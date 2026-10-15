@@ -1,3 +1,8 @@
 name: bot-web
-version: 0.2.4
+version: 0.3.0
 description: API-only native Bot Mode integration for independently hosted clients.
+provides_tools:
+  - workspace_agents
+provides_hooks:
+  - pre_llm_call
+  - transform_llm_output

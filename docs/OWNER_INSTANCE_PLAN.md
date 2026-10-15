@@ -1,5 +1,9 @@
 # Owner login and a usable chat application
 
+> This is the original design/acceptance plan. For current implementation and
+> verification status, see [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+> Historical preview limitations below describe the planning baseline.
+
 14 October 2026. Product requirement and implementation sequence; **the owner-login service below is not implemented in the static preview**. This supersedes earlier plans that treated account-free, memory-only browser pairing as the finished product.
 
 The product is a private, self-hosted application for the person who installs it. No vendor account or vendor credential/content service is required. Owner-controlled authentication and configuration storage are allowed. Hermes remains an independent server, on any supported host. The first opening of a newly installed instance must create its administrator login.

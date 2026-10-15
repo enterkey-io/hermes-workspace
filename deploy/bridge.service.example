@@ -1,0 +1,16 @@
+[Unit]
+Description=Private Hermes Workspace native bridge
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=hermes
+Environment=HERMES_HOME=/var/lib/hermes
+WorkingDirectory=/var/lib/hermes
+ExecStart=/opt/hermes/.venv/bin/hermes bot-web serve
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=yes
+[Install]
+WantedBy=multi-user.target
