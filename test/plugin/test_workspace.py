@@ -37,6 +37,7 @@ class WorkspaceTests(unittest.IsolatedAsyncioTestCase):
         self.service = WorkspaceService(BotOperations(self.native), self.store)
         detection = await self.service.invoke('workspace.detect_primary', {})
         self.assertEqual(detection['profile'], 'default')
+        self.assertEqual(detection['bot']['name'], 'Aurora')
         await self.service.invoke('workspace.initialize', {'profile': 'default', 'handle': 'aurora', 'appearance': {'kind': 'shape', 'shape': 'petal', 'color': 'white'}, 'photo': None, 'expected_revision': detection['revision']})
 
     async def asyncTearDown(self):

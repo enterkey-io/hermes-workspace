@@ -11,6 +11,7 @@ export function WorkspaceSetup({
   onComplete: (state: WorkspaceState, profile: string, welcome: boolean) => void;
 }) {
   const [profile, setProfile] = useState('');
+  const [agentName, setAgentName] = useState('');
   const [handle, setHandle] = useState('hermes');
   const [revision, setRevision] = useState(0);
   const [look, setLook] = useState<Appearance>({ kind: 'shape', shape: 'pebble', color: 'iris' });
@@ -29,13 +30,15 @@ export function WorkspaceSetup({
           complete: boolean;
           profile: string;
           revision: number;
-          bot: { handle: string; appearance: Appearance };
+          bot: { name?: string; handle: string; appearance: Appearance };
         };
         if (!d.complete)
           throw new Error(
             'Your installer must confirm the primary Hermes profile before setup can continue. No agent has been changed.',
           );
         setProfile(d.profile);
+        const name = (typeof d.bot.name === 'string' && d.bot.name.trim()) || d.profile;
+        setAgentName(name === 'default' ? '' : name);
         setRevision(d.revision);
         setHandle(d.bot.handle);
         // First use starts with an animated avatar, even when Hermes supplies a stock image.
@@ -75,7 +78,12 @@ export function WorkspaceSetup({
   return (
     <section className="workspace-setup">
       <div className="setup-intro">
-        <h1>Set up your agent</h1>
+        <h1>{agentName ? `Customize ${agentName}` : 'Your existing Hermes agent'}</h1>
+        <p>
+          {agentName
+            ? 'Your existing primary Hermes agent.'
+            : 'Your primary agent. Choose a handle and avatar.'}
+        </p>
       </div>
       <form onSubmit={(e) => void finish(e)}>
         <label>

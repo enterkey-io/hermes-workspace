@@ -1,6 +1,6 @@
 {
-  "name": "hermes-bot-mode-app",
-  "version": "0.4.1-preview.1",
+  "name": "pebble-crew",
+  "version": "0.4.2-preview.1",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -60,5 +60,11 @@
     "vitest": "5.0.4",
     "wrangler": "4.151.0"
   },
-  "packageManager": "npm@11.12.1"
+  "packageManager": "npm@11.12.1",
+  "description": "A self-hosted interface for Hermes Bot Mode.",
+  "homepage": "https://pebblecrew.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/enterkey-io/pebble-crew.git"
+  }
 }

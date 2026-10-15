@@ -1,4 +1,4 @@
-# Install the web app plugin for Hermes
+# Install Pebble Crew
 
 For the owner's Hermes installation agent: install the **combined plugin** on the
 owner's Hermes host. It includes the web app, owner login and native Bot Mode
@@ -6,7 +6,7 @@ integration. Finish supervision and HTTPS verification, then give the owner **on
 private setup link**. No address form, pairing conversation, placeholder agent or
 second installation agent belongs in this flow.
 
-The product name remains undecided. Olares is simply one possible Hermes host;
+Pebble Crew’s project domain is `pebblecrew.com`. Olares is simply one possible Hermes host;
 there is no Olares app package. No vendor runtime service or account is required.
 Conversations, memory, personality, service credentials, photos, login keys and
 app configuration all stay on the owner's infrastructure.
@@ -71,13 +71,13 @@ installation.
 
 ## 3. Obtain the immutable combined release
 
-Candidate: `v0.4.1-preview.1`. If these assets are not published, stop and report
+Candidate: `v0.4.2-preview.1`. If these assets are not published, stop and report
 that the candidate is unavailable. Do not substitute main or an API-only package.
 
-- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-manifest.json)
-- [SHA256SUMS](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/SHA256SUMS)
-- [Complete plugin](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-plugin-preview.zip)
-- [Source](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.4.1-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.4.2-preview.1/workspace-manifest.json)
+- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.4.2-preview.1/SHA256SUMS)
+- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.4.2-preview.1/workspace-plugin-preview.zip)
+- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.4.2-preview.1/workspace-source-preview.zip)
 
 Verify size and SHA-256 against both manifest and checksum file. Reject absolute
 archive paths, traversal, symlinks and entries escaping private staging. The
@@ -185,7 +185,7 @@ their authorization.
 
 ## Updates and rollback
 
-For the 0.4.1 patch, obtain and verify the new combined ZIP as in step 3, back up
+For a 0.4.x patch, obtain and verify the new combined ZIP as in step 3, back up
 and replace only the installed plugin code (preserving all state), then run
 `hermes bot-web update`. Keep the existing origin, ports, owner login, agent
 bindings and supervisor. Run `hermes bot-web verify --public` through the existing
@@ -197,7 +197,7 @@ with `hermes bot-web setup-link` (use `--renew-setup` only if it expired).
 remaining seconds). Its output contains the private file path, never the secret.
 
 Event parsing and legacy access controls are specified in
-[the wire protocol](https://github.com/enterkey-io/hermes-workspace/blob/v0.4.1-preview.1/docs/WIRE_PROTOCOL.md).
+[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.4.2-preview.1/docs/WIRE_PROTOCOL.md).
 Never use global revocation for diagnostic cleanup: use DELETE `/v1/connect`
 with the probe's own lease. Global revocation now requires `hermes bot-web revoke
 --all` or the operator-only HTTP body `{"all":true}`.

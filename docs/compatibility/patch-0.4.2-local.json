@@ -1,0 +1,69 @@
+{
+  "release": "v0.4.2-preview.1",
+  "repository": "enterkey-io/pebble-crew",
+  "fixture_only": true,
+  "package_sha256": "84ab5dc0f4d4462ab7f16556b1f1d62485858a1f9cc446d2bd0d67ffb45c70ad",
+  "typescript_tests": 69,
+  "python_tests_per_supported_runtime": 57,
+  "owner_browser_flow": {
+    "passed": true,
+    "identifies_existing_primary_agent": true,
+    "handle_and_avatar_selection": true,
+    "mobile_layout": true,
+    "photo_preservation": true,
+    "login_and_reconnect": true
+  },
+  "repository_rename": {
+    "old_repo_redirect": true,
+    "old_tagged_setup_link": true,
+    "old_and_new_0_4_1_downloads_identical": true,
+    "old_0_4_1_sha256": "26af8960b86e69980d6d59e88517635da790bbd324c432a5d72f053c9ad8f4f9"
+  },
+  "installed_plugin": {
+    "source_revision": "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a",
+    "fixture_only": true,
+    "deterministic_local_model": true,
+    "package_sha256": "84ab5dc0f4d4462ab7f16556b1f1d62485858a1f9cc446d2bd0d67ffb45c70ad",
+    "synthetic_model_turns": 1,
+    "installation": {
+      "archive_checksum_and_safe_extraction": true,
+      "starts_with_ordinary_agents_and_zero_managed_bots": true,
+      "real_native_plugin_enable": true,
+      "repeat_install_preserves_keys_and_release": true,
+      "interrupted_first_install_reuses_existing_keys": true,
+      "external_supervision_not_claimed_as_complete": true,
+      "installed_service_ready_without_model_turns": true,
+      "public_https_cli_stream_and_heartbeat": true,
+      "installed_code_update_changes_release": true,
+      "update_preserves_login_keys": true,
+      "explicit_rollback_restores_previous_release": true,
+      "rollback_preserves_login_keys": true,
+      "failed_activation_restores_previous_release": true,
+      "failed_activation_preserves_login_keys": true,
+      "outer_manager_restart_exercised": true,
+      "primary_soul_preserved": true,
+      "no_replayed_model_sends_after_recovery": true
+    },
+    "browser": {
+      "public_https_stream_ready_and_heartbeat": true,
+      "setup_link_fragment_removed": true,
+      "no_setup_code_or_connection_form": true,
+      "actual_native_bot_mode_round_trip": true,
+      "secure_httponly_strict_owner_session": true,
+      "owner_crash_recovers_without_pairing_and_keeps_draft": true,
+      "native_crash_recovers_without_pairing_and_keeps_draft": true,
+      "bridge_crash_recovers_without_pairing_and_keeps_draft": true,
+      "manager_crash_recovers_without_pairing_and_keeps_draft": true,
+      "update_preserves_login_and_native_history": true,
+      "rollback_preserves_login": true,
+      "failed_activation_rolls_back_with_login_and_history": true,
+      "unapproved_origin_denied": true,
+      "owner_cookie_is_not_forwarded_as_bridge_auth": true,
+      "browser_uses_one_origin": true,
+      "no_page_errors": true
+    },
+    "passed": true
+  },
+  "remote_owner_installation_exercised": false,
+  "production_certification": false
+}

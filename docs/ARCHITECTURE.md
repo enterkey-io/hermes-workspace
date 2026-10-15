@@ -1,4 +1,4 @@
-# Installable Hermes workspace plugin
+# Pebble Crew architecture
 
 October 15, 2026. The owner installs one combined plugin on their existing Hermes
 host. It serves the web app, owner login and native Bot Mode API through one

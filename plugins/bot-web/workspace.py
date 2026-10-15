@@ -230,9 +230,10 @@ class WorkspaceService:
                 defaults = [r['name'] for r in profiles if r.get('is_default') is True]
                 chosen = defaults[0] if len(defaults) == 1 else None
                 evidence = 'native-default-root'
-            if chosen not in state['bots']:
+            row = next((r for r in profiles if r['name'] == chosen), None)
+            if chosen not in state['bots'] or row is None:
                 return {'outcome': 'needs_operator_binding', 'complete': False}
-            return {'outcome': 'detected', 'complete': True, 'profile': chosen, 'evidence': evidence, 'revision': state['revision'], 'bot': state['bots'][chosen]}
+            return {'outcome': 'detected', 'complete': True, 'profile': chosen, 'evidence': evidence, 'revision': state['revision'], 'bot': {**state['bots'][chosen], **self.ops.summary(row)}}
         if operation == 'requests.list':
             fields(params, [])
             return {'requests': self.store.requests()}

@@ -1,6 +1,18 @@
 # Publish a preview release
 
-Maintainers publish source and packages in `enterkey-io/hermes-workspace`. Normal users install from explicit tags; they do not need to fork.
+Pebble Crew uses `enterkey-io/pebble-crew` and the project domain `pebblecrew.com`.
+The repository was previously `enterkey-io/hermes-workspace`. Keep that old name
+unused so GitHub's redirects remain available. Published tags, assets and
+checksums are unchanged; older manifests can legitimately name the old repo.
+
+Installed technical identifiers remain stable: plugin/CLI `bot-web`, existing
+state directories, service IDs, trust URL and `workspace-*.zip` asset filenames.
+They are compatibility contracts, not product branding. Rename them only through
+an explicit tested migration, never as part of a cosmetic update. Repository
+branding does not move an owner's app to the project domain or create a vendor
+runtime dependency.
+
+Maintainers publish source and packages in `enterkey-io/pebble-crew`. Normal users install from explicit tags; they do not need to fork.
 
 1. Update `release.json`, root package version/lockfile and guide download references together. Change plugin metadata/handshake version only when that component changes; `bridge_version` records the required component version separately from the web release. State which components need updating. Keep the release channel honest; a preview is not full public-production certification.
 2. Run Node checks, Python boundary tests, separate-origin browser/native tests and downloaded-package installation against disposable Hermes. Preserve compatibility evidence and unresolved gates.

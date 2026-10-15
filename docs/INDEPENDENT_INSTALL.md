@@ -1,8 +1,8 @@
-# Install the owner's private Hermes workspace
+# Independent Pebble Crew installation
 
 This is for the owner's installation agent. **The web app and Hermes are independent installations and may live on different hosts/networks.** Olares, if present, is only a host running Hermes. Never package or deploy an Olares application for this project.
 
-The product name is undecided. `workspace-owner-preview.zip` is the web application with its owner-login service; `workspace-plugin-preview.zip` is its Hermes integration. The plain static web package is a technical preview, not the finished installed-owner deployment.
+Pebble Crew’s project domain is `pebblecrew.com`. `workspace-owner-preview.zip` is the web application with its owner-login service; `workspace-plugin-preview.zip` is its Hermes integration. The plain static web package is a technical preview, not the finished installed-owner deployment.
 
 ## Outcome to deliver
 
@@ -29,11 +29,11 @@ Before mutations, record versions, existing deployment/supervision, routes, file
 
 The candidate installed-owner release is `v0.3.0-preview.1`. Use its published artifacts only after that release exists; if absent, report that the candidate has not been published rather than substitute executable code from main.
 
-- [Manifest](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-manifest.json)
-- [SHA256SUMS](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/SHA256SUMS)
-- [Owner web application](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-owner-preview.zip)
-- [Hermes integration](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-plugin-preview.zip)
-- [Full source](https://github.com/enterkey-io/hermes-workspace/releases/download/v0.3.0-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.3.0-preview.1/workspace-manifest.json)
+- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.3.0-preview.1/SHA256SUMS)
+- [Owner web application](https://github.com/enterkey-io/pebble-crew/releases/download/v0.3.0-preview.1/workspace-owner-preview.zip)
+- [Hermes integration](https://github.com/enterkey-io/pebble-crew/releases/download/v0.3.0-preview.1/workspace-plugin-preview.zip)
+- [Full source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.3.0-preview.1/workspace-source-preview.zip)
 
 Verify each downloaded archive against both manifest and checksum file. Before extracting, reject absolute paths, traversal, symlinks and entries escaping the destination. Use private staging directories. Keep app authentication state and Hermes stores outside staging/code directories.
 

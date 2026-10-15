@@ -33,7 +33,7 @@ class HostInstallTests(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('disposable payload')
             files[name] = hashlib.sha256(path.read_bytes()).hexdigest()
-        manifest = {'schema': 1, 'version': '0.4.1', 'files': files}
+        manifest = {'schema': 1, 'version': '0.4.2', 'files': files}
         (self.root / 'payload.json').write_text(json.dumps(manifest))
         return manifest
 

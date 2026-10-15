@@ -4,7 +4,7 @@
 > verification status, see [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 > Historical preview limitations below describe the planning baseline.
 
-15 October 2026. **Product specification and source research only. No functionality described as proposed here has been implemented or deployed.** Baseline: public `enterkey-io/hermes-workspace` main `17dd18b`, web `0.2.4-preview.2`, plugin `0.2.4`. This document supersedes the first-agent picker in OWNER_INSTANCE_PLAN.md, TEAMS_AND_ORCHESTRATOR_PLAN.md, and the opening amendments of WEB_APP_PLAN.md / IMPLEMENTATION_PLAN.md. Their preservation, native Bot Mode, approval and privacy requirements still apply. Execution details: [implementation plan](ONBOARDING_AND_CONNECTIONS_IMPLEMENTATION_PLAN.md).
+15 October 2026. **Product specification and source research only. No functionality described as proposed here has been implemented or deployed.** Baseline: public `enterkey-io/pebble-crew` main `17dd18b`, web `0.2.4-preview.2`, plugin `0.2.4`. This document supersedes the first-agent picker in OWNER_INSTANCE_PLAN.md, TEAMS_AND_ORCHESTRATOR_PLAN.md, and the opening amendments of WEB_APP_PLAN.md / IMPLEMENTATION_PLAN.md. Their preservation, native Bot Mode, approval and privacy requirements still apply. Execution details: [implementation plan](ONBOARDING_AND_CONNECTIONS_IMPLEMENTATION_PLAN.md).
 
 ## Product decisions
 

@@ -35,6 +35,7 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
       // Reproduce native profiles advertising an existing stock avatar.
       const response = await route.fetch();
       const body = await response.json();
+      body.result.bot.name = 'Aurora';
       body.result.bot.appearance = { kind: 'photo', shape: 'pebble', color: 'citron' };
       await route.fulfill({ response, json: body });
       return;
@@ -48,9 +49,12 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await page.getByLabel('Password', { exact: true }).fill('synthetic-owner-password-123');
   await page.getByLabel('Confirm password').fill('synthetic-owner-password-123');
   await page.getByRole('button', { name: 'Create login', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Set up your agent' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Customize Aurora' })).toBeVisible({
     timeout: 30000,
   });
+  await expect(
+    page.getByText('Your existing primary Hermes agent.', { exact: true }),
+  ).toBeVisible();
   const picker = page.locator('.appearance-picker');
   await expect(picker.getByRole('button', { name: 'Animated', exact: true })).toHaveAttribute(
     'aria-pressed',

@@ -205,7 +205,9 @@ try {
   await page.getByLabel('Password', { exact: true }).fill('synthetic-plugin-password-123');
   await page.getByLabel('Confirm password').fill('synthetic-plugin-password-123');
   await page.getByRole('button', { name: 'Create login', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Set up your agent' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Customize .+|Your existing Hermes agent/ }),
+  ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Animated', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',

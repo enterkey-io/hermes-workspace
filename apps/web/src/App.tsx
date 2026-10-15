@@ -728,7 +728,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   return (
     <main className="workspace">
       <aside className={`sidebar ${nav ? 'visible' : ''}`}>
-        <div className="sidebar-title">Agents</div>
+        <div className="sidebar-title">Pebble Crew</div>
         <button
           onClick={() => {
             setPickingAgents(true);

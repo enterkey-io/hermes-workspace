@@ -1,12 +1,15 @@
 # Installed-owner implementation status
 
-This file tracks the 0.4.1 combined-plugin patch and the earlier published
+This file tracks the 0.4.2 combined-plugin patch and the earlier published
 0.3.0 owner-login preview. It is not production certification or a claim that an
 owner's remote Hermes has been upgraded. The default distribution is now one
 installable plugin; independent app hosting remains optional.
 
 Implemented and exercised locally:
 
+- Pebble Crew branding and maintained repository references. Primary-agent
+  detection returns the existing native display name, and onboarding explicitly
+  identifies the existing Hermes agent whose handle and avatar are being edited.
 - Concise owner login and primary-agent setup with no provisional product
   branding. Animated iris avatar by default, shape thumbnails and circular
   color swatches, selected-preview matching, and an empty photo-upload state.

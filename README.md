@@ -1,11 +1,11 @@
-# Web app plugin for Hermes
+# Pebble Crew
 
 A self-hosted interface to **actual Hermes Bot Mode**, distributed as one
 installable plugin. It includes the web app, local administrator login and native
 integration, served through one owner-controlled address. All state stays on the
 owner's infrastructure; no vendor account, content store or relay is required.
 
-The combined-plugin candidate is **0.4.1-preview.1** (integration 0.4.1). This is a
+The combined-plugin candidate is **0.4.2-preview.1** (integration 0.4.2). This is a
 development preview, not production certification. A version in source does not
 mean its release is published or an owner's host was upgraded. See
 [implementation status](docs/IMPLEMENTATION_STATUS.md).
@@ -90,6 +90,6 @@ remaining plan exit gates are evidenced. Supported source surfaces are pinned;
 package version labels alone cannot authorize an untested adapter. No core Hermes
 handler is patched or replaced.
 
-Source: [enterkey-io/hermes-workspace](https://github.com/enterkey-io/hermes-workspace).
+Source: [enterkey-io/pebble-crew](https://github.com/enterkey-io/pebble-crew).
 Native Mac/Windows/iOS clients are later applications using the same owner-side
-contracts; their frameworks have not been selected. Product name remains undecided.
+contracts; their frameworks have not been selected. Project website: [pebblecrew.com](https://pebblecrew.com).

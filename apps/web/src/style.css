@@ -1213,6 +1213,11 @@ a:focus-visible {
   max-width: 640px;
   line-height: 1.7;
 }
+.setup-intro > p {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #a8abba;
+}
 .workspace-setup form,
 .settings-panel form {
   display: grid;

@@ -246,3 +246,23 @@ activation recovery. Both final runs verify the same combined archive digest.
 Evidence: docs/compatibility/patch-0.4.1-local.json. The owner's installed service
 and existing Mac/tailnet services were not changed; the patch needs installation
 on the owner's Hermes host.
+
+## Pebble Crew naming and primary-agent clarification
+
+The owner chose Pebble Crew and pebblecrew.com. The existing GitHub repository
+was renamed to enterkey-io/pebble-crew; history and published assets were retained.
+The old repository and tagged setup links still work, and the old/new 0.4.1
+plugin downloads match the exact published SHA-256. Maintained docs, package
+metadata, browser titles and the app sidebar now use the confirmed brand.
+Installed technical IDs, state, services and trust paths remain stable.
+
+Onboarding identifies the existing primary Hermes agent by its native display
+name before the owner customizes its handle and avatar. It has an explicit
+existing-agent fallback when the profile has no useful display name. This does
+not create, clone or rename a native profile.
+
+0.4.2 validation: full staged checks and build, 69 TypeScript tests, 57 Python
+tests in each supported runtime, native owner-browser onboarding/account/avatar/
+mobile flow and 33 installed-package checks on af0cd4df, including native chat,
+crash recovery, update/rollback and failed activation recovery. Evidence is
+docs/compatibility/patch-0.4.2-local.json. No owner's running Hermes was upgraded.
