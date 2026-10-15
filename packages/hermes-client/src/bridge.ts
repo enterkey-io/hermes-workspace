@@ -17,6 +17,11 @@ export class BotBridgeClient {
   readonly #active = new Set<AbortController>();
   #token: string;
   #connection = '';
+  #existingAgents = false;
+
+  get supportsExistingAgents(): boolean {
+    return this.#existingAgents;
+  }
 
   constructor(endpoint: Endpoint, token: string, fetcher = fetch) {
     if (!/^[A-Za-z0-9_-]{43,128}$/.test(token)) throw new ClientError('INVALID_CREDENTIAL');
@@ -34,7 +39,10 @@ export class BotBridgeClient {
       !/^[A-Za-z0-9_-]{43}$/.test(data.connection)
     )
       throw new ClientError('UNSUPPORTED');
+    const existingAgents =
+      !!data.capabilities && record(data.capabilities).existing_agents === true;
     this.#connection = data.connection;
+    this.#existingAgents = existingAgents;
   }
 
   async invoke(operation: string, params: Readonly<Record<string, unknown>>): Promise<unknown> {
@@ -160,6 +168,7 @@ export class BotBridgeClient {
     this.#lifetime.close();
     this.#token = '';
     this.#connection = '';
+    this.#existingAgents = false;
     for (const controller of this.#active) controller.abort();
     this.#active.clear();
   }

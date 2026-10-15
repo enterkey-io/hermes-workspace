@@ -13,6 +13,7 @@ const installation = JSON.parse(
 const installationGates = [
   'single-installation-agent',
   'fresh-native-bot-setup',
+  'existing-agent-selection-and-identity',
   'idempotent-existing-install',
   'independent-hosts-trusted-tls',
   'owner-first-use-without-server-configuration',

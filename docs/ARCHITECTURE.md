@@ -30,6 +30,12 @@ The shared app asks for the Hermes address on a separate connection screen. It n
 
 CORS is an additional browser boundary, not authentication. A non-browser program can spoof Origin; the scoped bearer credential and explicit local approval remain necessary. Unapproved origins fail preflight and pairing; a known code does not replace verifier proof. Limits bound pending requests, grants, bodies, connections and streams. Mutation results are never retried automatically after an uncertain outcome.
 
+## Existing agents and identity
+
+The integration exposes read-only `agents.list` for all native profiles and a narrow `agent.enable` operation for an owner-selected existing profile. Registration adds only an absent native managed-bot metadata namespace with compare-and-swap and initializes/reuses its canonical Bot Chat. It never invokes `profiles.create`, copies SOUL, changes model/provider configuration or clones channel credentials. The owner chooses profiles in the app; zero managed bots must not trigger creation of a placeholder.
+
+Hermes resumes the same profile's session and loads that profile's own SOUL, memory and skills. Existing native Bot Chats keep their identity/history; other channel/CLI sessions remain distinct. A read-only stored-title guard prevents a missing/retired canonical lookup from becoming an accidental replacement. Errors fail closed, local enrollment is serialized, and another native writer's canonical winner is adopted instead of forcing a rename. Discovery returns only names/descriptions/status, not paths, credentials or SOUL contents. New capability negotiation leaves older integrations' existing chat usable while explaining that selection requires an update.
+
 ## Network and hosting requirements
 
 The web host needs only static HTTPS hosting with the supplied security headers. It needs no Hermes credentials, backend, function, database or private-network route. `npm run package` creates separate web/plugin/source archives plus `artifacts/site`, a complete static deployment directory with agent-download assets. The standalone Node static server works from an extracted web package without the source tree or installed npm dependencies.

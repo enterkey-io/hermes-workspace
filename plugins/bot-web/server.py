@@ -159,7 +159,8 @@ def create_app(token, origins, hosts, gateway=None):
         clients[connection] = {"touched": time.monotonic(), "streaming": False,
                                "inflight": 0, "sessions": set(), "principal": request.scope["bot.principal"]}
         build = getattr(native, "build", None) or {}
-        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": "0.2.3",
+        return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": "0.2.4",
+                "capabilities": {"existing_agents": True},
                 "hermes_version": build.get("version"), "hermes_revision": build.get("revision")}
 
     @app.delete("/v1/connect")

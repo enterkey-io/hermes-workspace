@@ -8,7 +8,7 @@ This is a release requirement, not a description of the current preview. The pre
 
 - Discover the real Hermes home/profile, native compatibility, dependencies, existing listeners/routes and available supervisor before changing anything. Detect unsupported configurations early and explain the specific limitation within the same setup session.
 - Deploy the static web app to the owner's chosen host, independently of Hermes, or reuse their existing app deployment. Install a versioned, verified integration only where required. Preserve existing configuration and unrelated services.
-- Reuse native managed bots and canonical chats; when the owner's setup request authorizes it, create one starter bot and initialize its real Bot Chat using their existing model settings. Setup itself must not spend model tokens, send prompts or run tools through the bot.
+- Discover all existing profiles and let the owner choose which agents appear, through the app or an explicit choice during installation. Enable Bot Mode on those same profiles and reuse/initialize their canonical chats. Preserve their SOUL, memory, skills and settings. Zero managed bots never justifies inventing a placeholder; new-agent creation requires a separate explicit choice. Setup itself must not spend model tokens, send prompts or run tools through the bot.
 - Configure the exact app origin, trusted HTTPS bridge and an appropriate owner-controlled route. Resolve port collisions and service errors locally. The owner should not need to select ports, copy private configuration, understand CORS, configure SSH or find an API key.
 - Verify authentication, denial cases, actual roster, canonical readiness and at least 50 seconds of event frames. Close only its own diagnostic connections. Preserve other devices' grants and avoid spending model turns during install verification.
 - Configure and verify recovery after process failure and the relevant supported host/container restarts. A background process is insufficient for a permanent installation. Install repeated runs and updates safely, preserving canonical state and avoiding duplicate bots, sessions, bridges or tunnels.
@@ -26,7 +26,7 @@ If installation cannot complete within supported conditions, the same agent must
 
 ## Required acceptance evidence
 
-Release acceptance must exercise the installed artifacts and agent procedure from a clean supported Hermes environment with **zero managed bots**, not only seeded fixtures or a preconfigured developer machine. Use synthetic state and a deterministic local model for any chat acceptance; never require personal credentials/content or real model spend.
+Release acceptance must exercise the installed artifacts and agent procedure from a clean supported Hermes environment with **existing ordinary agent profiles but zero managed bots**, not only seeded fixtures or a preconfigured developer machine. Use synthetic state and a deterministic local model for any chat acceptance; never require personal credentials/content or real model spend.
 
 Required gates are tracked in `docs/compatibility/installation-evidence.json`:
 

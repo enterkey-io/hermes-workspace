@@ -122,6 +122,10 @@ def seed(home, port):
         db.set_session_title(f"canonical-{name}", "Bot Chat")
         db.set_session_hidden(f"canonical-{name}", True)
         db.close()
+    # An existing configured persona that has never been registered in Bot Mode.
+    path = create_profile("gamma", no_alias=True, no_skills=True)
+    (path / "config.yaml").write_text(config)
+    (path / "SOUL.md").write_text("You are the synthetic existing Gamma researcher.\n")
 
 
 async def exercise(root, home, port, *, seed_only=False):

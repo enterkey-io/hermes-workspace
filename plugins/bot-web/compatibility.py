@@ -13,6 +13,7 @@ SUPPORTED_BUILDS = [
         "server_requests": False,
         "files": {
             "methods_session.py": "c4c0b3355be3ecc7f7fdf8ebcbd46fb3f360f9dded5ca9908f96ed0ce7e561d0",
+            "methods_profiles.py": "3846fdf832e3abab7fb3d9b1eafba629da2fd96ff39f9471964490df1697dca4",
             "methods_groups.py": "f72b3b1768834e276377ed68e2b7efab3d75693da45c22ac06c8be920c19e94c",
             "methods_prompt.py": "01da1128c98ed1f36928a242e447fb42f40a2d0c385a98c1f4c7f6cc756d4b8a",
             "entry.py": "f46a94f266c1999dc03a3c17c48a25f34f21403c1b1e57b996855c44e0de3e04",
@@ -25,6 +26,7 @@ SUPPORTED_BUILDS = [
         "server_requests": True,
         "files": {
             "methods_session.py": "c1276744175bc4b7ba9e5b400d0334d551e1b5c526b2e1bd71a2786e0a39b669",
+            "methods_profiles.py": "a60c17e15ed84d3aa7c7523fab226b793f0b573888feba3476350ae926be0991",
             "methods_groups.py": "902f79272a8cb391de9f25a2c2acd0d5dbbeaf31654f55e410d36536d77cfce2",
             "methods_prompt.py": "7307dba5aa1df597c99c551b4f344d0e292141e0e6c45f3c3fa2daddb0dbeee9",
             "entry.py": "2d49339eb0b53b9f24243e886c56722ee055335aeae1d19dfc0896cf7b5223bf",

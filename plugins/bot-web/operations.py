@@ -27,12 +27,73 @@ class BotOperations:
         self.sessions = {}
         self.open_lock = asyncio.Lock()
 
-    async def roster(self):
+    async def profiles(self):
         result = await self.gateway.call("profiles.list", {"include_sessions": True})
         if result.get("bot_mode_protocol") is not True:
             raise NativeError("Native Bot Mode protocol unavailable")
-        return [row for row in result["profiles"]
+        return result["profiles"]
+
+    async def roster(self):
+        return [row for row in await self.profiles()
                 if isinstance(row.get("ui_meta", {}).get("hermes-bots"), dict)]
+
+    @staticmethod
+    def summary(row):
+        meta = row.get("ui_meta", {}).get("hermes-bots")
+        managed = isinstance(meta, dict)
+        meta = meta if managed else {}
+        return {"profile": row["name"],
+                "name": (meta or {}).get("title") or row.get("display_name") or row["name"],
+                "description": (meta or {}).get("description") or row.get("description") or "",
+                "managed": managed,
+                "canonical": bool((row.get("canonical_session") or {}).get("id"))}
+
+    async def enable_existing(self, profile):
+        identifier(profile)
+        async with self.open_lock:
+            row = next((p for p in await self.profiles() if p["name"] == profile), None)
+            if row is None:
+                raise InvalidOperation("Existing Hermes profile unavailable")
+            lookup = {"profile": profile, "title": "Bot Chat", "include_hidden": True, "limit": 100}
+            found = await self.gateway.call("session.list", lookup)
+            matches = [s for s in found["sessions"] if (s.get("root_title") or s.get("title")) == "Bot Chat"]
+            canonical = row.get("canonical_session") or {}
+            if not matches and (canonical.get("id") or await self.gateway.has_stored_bot_chat(profile)):
+                raise InvalidOperation("Existing or retired Bot Chat needs confirmation in Hermes")
+
+            # Only add an absent namespace with native compare-and-swap. Never copy a
+            # profile or rewrite SOUL, model settings, skills, memory or channel tokens.
+            if not isinstance(row.get("ui_meta", {}).get("hermes-bots"), dict):
+                revision = row.get("ui_meta_revisions", {}).get("hermes-bots", 0)
+                if type(revision) is not int or revision < 0:
+                    raise NativeError("Invalid profile metadata revision")
+                result = await self.gateway.call("profiles.configure", {"name": profile,
+                    "ui_meta": {"hermes-bots": {"title": row.get("display_name") or profile}},
+                    "ui_meta_expected_revisions": {"hermes-bots": revision}})
+                if result.get("applied", {}).get("ui_meta") is not True:
+                    raise InvalidOperation("Profile metadata changed; refresh before trying again")
+
+            if not matches:
+                # Recheck after marking: another native client may have initialized it.
+                found = await self.gateway.call("session.list", lookup)
+                matches = found["sessions"]
+                if not matches:
+                    if await self.gateway.has_stored_bot_chat(profile):
+                        raise InvalidOperation("Existing Bot Chat needs confirmation in Hermes")
+                    created = await self.gateway.call("session.create", {"profile": profile,
+                        "title": "Bot Chat", "hidden": True, "follow_profile_config": True})
+                    try:
+                        await self.gateway.call("session.title", {"session_id": identifier(created["session_id"]),
+                            "title": "Bot Chat"})
+                    except NativeError:
+                        # An external native writer can win the canonical title race.
+                        # Adopt that winner; never submit a prompt or force a rename.
+                        if not (await self.gateway.call("session.list", lookup))["sessions"]:
+                            raise
+            bot = await self.bot(profile)
+            if not (bot.get("canonical_session") or {}).get("id"):
+                raise NativeError("Native canonical chat not confirmed")
+            return self.summary(bot)
 
     async def bot(self, profile):
         identifier(profile)
@@ -42,13 +103,17 @@ class BotOperations:
         raise InvalidOperation("Managed bot unavailable")
 
     async def invoke(self, operation, params):
+        if operation == "agents.list":
+            fields(params, [])
+            return {"agents": [self.summary(row) for row in await self.profiles()]}
+        if operation == "agent.enable":
+            fields(params, ["profile", "initialize_chat"])
+            if params["initialize_chat"] is not True:
+                raise InvalidOperation("Explicit native chat initialization required")
+            return await self.enable_existing(params["profile"])
         if operation == "bots.list":
             fields(params, [])
-            return {"bots": [{"profile": b["name"],
-                "name": b["ui_meta"]["hermes-bots"].get("title") or b.get("display_name") or b["name"],
-                "description": b["ui_meta"]["hermes-bots"].get("description") or b.get("description") or "",
-                "canonical": b.get("canonical_session") is not None}
-                for b in await self.roster()]}
+            return {"bots": [self.summary(b) for b in await self.roster()]}
         if operation == "bot.open":
             fields(params, ["profile"])
             async with self.open_lock:

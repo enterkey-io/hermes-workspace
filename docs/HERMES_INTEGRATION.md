@@ -14,6 +14,8 @@ It does **not** register a new `BasePlatformAdapter` or show up as a messaging c
 
 The native fixtures test real canonical continuity, teammate injection/delivery, room-driver output and controls, not a browser-run agent simulator. Browser tests now exercise the API from an independently hosted origin. This is a working preview contract, not evidence that every Hermes messaging-channel feature is implemented.
 
+Existing ordinary profiles can now be discovered through `agents.list` and selected in the web app. `agent.enable` registers those same existing profiles and initializes/reuses their native Bot Chats; it does not create another agent or transfer SOUL. Bot Mode identity stays with the selected profile's existing SOUL, memory, skills and settings. The Desktop managed marker is a discovery/registration detail, not evidence that an unmarked profile lacks an agent identity. New-profile creation is a separate operation and is not exposed by this enrollment API.
+
 ## Channel follow-up plan
 
 A properly registered channel is useful for future proactive delivery, host-driven `hermes send`/cron targeting, channel-specific configuration/status and device delivery policies. Before adding it:

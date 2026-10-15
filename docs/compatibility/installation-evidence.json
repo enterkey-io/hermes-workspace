@@ -12,14 +12,16 @@
     "reopen-and-reconnect-without-agent": "unverified",
     "restart-recovery": "unverified",
     "installed-update-and-rollback": "unverified",
-    "privacy-and-probe-isolation": "unverified"
+    "privacy-and-probe-isolation": "unverified",
+    "existing-agent-selection-and-identity": "unverified"
   },
   "partialEvidence": [
     "Native first-bot creation and canonical initialization/reuse pass in isolated homes on both supported source revisions",
     "Separate-origin native browser tests pass with a test certificate exception",
     "Downloaded-package CLI installation passes in a disposable seeded home with zero model turns",
     "Heartbeat and per-probe cleanup regression tests pass",
-    "Owner agent reports plugin 0.2.3 serving, one initialized native bot, healthy loopback/HTTPS heartbeats and isolated probe cleanup; owner browser and permanent supervision remain pending (owner-repair-report.json)"
+    "Owner agent reports plugin 0.2.3 serving, one initialized native bot, healthy loopback/HTTPS heartbeats and isolated probe cleanup; owner browser and permanent supervision remain pending (owner-repair-report.json)",
+    "Existing-profile enrollment preserves identity/settings and uses the selected SOUL in a synthetic native turn on both supported builds; browser selection passes. Complete owner-launch evidence remains unverified."
   ],
   "remaining": [
     "A complete clean-install acceptance run driven by one installation agent",

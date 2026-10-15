@@ -165,8 +165,8 @@ test('empty native roster explains setup and refreshes after the agent initializ
     else await route.continue();
   });
   await pair(page);
-  await expect(page.getByRole('heading', { name: 'Set up your first bot.' })).toBeVisible();
-  await expect(page.getByText(/Initialize its native Bot Chat/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose your Hermes agents.' })).toBeVisible();
+  await expect(page.getByText(/Your existing agents keep their SOUL/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send message' })).toBeDisabled();
   await page.screenshot({ path: 'artifacts/empty-roster-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -177,7 +177,7 @@ test('empty native roster explains setup and refreshes after the agent initializ
   // Stay idle beyond the client's 35-second deadline: native background events must
   // not prevent bridge heartbeats even while no bot session belongs to this browser.
   await page.waitForTimeout(40_000);
-  await expect(page.getByRole('heading', { name: 'Set up your first bot.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose your Hermes agents.' })).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 1000 });
   initialized = true;
@@ -205,8 +205,9 @@ test('uninitialized Bot Chats cannot be opened as if they were ready', async ({ 
     }
   });
   await pair(page);
-  await expect(page.getByRole('heading', { name: 'Your bots need a Bot Chat.' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Alpha Bot Chat needs setup' })).toBeDisabled();
+  await expect(page.getByRole('heading', { name: 'Choose your Hermes agents.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Alpha Set up Bot Chat' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose who appears here.' })).toBeVisible();
   expect(opens).toBe(0);
   await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
 });
@@ -219,7 +220,54 @@ test('a failed roster request never becomes an empty connected workspace', async
   await pair(page, false);
   await expect(page.getByRole('alert')).toContainText('request failed');
   await expect(page.getByRole('navigation', { name: 'Bots' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Set up your first bot.' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Choose your Hermes agents.' })).toHaveCount(0);
+});
+
+test('existing unregistered agents can be selected in the app without a new profile or persona', async ({
+  page,
+}) => {
+  await pair(page);
+  await page.getByRole('button', { name: 'Add existing agents', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose who appears here.' })).toBeVisible();
+  await expect(page.getByText(/Each keeps its own SOUL/)).toBeVisible();
+  await page.getByRole('checkbox', { name: /gamma/i }).check();
+  await page.screenshot({ path: 'artifacts/existing-agents-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: 'artifacts/existing-agents-mobile.png' });
+  await page.getByRole('button', { name: 'Add selected agents (1)', exact: true }).click();
+  await page.getByRole('button', { name: 'Toggle navigation' }).click();
+  await page
+    .getByRole('navigation', { name: 'Bots' })
+    .getByRole('button', { name: /gamma/i })
+    .click();
+  await expect(page.getByRole('heading', { name: /gamma/i })).toBeVisible();
+  await page.getByLabel('Message', { exact: true }).fill('Existing agent browser turn');
+  await page.getByRole('button', { name: 'Send message' }).click();
+  await expect(page.getByRole('log')).toContainText('Native fixture reply', { timeout: 45_000 });
+  await page.getByRole('button', { name: 'Toggle navigation' }).click();
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
+});
+
+test('an old integration keeps its bots usable and clearly explains enrollment support', async ({
+  page,
+}) => {
+  await page.route('**/v1/connect', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const response = await route.fetch();
+    const data = await response.json();
+    delete data.capabilities;
+    await route.fulfill({ response, json: data });
+  });
+  await pair(page);
+  await page.getByRole('button', { name: 'Add existing agents', exact: true }).click();
+  await expect(page.getByText(/Your integration needs an update/)).toBeVisible();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Alpha Bot Chat' }).click();
+  await expect(page.getByRole('heading', { name: 'Alpha', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
 });
 
 test('accepted send with lost acknowledgment cannot be blindly retried', async ({ page }) => {

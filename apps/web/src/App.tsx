@@ -3,6 +3,7 @@ import { normalizeEndpoint, safeError } from '@hermes-client/core';
 import { BotBridgeClient } from '@hermes-client/protocol';
 import type { BridgeEvent } from '@hermes-client/protocol';
 import { FirstRun } from './FirstRun';
+import { AgentPicker } from './AgentPicker';
 
 type Row = Record<string, unknown>;
 type Bot = { profile: string; name: string; description: string; canonical: boolean };
@@ -47,6 +48,7 @@ export function App() {
   const [streamState, setStreamState] = useState<'opening' | 'live' | 'lost'>('opening');
   const [error, setError] = useState('');
   const [nav, setNav] = useState(false);
+  const [pickingAgents, setPickingAgents] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
 
   function fail(error: unknown) {
@@ -71,6 +73,7 @@ export function App() {
     setBlocked(false);
     setStreamState('opening');
     setError('');
+    setPickingAgents(false);
   }
   useEffect(() => () => current.current?.disconnect(), []);
   useEffect(() => {
@@ -208,6 +211,7 @@ export function App() {
     setError('');
     setBusy(true);
     setNav(false);
+    setPickingAgents(false);
     try {
       const data = object(await client.invoke('bot.open', { profile: bot.profile }));
       if (generation !== selectGeneration.current || current.current !== client) return;
@@ -246,6 +250,7 @@ export function App() {
   }
 
   function openRoom(room: Row) {
+    setPickingAgents(false);
     selectGeneration.current++;
     const target: Selection = { kind: 'room', room };
     selected.current = target;
@@ -473,6 +478,15 @@ export function App() {
     <main className="workspace">
       <aside className={`sidebar ${nav ? 'visible' : ''}`}>
         <div className="wordmark">Workspace</div>
+        <button
+          onClick={() => {
+            setPickingAgents(true);
+            setNav(false);
+          }}
+          disabled={busy || streamState !== 'live'}
+        >
+          Add existing agents
+        </button>
         <p className="section-label">
           YOUR BOTS <span>{bots.length}</span>
         </p>
@@ -485,25 +499,27 @@ export function App() {
                   ? 'selected bot'
                   : 'bot'
               }
-              onClick={() => void open(bot)}
-              disabled={busy || streamState !== 'live' || !bot.canonical}
+              onClick={() => {
+                if (bot.canonical) void open(bot);
+                else {
+                  setPickingAgents(true);
+                  setNav(false);
+                }
+              }}
+              disabled={busy || streamState !== 'live'}
             >
               <span className="avatar" aria-hidden>
                 {bot.name.slice(0, 1).toUpperCase()}
               </span>
               <span>
                 <strong>{bot.name}</strong>
-                <small>
-                  {!bot.canonical ? 'Bot Chat needs setup' : bot.description || 'Bot Chat'}
-                </small>
+                <small>{!bot.canonical ? 'Set up Bot Chat' : bot.description || 'Bot Chat'}</small>
               </span>
             </button>
           ))}
         </nav>
         {!bots.length && (
-          <p className="empty-note">
-            Hermes returned no managed bots. Ask your agent to finish Bot Mode setup.
-          </p>
+          <p className="empty-note">Choose Add existing agents to bring your Hermes agents here.</p>
         )}
         <button disabled={busy || streamState !== 'live'} onClick={() => void reloadRoster()}>
           Refresh bots
@@ -576,68 +592,72 @@ export function App() {
           </div>
         )}
         <div className="transcript" role="log" aria-live="polite">
-          {!selection && (
-            <div className="welcome">
-              <p className="eyebrow">
-                {streamState === 'live'
-                  ? 'CONNECTED TO YOUR HERMES'
-                  : streamState === 'lost'
-                    ? 'CONNECTION NEEDS ATTENTION'
-                    : 'STARTING LIVE UPDATES'}
-              </p>
-              {streamState !== 'live' ? (
-                <>
-                  <h2>
-                    {streamState === 'lost' ? 'Live updates are disconnected.' : 'Connecting…'}
-                  </h2>
-                  <p>
-                    {streamState === 'lost'
-                      ? 'Pairing and the initial lists worked. The live connection needs to work before you can chat.'
-                      : 'Browser access is approved. Waiting for the live connection before you can chat.'}
-                  </p>
-                </>
-              ) : !rooms.length && !bots.some((bot) => bot.canonical) ? (
-                <>
-                  <h2>{bots.length ? 'Your bots need a Bot Chat.' : 'Set up your first bot.'}</h2>
-                  <p>
-                    {bots.length
-                      ? 'Hermes returned your bots, but their native Bot Chats are not initialized.'
-                      : 'The connection works. Hermes returned no bots managed by Bot Mode; ordinary agent profiles may still exist.'}
-                  </p>
-                  <p>
-                    Send your Hermes agent: “Finish native Bot Mode setup for this web app. Check
-                    the Hermes home used by the bridge. Reuse my managed bots, or create one starter
-                    bot if none exist, using my existing model settings. Initialize its native Bot
-                    Chat without sending a model prompt, preserve existing chats, and verify it
-                    appears in the bridge roster.”
-                  </p>
-                  <p>When your agent finishes, select Refresh bots.</p>
-                  <a href="/install">Agent setup instructions</a>
-                </>
-              ) : (
-                <>
-                  <h2>Who’s up next?</h2>
-                  <p>
-                    Choose a bot for its ongoing conversation,
-                    <br />
-                    or open a room to work together.
-                  </p>
-                </>
-              )}
-            </div>
+          {pickingAgents ? (
+            <AgentPicker
+              client={client}
+              connected={streamState === 'live'}
+              onClose={() => setPickingAgents(false)}
+              onDone={async () => {
+                await loadRoster(client);
+                if (current.current === client) setPickingAgents(false);
+              }}
+            />
+          ) : (
+            !selection && (
+              <div className="welcome">
+                <p className="eyebrow">
+                  {streamState === 'live'
+                    ? 'CONNECTED TO YOUR HERMES'
+                    : streamState === 'lost'
+                      ? 'CONNECTION NEEDS ATTENTION'
+                      : 'STARTING LIVE UPDATES'}
+                </p>
+                {streamState !== 'live' ? (
+                  <>
+                    <h2>
+                      {streamState === 'lost' ? 'Live updates are disconnected.' : 'Connecting…'}
+                    </h2>
+                    <p>
+                      {streamState === 'lost'
+                        ? 'Pairing and the initial lists worked. The live connection needs to work before you can chat.'
+                        : 'Browser access is approved. Waiting for the live connection before you can chat.'}
+                    </p>
+                  </>
+                ) : !rooms.length && !bots.some((bot) => bot.canonical) ? (
+                  <>
+                    <h2>Choose your Hermes agents.</h2>
+                    <p>
+                      Your existing agents keep their SOUL, memory and skills. Choose which ones you
+                      want to use here.
+                    </p>
+                    <button onClick={() => setPickingAgents(true)}>Add existing agents</button>
+                  </>
+                ) : (
+                  <>
+                    <h2>Who’s up next?</h2>
+                    <p>
+                      Choose a bot for its ongoing conversation,
+                      <br />
+                      or open a room to work together.
+                    </p>
+                  </>
+                )}
+              </div>
+            )
           )}
-          {selection && !messages.length && !stream && (
+          {!pickingAgents && selection && !messages.length && !stream && (
             <p className="empty-chat">Your conversation is ready.</p>
           )}
-          {messages.map((message, i) => (
-            <article key={i} className={`message ${message.role}`}>
-              <small>
-                {message.role === 'user' ? 'You' : message.role === 'tool' ? 'Tool' : title}
-              </small>
-              <p>{message.text}</p>
-            </article>
-          ))}
-          {stream && (
+          {!pickingAgents &&
+            messages.map((message, i) => (
+              <article key={i} className={`message ${message.role}`}>
+                <small>
+                  {message.role === 'user' ? 'You' : message.role === 'tool' ? 'Tool' : title}
+                </small>
+                <p>{message.text}</p>
+              </article>
+            ))}
+          {!pickingAgents && stream && (
             <article className="message assistant">
               <small>{title}</small>
               <p>
@@ -650,49 +670,59 @@ export function App() {
           )}
           <div ref={bottom} />
         </div>
-        <details className="compact-details" open={approvals.length > 0 ? true : undefined}>
-          <summary>Activity & routines{approvals.length ? ' · Approval needed' : ''}</summary>
-          {detailsContent}
-        </details>
-        <div className="composer">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void send();
-            }}
-          >
-            <textarea
-              aria-label="Message"
-              placeholder={selection ? `Message ${title}…` : 'Choose a bot or room to begin'}
-              value={draft}
-              disabled={!selection || busy || blocked}
-              maxLength={16000}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+        {!pickingAgents && (
+          <>
+            <details className="compact-details" open={approvals.length > 0 ? true : undefined}>
+              <summary>Activity & routines{approvals.length ? ' · Approval needed' : ''}</summary>
+              {detailsContent}
+            </details>
+            <div className="composer">
+              <form
+                onSubmit={(event) => {
                   event.preventDefault();
                   void send();
-                }
-              }}
-            />
-            <div className="composer-actions">
-              <span>{running ? 'Hermes is working' : 'Shift + Enter for a new line'}</span>
-              {(running || selection?.kind === 'room') && (
-                <button type="button" onClick={() => void stop()}>
-                  Stop
-                </button>
-              )}
-              <button
-                className="primary"
-                disabled={!selection || !draft.trim() || busy || running || blocked}
-                aria-label="Send message"
+                }}
               >
-                ↑
-              </button>
+                <textarea
+                  aria-label="Message"
+                  placeholder={selection ? `Message ${title}…` : 'Choose a bot or room to begin'}
+                  value={draft}
+                  disabled={!selection || busy || blocked || pickingAgents}
+                  maxLength={16000}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      void send();
+                    }
+                  }}
+                />
+                <div className="composer-actions">
+                  <span>{running ? 'Hermes is working' : 'Shift + Enter for a new line'}</span>
+                  {(running || selection?.kind === 'room') && (
+                    <button type="button" onClick={() => void stop()}>
+                      Stop
+                    </button>
+                  )}
+                  <button
+                    className="primary"
+                    disabled={
+                      !selection || !draft.trim() || busy || running || blocked || pickingAgents
+                    }
+                    aria-label="Send message"
+                  >
+                    ↑
+                  </button>
+                </div>
+              </form>
+              <p className="composer-note">Direct connection · History lives on your server</p>
             </div>
-          </form>
-          <p className="composer-note">Direct connection · History lives on your server</p>
-        </div>
+          </>
+        )}
       </section>
       <aside className="details-panel">{detailsContent}</aside>
     </main>

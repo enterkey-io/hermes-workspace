@@ -10,6 +10,30 @@ function connectedResponse() {
 }
 
 describe('direct Bot Mode bridge', () => {
+  it('negotiates existing-agent support while retaining compatibility with older bridges', async () => {
+    const old = new BotBridgeClient(
+      endpoint,
+      token,
+      vi.fn<typeof fetch>().mockResolvedValue(connectedResponse()),
+    );
+    await old.connect();
+    expect(old.supportsExistingAgents).toBe(false);
+    const current = new BotBridgeClient(
+      endpoint,
+      token,
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json({
+          protocol: 'hermes-bot-web.v1',
+          connection,
+          capabilities: { existing_agents: true },
+        }),
+      ),
+    );
+    await current.connect();
+    expect(current.supportsExistingAgents).toBe(true);
+    current.disconnect();
+    expect(current.supportsExistingAgents).toBe(false);
+  });
   it('keeps credentials in headers, refuses redirects/cookies and preserves endpoint prefix', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

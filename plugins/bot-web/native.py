@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import sqlite3
 import sys
 import uuid
 from .compatibility import check_native_adapter
@@ -22,6 +23,25 @@ class NativeGateway:
         self.lock = asyncio.Lock()
         self.healthy = False
         self.build = None
+
+    async def has_stored_bot_chat(self, profile):
+        # Read-only safety guard: native exact-title lookup hides deliberately retired
+        # chats. Their absence from that lookup must never authorize replacing them.
+        def read():
+            from hermes_cli.profiles import get_profile_dir
+            path = Path(get_profile_dir(profile)) / "state.db"
+            if not path.exists():
+                return False
+            connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
+            try:
+                return connection.execute("SELECT 1 FROM sessions WHERE title = ? LIMIT 1",
+                    ("Bot Chat",)).fetchone() is not None
+            finally:
+                connection.close()
+        try:
+            return await asyncio.to_thread(read)
+        except Exception as error:
+            raise NativeError("Cannot confirm existing canonical chat state") from error
 
     async def start(self):
         self.build = check_native_adapter()

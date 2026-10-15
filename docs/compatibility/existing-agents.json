@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-14",
+  "bridge_version": "0.2.4",
+  "fixture_only": true,
+  "hermes_core_modified": false,
+  "tested_revisions": [
+    "29112bef099274229cadff79cdff7bf7b99c4b77",
+    "af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a"
+  ],
+  "native_results_on_both_revisions": {
+    "unregistered_existing_profile_discovery": "pass",
+    "same_profile_enrollment_without_profile_creation": "pass",
+    "existing_canonical_chat_reused": "pass",
+    "duplicate_enrollment_serialized": "pass",
+    "retired_chat_not_replaced": "pass",
+    "soul_memory_skills_configuration_preserved_during_enrollment": "pass; byte comparison",
+    "selected_profile_soul_present_in_native_model_request": "pass",
+    "launch_profile_soul_absent_from_selected_profile_request": "pass",
+    "enrollment_model_turns": 0,
+    "synthetic_native_verification_turns_per_revision": 7
+  },
+  "native_runtime_housekeeping": "Hermes may refresh its own auth cache. The af0 first actual chat turn adds its profile_build_offered onboarding flag; model/provider configuration and identity content remain unchanged. Enrollment itself preserves the tested identity/configuration file bytes.",
+  "typescript_tests_passed": 48,
+  "python_boundary_tests_passed": 37,
+  "browser_regressions": {
+    "tests_passed": 11,
+    "real_unregistered_profile_selected_and_chatted": "pass",
+    "desktop_and_mobile": "pass",
+    "old_plugin_preserves_chat_with_explicit_enrollment_update_state": "pass",
+    "test_certificate_exception": true
+  },
+  "not_proven": [
+    "Owner host upgraded to 0.2.4 and owner selects their actual agents",
+    "Complete single-agent launch installation, durable device reconnect and restart recovery"
+  ]
+}
