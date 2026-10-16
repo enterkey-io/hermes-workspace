@@ -182,3 +182,9 @@ disposable home. The `native-owner` CI job installs the pinned public Hermes
 source and runs this flow. It uses a deterministic local model and no owner keys.
 Read the captured settled screenshots as well as the test results. Passing checks
 do not establish owner visual acceptance.
+
+The native owner fixture prepares the primary profile's plugin runtime before the
+browser starts, as a normal plugin installation does. It verifies zero model
+turns during preparation. Owner first-use still performs native Bot Mode
+registration and canonical chat initialization. This keeps dependency installation
+outside the browser interaction deadline on a cold CI runner.

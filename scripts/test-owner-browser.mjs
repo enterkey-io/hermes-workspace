@@ -126,6 +126,29 @@ try {
       );
     await new Promise((r) => setTimeout(r, 100));
   }
+  await new Promise((resolve, reject) => {
+    const request = httpsRequest(
+      'https://127.0.0.1:8789/fixture/prepare-runtime',
+      {
+        method: 'POST',
+        rejectUnauthorized: false,
+        headers: { Origin: 'https://127.0.0.1:5445', Authorization: 'Bearer ' + 'f'.repeat(43) },
+      },
+      (response) => {
+        response.resume();
+        response.once('end', () =>
+          response.statusCode === 200
+            ? resolve()
+            : reject(new Error('Native installation preparation failed: ' + response.statusCode)),
+        );
+      },
+    );
+    request.setTimeout(60000, () =>
+      request.destroy(new Error('Native installation preparation timed out')),
+    );
+    request.on('error', reject);
+    request.end();
+  });
   const test = start(process.execPath, [
     resolve('node_modules/@playwright/test/cli.js'),
     'test',

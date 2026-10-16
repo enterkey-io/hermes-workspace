@@ -455,6 +455,13 @@ def main():
                     app = create_app("f" * 43, {args.origin}, hosts, gateway=gateway, trust=trust, workspace=workspace)
                     if args.short_leases:
                         # Test-only control; the bridge boundary still requires operator auth.
+                        @app.post('/fixture/prepare-runtime')
+                        async def prepare_runtime():
+                            # Match a real plugin installation before owner first-use.
+                            # No Bot Mode metadata, canonical chat or model turn is created.
+                            await gateway.call('bot_web.runtime.prepare', {'profile': 'default'})
+                            assert Model.turns == 0
+                            return {'prepared': True, 'model_turns': Model.turns}
                         @app.post('/fixture/restart-native')
                         async def restart_native():
                             await gateway.stop()
