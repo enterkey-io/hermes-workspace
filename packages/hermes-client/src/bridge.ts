@@ -21,11 +21,15 @@ export class BotBridgeClient {
   #workspace = false;
   #attachments = false;
   #computer = false;
+  #reactions = false;
   #rpcActive = 0;
   readonly #rpcWaiting: (() => void)[] = [];
 
   get supportsComputer(): boolean {
     return this.#computer;
+  }
+  get supportsReactions(): boolean {
+    return this.#reactions;
   }
   computerSocket(ticket: string): WebSocket {
     if (!this.#connection || !this.#computer || !/^[A-Za-z0-9_-]{43}$/.test(ticket))
@@ -74,6 +78,7 @@ export class BotBridgeClient {
     this.#workspace = !!data.capabilities && record(data.capabilities).workspace === true;
     this.#attachments = !!data.capabilities && record(data.capabilities).attachments === true;
     this.#computer = !!data.capabilities && record(data.capabilities).computer === true;
+    this.#reactions = !!data.capabilities && record(data.capabilities).reactions === true;
   }
 
   async invoke(operation: string, params: Readonly<Record<string, unknown>>): Promise<unknown> {

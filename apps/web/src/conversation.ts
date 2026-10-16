@@ -1,3 +1,5 @@
+import { messageReactions } from './chat/reactions';
+import type { MessageReaction } from './chat/reactions';
 export type Row = Record<string, unknown>;
 export type ChatMessage = {
   role: string;
@@ -10,6 +12,7 @@ export type ChatMessage = {
   files?: { id: string; name: string; size: number }[];
   toolName?: string;
   context?: string;
+  reactions?: MessageReaction[];
 };
 function finalReply(value: unknown): string {
   if (typeof value === 'string') {
@@ -52,6 +55,7 @@ export function nativeMessages(value: unknown): ChatMessage[] {
             ? finalReply(m.codex_message_items)
             : '',
       source: m,
+      reactions: messageReactions(m.display_metadata?.reactions),
       ...(m.role === 'tool'
         ? {
             toolName: String(m.name ?? m.tool_name ?? 'Tool'),

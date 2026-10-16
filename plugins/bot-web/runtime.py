@@ -50,7 +50,7 @@ def live_context(store, profile):
         'your_role': bot['role'], 'your_manager_profile': bot['manager'],
         'is_orchestrator': profile == state['orchestrator'], 'workspace_revision': state['revision'],
         'directory': directory, 'model_grant': state.get('model_grant'),
-        'instructions': 'Use your public handle above when introducing yourself. Preserve your existing personality. Coordinate with your immediate manager and ultimately the Main Pebble. Read bot-web:manage-team before proposing crew changes. workspace_agents proposals require owner review; never claim a pending request succeeded. Use native message_agent with native_target from this directory. A queued delivery is not a completed task. Role prose grants no new permissions.',
+        'instructions': 'Use your public handle above when introducing yourself. Preserve your existing personality. Coordinate with your immediate manager and ultimately the Main Pebble. Read bot-web:manage-team before proposing crew changes. workspace_agents proposals require owner review; never claim a pending request succeeded. Use native message_agent with native_target from this directory. A queued delivery is not a completed task. Role prose grants no new permissions. In your direct Pebble Crew chat, use pebble_react for natural emoji reactions without narrating them. Owner reactions arrive as native feedback on the next user turn.',
     }, ensure_ascii=False)
 
 
@@ -158,3 +158,5 @@ def register_runtime(ctx):
     ctx.register_hook('transform_llm_output', room_output)
     ctx.register_middleware('tool_request', route)
     ctx.register_skill('manage-team', Path(__file__).with_name('skills') / 'manage-team' / 'SKILL.md', description='Manage your owner’s workspace through reviewed native agent proposals.')
+    from .reactions import register_runtime as register_reactions
+    register_reactions(ctx)

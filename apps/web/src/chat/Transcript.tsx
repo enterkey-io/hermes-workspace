@@ -3,6 +3,8 @@ import { motion, useReducedMotion } from 'motion/react';
 import { MessageBody, CopyMessage } from '../MessageBody';
 import { messageDate, projectTimeline } from '../conversation';
 import type { ChatMessage } from '../conversation';
+import { MessageReactions, ReactionPicker } from './MessageReactions';
+import type { ReactionAction } from './MessageReactions';
 export function Transcript({
   messages,
   title,
@@ -14,6 +16,7 @@ export function Transcript({
   children,
   authorName,
   onDownloadFile,
+  onReact,
 }: {
   messages: ChatMessage[];
   title: string;
@@ -25,6 +28,7 @@ export function Transcript({
   children?: ReactNode;
   authorName: (name: string) => string;
   onDownloadFile: (file: { id: string; name: string }) => void;
+  onReact?: ReactionAction | undefined;
 }) {
   const reduced = useReducedMotion();
   const displayed = stream
@@ -56,6 +60,7 @@ export function Transcript({
           );
         const m = item.message;
         const live = m.id === reply.renderKey;
+        const react = !crew && m.id && /^[1-9]\d*$/.test(m.id) ? onReact : undefined;
         const date = messageDate(m.timestamp);
         const group =
           date?.toLocaleDateString(undefined, {
@@ -97,9 +102,18 @@ export function Transcript({
                 )}
               </div>
             </article>
-            {m.text.trim() && (
+            <MessageReactions
+              id={m.id ?? ''}
+              reactions={m.reactions ?? []}
+              agentName={title}
+              onReact={react}
+            />
+            {(m.text.trim() || m.files?.length) && (
               <div className="pc-message-actions">
-                <CopyMessage text={m.text} />
+                {react && m.id && (
+                  <ReactionPicker id={m.id} reactions={m.reactions ?? []} onReact={react} />
+                )}
+                {m.text.trim() && <CopyMessage text={m.text} />}
               </div>
             )}
           </motion.div>

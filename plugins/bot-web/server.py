@@ -218,7 +218,7 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                                "expires": request.scope.get("bot.ticket_expires"), "ended": None}
         build = getattr(native, "build", None) or {}
         return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": VERSION,
-                "capabilities": {"existing_agents": True, "owner_login": owner_trust is not None, "workspace": bool(workspace), "attachments": bool(files), "computer": computer.supported},
+                "capabilities": {"existing_agents": True, "owner_login": owner_trust is not None, "workspace": bool(workspace), "attachments": bool(files), "reactions": True, "computer": computer.supported},
                 "hermes_version": build.get("version"), "hermes_revision": build.get("revision")}
 
     @app.post("/v1/renew")

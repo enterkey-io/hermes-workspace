@@ -8,12 +8,12 @@
     </linearGradient>
   </defs>
   <path fill="url(#background)" d="M0 0h1024v1024H0z"/>
-  <g transform="translate(122 123) scale(7.7)">
+  <g transform="translate(-400 95) scale(14.5)">
     <path fill="#000" opacity=".16" transform="translate(0 2)" d="M21 32C27 13 48 9 66 17C88 20 94 42 86 65C80 86 57 92 36 83C16 77 11 52 21 32Z"/>
     <path fill="url(#stone)" d="M21 32C27 13 48 9 66 17C88 20 94 42 86 65C80 86 57 92 36 83C16 77 11 52 21 32Z"/>
-    <g fill="#252429" transform="rotate(-18 57 41)">
-      <rect x="47" y="30" width="7.8" height="20" rx="3.9"/>
-      <rect x="64" y="30" width="6.5" height="17" rx="3.25"/>
+    <g fill="#252429" transform="rotate(-28 70 34)">
+      <rect x="59" y="25" width="6.5" height="17" rx="3.25"/>
+      <rect x="74" y="24" width="5.2" height="12.5" rx="2.6"/>
     </g>
   </g>
 </svg>

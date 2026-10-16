@@ -20,6 +20,8 @@ def main():
     register_screen()
     from search_native import register as register_search
     register_search()
+    from reactions_native import register as register_reactions
+    register_reactions()
     start_hosted_room_service()
     try:
         entry.main()

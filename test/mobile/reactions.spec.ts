@@ -1,0 +1,34 @@
+import { test, expect } from '@playwright/test';
+import { installFixture } from '../chat-workspace/fixtures';
+test.use({ serviceWorkers: 'block' });
+
+test('touch reaction picker stays inside the screen and works without hover', async ({
+  page,
+  context,
+}, info) => {
+  await installFixture(context);
+  await page.goto('/');
+  await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
+  const row = page.locator('[data-message-id="28"]');
+  await row.getByRole('button', { name: 'React to message', exact: true }).tap();
+  const menu = page.getByRole('menu');
+  await menu.evaluate(async (node) => {
+    await Promise.all(node.getAnimations({ subtree: true }).map((animation) => animation.finished));
+  });
+  const bounds = (await menu.boundingBox())!;
+  const size = page.viewportSize()!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(size.width);
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(size.height);
+  const choice = page.getByRole('menuitem', { name: 'React with celebrate', exact: true });
+  expect((await choice.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+  expect((await choice.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ animations: 'disabled', path: info.outputPath('reaction-picker.png') });
+  await choice.tap();
+  const chip = row.getByRole('button', { name: '🎉 · You', exact: true });
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ animations: 'disabled', path: info.outputPath('reaction-saved.png') });
+  await chip.tap();
+  await expect(chip).toHaveCount(0);
+});

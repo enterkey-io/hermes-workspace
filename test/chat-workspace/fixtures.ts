@@ -72,7 +72,10 @@ export const history = Array.from({ length: 28 }, (_, i) => ({
         ? '## Research update\n\nThe draft is ready. Here are the next steps:\n\n- Review the sources\n- Pick the priorities\n- Share your notes\n\n```js\nconst ready = true;\n```'
         : 'Here is the latest update on the project. The source material is organized and ready to review. We can work through the remaining decisions together.',
 }));
-export async function installFixture(context: BrowserContext) {
+export async function installFixture(
+  context: BrowserContext,
+  options: { reactions?: boolean } = {},
+) {
   await context.route(new RegExp('^http://127\\.0\\.0\\.1:(8093|8095|8097)/$'), async (route) => {
     const response = await route.fetch();
     await route.fulfill({
@@ -139,6 +142,7 @@ export async function installFixture(context: BrowserContext) {
     }
   >();
   const photos = new Map<string, string>();
+  const reactions = new Map<number, { emoji: string; author: string }[]>();
   const leases = new Map<string, Set<string>>();
   const read = new Map<string, number>();
   let approvals: Record<string, unknown>[] = [];
@@ -210,7 +214,12 @@ export async function installFixture(context: BrowserContext) {
         json: {
           protocol: 'hermes-bot-web.v1',
           connection,
-          capabilities: { workspace: true, existing_agents: true, attachments: true },
+          capabilities: {
+            workspace: true,
+            existing_agents: true,
+            attachments: true,
+            reactions: options.reactions !== false,
+          },
         },
       });
       return;
@@ -454,8 +463,29 @@ export async function installFixture(context: BrowserContext) {
       if (bot) bot.unread = false;
     }
     if (operation === 'bot.open')
-      result = { session_id: `session-${params.profile}`, messages: history, running: false };
-    if (operation === 'chat.history') result = { messages: history };
+      result = {
+        session_id: `session-${params.profile}`,
+        messages: history.map((m) => ({
+          ...m,
+          display_metadata: { reactions: reactions.get(m.row_id) ?? [] },
+        })),
+        running: false,
+      };
+    if (operation === 'chat.history')
+      result = {
+        messages: history.map((m) => ({
+          ...m,
+          display_metadata: { reactions: reactions.get(m.row_id) ?? [] },
+        })),
+      };
+    if (operation === 'chat.react') {
+      const previous = reactions.get(params.row_id) ?? [];
+      const next = previous.filter((r) => r.author !== 'user');
+      if (params.emoji && previous.find((r) => r.author === 'user')?.emoji !== params.emoji)
+        next.push({ emoji: params.emoji, author: 'user' });
+      reactions.set(params.row_id, next);
+      result = { row_id: params.row_id, reactions: next };
+    }
     if (operation === 'chat.approvals') result = { approvals };
     if (operation === 'chat.approve')
       approvals = approvals.filter((a) => a.request_id !== params.request_id);

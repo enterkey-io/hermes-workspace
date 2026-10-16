@@ -158,12 +158,13 @@ class BotOperations:
                     raise InvalidOperation('Profile changed while opening this conversation')
                 self.sessions[sid] = bot["name"]
                 self.session_incarnations[sid] = stamp
+                await self.gateway.call('bot_web.reactions.enable', {'session_id': sid})
                 return {"session_id": sid, "profile": bot["name"],
                         "canonical_id": canonical["id"], "messages": live.get("messages", []),
                         "inflight": live.get("inflight"), "running": live.get("running") is True}
-        if operation in {"chat.send", "chat.stop", "chat.history", "chat.approvals", "chat.approve", "chat.replay"}:
+        if operation in {"chat.send", "chat.stop", "chat.history", "chat.approvals", "chat.approve", "chat.replay", "chat.react"}:
             extras = {"chat.send": ["text"], "chat.approve": ["request_id", "choice"],
-                      "chat.replay": ["last_seen"]}.get(operation, [])
+                      "chat.replay": ["last_seen"], "chat.react": ["row_id", "emoji"]}.get(operation, [])
             fields(params, ["session_id", *extras])
             sid = identifier(params["session_id"])
             if sid not in self.sessions:
@@ -174,7 +175,19 @@ class BotOperations:
             native_params = {"session_id": sid}
             method = {"chat.send": "prompt.submit", "chat.stop": "session.interrupt",
                       "chat.history": "session.history", "chat.approvals": "approval.pending",
-                      "chat.approve": "approval.respond", "chat.replay": "session.events.since"}[operation]
+                      "chat.approve": "approval.respond", "chat.replay": "session.events.since",
+                      "chat.react": "message.react"}[operation]
+            if operation == 'chat.react':
+                from .reactions import emoji
+                if type(params['row_id']) is not int or not 0 < params['row_id'] <= 9007199254740991:
+                    raise InvalidOperation('Choose a saved message')
+                try:
+                    chosen = emoji(params['emoji'], clear=True)
+                except ValueError as error:
+                    raise InvalidOperation('Choose an emoji') from error
+                result = await self.gateway.call(method, {**native_params, 'row_id': params['row_id'], 'emoji': chosen, 'author': 'user'})
+                self.gateway._publish({'type': 'message.reaction', 'session_id': sid, 'payload': result})
+                return result
             if operation == "chat.send":
                 text = params["text"]
                 if not isinstance(text, str) or not text.strip() or len(text) > 16000:

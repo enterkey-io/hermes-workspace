@@ -33,6 +33,7 @@ import type { SetStateAction } from 'react';
 import { SearchOverlay } from './chat/SearchOverlay';
 import { SendProjection } from './chat/send-projection';
 import { toolActivity } from './chat/activity';
+import { reactionReceipt } from './chat/reactions';
 import { useOverlayHistory } from './ui/overlay-history';
 import type { OwnerConnection } from './OwnerShell';
 import { WorkspaceSetup } from './WorkspaceSetup';
@@ -81,6 +82,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const selectionConnection = useRef<BotBridgeClient | undefined>(undefined);
   const selectGeneration = useRef(0);
   const eventVersion = useRef(0);
+  const historyGeneration = useRef(0);
   const [bots, setBots] = useState<Bot[]>([]);
   const [rooms, setRooms] = useState<Row[]>([]);
   const [crewChats, setCrewChats] = useState<Record<string, string>>({});
@@ -615,10 +617,12 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   async function refreshHistory(connection: BotBridgeClient, target: Selection, complete = false) {
     if (target.kind !== 'bot' || selectionConnection.current !== connection) return;
     const terminalEpoch = runEpoch.current;
+    const generation = ++historyGeneration.current;
     const data = object(await connection.invoke('chat.history', { session_id: target.sessionId }));
     if (current.current === connection && selected.current === target) {
       observedHistory(target, data.messages);
-      setMessages(sendProjection.current.project(transcript(data.messages), complete));
+      if (generation === historyGeneration.current)
+        setMessages(sendProjection.current.project(transcript(data.messages), complete));
       if (complete && terminalEpoch === runEpoch.current) {
         setStream('');
         setRunning(false);
@@ -632,6 +636,27 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       requestAnimationFrame(() => {
         if (transcriptPane.current) transcriptPane.current.scrollTop = saved.top;
       });
+    }
+  }
+
+  async function reactToMessage(id: string, emoji: string | null) {
+    const connection = current.current,
+      target = selected.current;
+    if (!connection?.supportsReactions || target?.kind !== 'bot' || streamState !== 'live') return;
+    try {
+      const result = reactionReceipt(
+        await connection.invoke('chat.react', {
+          session_id: target.sessionId,
+          row_id: Number(id),
+          emoji,
+        }),
+      );
+      if (current.current !== connection || selected.current !== target) return;
+      setMessages((old) =>
+        old.map((m) => (m.id === result.id ? { ...m, reactions: result.reactions } : m)),
+      );
+    } catch (error) {
+      fail(error);
     }
   }
 
@@ -677,6 +702,10 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     if (!target || target.kind !== 'bot' || event.session_id !== target.sessionId) return;
     eventVersion.current++;
     const payload = event.payload ?? {};
+    if (event.type === 'message.reaction') {
+      reactionReceipt(payload);
+      await refreshHistory(connection, target);
+    }
     if (event.type === 'message.start') {
       runEpoch.current++;
       sendProjection.current.beginReply();
@@ -1665,6 +1694,9 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               }}
             >
               <Transcript
+                onReact={
+                  client.supportsReactions && streamState === 'live' ? reactToMessage : undefined
+                }
                 messages={withSharedFiles(messages, sharedFiles)}
                 onDownloadFile={(file) => {
                   if (selection?.kind !== 'bot') return;

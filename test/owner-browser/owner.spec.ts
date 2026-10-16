@@ -267,4 +267,53 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   expect(errors).toEqual([]);
   expect(sends).toBe(0);
   await page.screenshot({ animations: 'disabled', path: 'test-results/owner-workspace.png' });
+  await page.clock.resume();
+  await page.getByLabel('Message', { exact: true }).fill('nativereaction');
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  const mine = page.locator('.pc-message.user').filter({ hasText: 'nativereaction' });
+  await expect(mine.getByRole('button', { name: '👍 · Nova', exact: true })).toBeVisible({
+    timeout: 30000,
+  });
+  await expect(page.locator('.pc-activity')).toHaveCount(0, { timeout: 30000 });
+  const reply = page
+    .locator('.pc-message.assistant')
+    .filter({ hasText: 'Native fixture reply' })
+    .last();
+  await reply.hover();
+  await reply.getByRole('button', { name: 'React to message', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'React with heart', exact: true }).click();
+  await expect(reply.getByRole('button', { name: '❤️ · You', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(sends).toBe(1); // A reaction must not dispatch a model turn.
+  await page.getByLabel('Message', { exact: true }).fill('nativefeedback');
+  await page.getByRole('button', { name: 'Send message', exact: true }).click();
+  await expect(page.getByRole('log')).toContainText('Native feedback received', { timeout: 30000 });
+  await expect(page.locator('.pc-activity')).toHaveCount(0, { timeout: 30000 });
+  await page.reload();
+  await page.getByRole('button', { name: /^Nova .*Bot Chat$/ }).click();
+  await expect(page.getByRole('button', { name: '👍 · Nova', exact: true })).toBeVisible({
+    timeout: 30000,
+  });
+  const heart = page.getByRole('button', { name: '❤️ · You', exact: true });
+  await expect(heart).toHaveAttribute('aria-pressed', 'true');
+  await heart.click();
+  await expect(heart).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: /^Nova .*Bot Chat$/ }).click();
+  await expect(page.getByRole('button', { name: '👍 · Nova', exact: true })).toBeVisible({
+    timeout: 30000,
+  });
+  await expect(heart).toHaveCount(0);
+  expect(errors).toEqual([]);
+  await page.screenshot({
+    animations: 'disabled',
+    path: 'test-results/native-reactions-desktop.png',
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    animations: 'disabled',
+    path: 'test-results/native-reactions-phone.png',
+  });
 });

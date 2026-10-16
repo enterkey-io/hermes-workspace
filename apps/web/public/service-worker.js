@@ -1,4 +1,4 @@
-const cacheName = 'pebble-crew-public-v1';
+const cacheName = 'pebble-crew-public-v2';
 const publicPaths = [
   '/offline.html',
   '/offline.css',

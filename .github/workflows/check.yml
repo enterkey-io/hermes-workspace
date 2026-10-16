@@ -53,6 +53,7 @@ jobs:
           echo "HERMES_NATIVE_ROOT=$GITHUB_WORKSPACE/native-hermes" >> "$GITHUB_ENV"
           echo "HERMES_NATIVE_PYTHON=$RUNNER_TEMP/hermes-ui-env/bin/python" >> "$GITHUB_ENV"
       - run: npm run test:owner-browser
+      - run: python scripts/fixture/reactions_smoke.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:

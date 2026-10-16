@@ -79,6 +79,11 @@ The handshake advertises `attachments` and `computer`. Clients must check these;
 the protocol name remains `hermes-bot-web.v1`. NDJSON events still contain one
 JSON object per LF line; blank lines remain ignorable and heartbeats are 15 s.
 
+Integration 0.7.3 also advertises `reactions` for direct pebble
+chats. See [message reactions](MESSAGE_REACTIONS.md) for the native operation,
+event, profile enablement and next-turn feedback contract. No change to the
+protocol identifier or event framing is required.
+
 Attachments require an open connection-owned native `session_id`:
 
 - `POST /v1/files/upload`, normal auth headers and RPC envelope `files.upload`

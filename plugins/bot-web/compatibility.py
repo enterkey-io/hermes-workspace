@@ -45,7 +45,11 @@ SUPPORTED_BUILDS = [{'version': '0.21.0',
             '../tools/bot_desktop/runtime.py': None,
             '../tools/bot_desktop/lease.py': None,
             '../tools/bot_desktop/rfb_filter.py': None,
-            '../tools/bot_desktop/resources.py': None}},
+            '../tools/bot_desktop/resources.py': None,
+            '../tools/react_to_message_tool.py': '7ec695caadde5479519d6a61b3e8ab9bf7dfd36befdf4e1722e3a5a26ef49fcf',
+            '../tools/desktop_ui.py': 'eb196c21ddbb55f49fe68d37cb6655487cb22668a628f8fe167da9f59958386b',
+            'methods_config_set.py': None,
+            'session_notifications.py': None}},
  {'version': '0.21.7',
   'revision': 'af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a',
   'server_requests': True,
@@ -85,7 +89,11 @@ SUPPORTED_BUILDS = [{'version': '0.21.0',
             '../tools/bot_desktop/runtime.py': '3bb92ff82a31367dec03426b7ed2215c8f34fa8dbcaa9b84ac091ac8276c2884',
             '../tools/bot_desktop/lease.py': '6c49998bed955a236ca90bef1975352a09ae38acb7cb18115fed81c2129a21b9',
             '../tools/bot_desktop/rfb_filter.py': '3e7b31584072f82b0a003f7bcc50b30f42cfab3080301e2c4766de384753f1da',
-            '../tools/bot_desktop/resources.py': '5192588306765143fb9037f18ccad3da4c435b17cd07ccb74bdaf2079910e398'}}]
+            '../tools/bot_desktop/resources.py': '5192588306765143fb9037f18ccad3da4c435b17cd07ccb74bdaf2079910e398',
+            '../tools/react_to_message_tool.py': 'ed463604f5b2745a3bd9be943cf2678ad86bec39522fef7180da3cfced64f1cf',
+            '../tools/desktop_ui.py': '85f98b129953caea991d0b9630d433aef825a543671b6345bbb992b88d6e0f94',
+            'methods_config_set.py': '82d5776f2b376112a257bafef642cd6fefdbe4c46d874a52afed27d7c3f2bcf3',
+            'session_notifications.py': '3db259fe8d5bbd0a8a9cd5b455304d37f4d434befbaf4e28d41918e8854e65d3'}}]
 
 def inspect_native_adapter():
     try:

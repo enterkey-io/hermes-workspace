@@ -31,6 +31,7 @@ class Model(BaseHTTPRequestHandler):
     emitted_handoff = False
     emitted_approval = False
     emitted_attachment = False
+    emitted_reaction = False
     saw_attachment = False
     approval_target = ""
     slow_started = threading.Event()
@@ -38,6 +39,7 @@ class Model(BaseHTTPRequestHandler):
     tools_seen = set()
     audit_requests = False
     request_audit = []
+    tool_results = []
 
     def log_message(self, *args):
         pass
@@ -68,24 +70,38 @@ class Model(BaseHTTPRequestHandler):
         text = "Native fixture reply"
         latest_user = next((m for m in reversed(data.get("messages", [])) if m.get("role") == "user"), {})
         tools = data.get("tools", [])
+        tool_names = {t.get('function', {}).get('name') for t in tools}
+        def can_call(name):
+            return name in tool_names or 'tool_call' in tool_names
+        Model.tool_results = [m.get('content') for m in data.get('messages', []) if m.get('role') == 'tool']
         if any('PEBBLE_FIXTURE_FILE_INPUT' in str(m.get('content')) for m in data.get('messages', []) if m.get('role') == 'tool'):
             Model.saw_attachment = True
         import re
         reference = re.search(r'@file:(?:`([^`]+)`|"([^"]+)"|(\S+))', str(latest_user.get('content')))
-        attachment = ('nativeattachment' in str(latest_user.get('content')) and reference and not Model.emitted_attachment and any(t.get('function', {}).get('name') == 'terminal' for t in tools))
+        attachment = ('nativeattachment' in str(latest_user.get('content')) and reference and not Model.emitted_attachment and can_call('terminal'))
         Model.tools_seen.update(t.get("function", {}).get("name", "") for t in tools)
         handoff = ("nativehandoff" in str(latest_user.get("content"))
             and not Model.emitted_handoff
-            and any(t.get("function", {}).get("name") == "message_agent" for t in tools))
+            and can_call('message_agent'))
         approval = ("nativeapproval" in str(latest_user.get("content")) and not Model.emitted_approval
-            and any(t.get("function", {}).get("name") == "terminal" for t in tools))
-        if "nativestop" in str(latest_user.get("content")) and any(t.get("function", {}).get("name") == "message_agent" for t in tools):
+            and can_call('terminal'))
+        reaction = ('nativereaction' in str(latest_user.get('content')) and not Model.emitted_reaction
+            and can_call('pebble_react'))
+        if 'nativefeedback' in str(latest_user.get('content')):
+            # The reply only acknowledges feedback actually present in the model input.
+            text = 'Native feedback received' if any('[The user reacted ❤️' in str(m.get('content')) for m in data.get('messages', [])) else 'Native feedback missing'
+        if "nativestop" in str(latest_user.get("content")) and can_call('message_agent'):
             Model.slow_started.set()
             time.sleep(3)
             text = "Slow fixture reply"
         message = {"role": "assistant", "content": text}
         finish = "stop"
-        if attachment:
+        if reaction:
+            Model.emitted_reaction = True
+            name, arguments = 'pebble_react', {'emoji': '👍'}
+            message = {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'fixture-reaction', 'type': 'function', 'function': {'name': name, 'arguments': json.dumps(arguments)}}]}
+            finish = 'tool_calls'
+        elif attachment:
             Model.emitted_attachment = True
             path = next(group for group in reference.groups() if group)
             message = {"role": "assistant", "content": None, "tool_calls": [{"id": "fixture-file-read", "type": "function", "function": {"name": "terminal", "arguments": json.dumps({"command": "cat " + shlex.quote(path)})}}]}
@@ -102,6 +118,14 @@ class Model(BaseHTTPRequestHandler):
                 "type": "function", "function": {"name": "terminal", "arguments": json.dumps(
                     {"command": "rm -rf " + shlex.quote(Model.approval_target)})}}]}
             finish = "tool_calls"
+        if finish == 'tool_calls':
+            for call in message['tool_calls']:
+                function = call['function']
+                if function['name'] not in tool_names and 'tool_call' in tool_names:
+                    nested = {'name': function['name'], 'arguments': json.loads(function['arguments'])}
+                    deferred = next(t['function'] for t in tools if t.get('function', {}).get('name') == 'tool_call')
+                    arguments = {'calls': [nested]} if 'calls' in deferred.get('parameters', {}).get('properties', {}) else nested
+                    call['function'] = {'name': 'tool_call', 'arguments': json.dumps(arguments)}
         output = {"id": "fixture-completion", "object": "chat.completion", "created": int(time.time()),
             "model": "fixture-model", "choices": [{"index": 0, "message": message,
             "finish_reason": finish}], "usage": {"prompt_tokens": 100, "completion_tokens": 10, "total_tokens": 110}}
@@ -110,7 +134,7 @@ class Model(BaseHTTPRequestHandler):
         self.end_headers()
         if data.get("stream"):
             delta = {"role": "assistant", "content": text}
-            if handoff or approval or attachment:
+            if handoff or approval or attachment or reaction:
                 delta = {"role": "assistant", "tool_calls": [{"index": 0, **message["tool_calls"][0]}]}
             for delta, reason in [(delta, None), ({}, finish)]:
                 chunk = {**output, "object": "chat.completion.chunk", "choices": [{"index": 0,

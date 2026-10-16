@@ -26,6 +26,9 @@ export function toolActivity(name: string): string {
       return 'Coordinating agents';
     case 'workspace_agents':
       return 'Managing pebbles';
+    case 'pebble_react':
+    case 'react_to_message':
+      return 'Reacting';
     default: {
       const label = name.trim().replace(/[_-]+/g, ' ').slice(0, 80);
       return label ? `Using ${label}` : 'Using a tool';
