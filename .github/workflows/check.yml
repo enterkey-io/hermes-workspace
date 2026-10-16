@@ -27,9 +27,6 @@ jobs:
   native-owner:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      HERMES_NATIVE_ROOT: ${{ github.workspace }}/native-hermes
-      HERMES_NATIVE_PYTHON: ${{ runner.temp }}/hermes-ui-env/bin/python
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -52,6 +49,8 @@ jobs:
           python -m venv "$RUNNER_TEMP/hermes-ui-env"
           "$RUNNER_TEMP/hermes-ui-env/bin/pip" install uv -e './native-hermes[web]' -r test/plugin/requirements.txt
           echo "$RUNNER_TEMP/hermes-ui-env/bin" >> "$GITHUB_PATH"
+          echo "HERMES_NATIVE_ROOT=$GITHUB_WORKSPACE/native-hermes" >> "$GITHUB_ENV"
+          echo "HERMES_NATIVE_PYTHON=$RUNNER_TEMP/hermes-ui-env/bin/python" >> "$GITHUB_ENV"
       - run: npm run test:owner-browser
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
