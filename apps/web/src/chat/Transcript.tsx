@@ -97,7 +97,7 @@ export function Transcript({
                 )}
               </div>
             </article>
-            {m.text.trim() && !live && (
+            {m.text.trim() && (
               <div className="pc-message-actions">
                 <CopyMessage text={m.text} />
               </div>

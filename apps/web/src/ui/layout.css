@@ -1096,6 +1096,7 @@
     display: flex;
     justify-content: end;
     opacity: 1;
+    pointer-events: auto;
     background: transparent;
     height: 36px;
   }

@@ -177,10 +177,15 @@ The mocked-network browser suites block service workers as Playwright recommends
 the dedicated PWA suite uses real static serving without API interception.
 
 Local checks: `npm run check` (90 unit tests), the 26 production workspace browser
-flows, 10 mobile WebKit/Chromium checks, 200 plugin checks, and the real 0.21.7
+flows, 12 mobile WebKit/Chromium checks, 200 plugin checks, and the real 0.21.7
 owner flow passed. The activity/Connections cases passed again after final copy
 edits. The new focus-token check rejects the old lavender composer border in
 `648537c`. Screenshots were inspected locally; no external design upload occurred.
 Keyboard geometry is simulated: no physical iPhone keyboard or OS installation
 sheet was exercised. Publication remains gated on packaged-install acceptance
 and the CI checks. An owner's running plugin still needs its normal upgrade.
+
+Final touch review reproduced a separate 36px jump when the copy-action row
+appeared only after streaming. Copy controls now share the same layout throughout
+the reply, and mobile acceptance measures the complete message row as well as
+the bubble. Touch copy controls remain interactive.

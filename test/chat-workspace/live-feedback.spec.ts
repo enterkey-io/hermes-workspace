@@ -32,6 +32,7 @@ test('native activity describes the work and a reply keeps its bubble and footer
   await expect(streaming.locator('.caret')).toHaveCount(0);
   const bubble = (await streaming.locator('.pc-bubble').elementHandle())!;
   const before = (await bubble.boundingBox())!;
+  const rowHeight = (await streaming.boundingBox())!.height;
   const final = {
     row_id: 901,
     role: 'assistant',
@@ -55,6 +56,7 @@ test('native activity describes the work and a reply keeps its bubble and footer
     before.height,
     0,
   );
+  expect((await committed.boundingBox())!.height).toBeCloseTo(rowHeight, 0);
   await expect(page.locator('.pc-message.streaming')).toHaveCount(0);
   await expect(activity).toHaveCount(0);
   await page.screenshot({ animations: 'disabled', path: 'test-results/reply-completed.png' });

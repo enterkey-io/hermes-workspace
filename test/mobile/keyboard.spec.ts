@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { installFixture } from '../chat-workspace/fixtures';
+import { installFixture, emit, history } from '../chat-workspace/fixtures';
 test.use({ serviceWorkers: 'block' });
 
 async function readable(field: Locator) {
@@ -72,6 +72,54 @@ test('login fields use readable mobile text', async ({ page, context }) => {
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
   await readable(page.getByLabel('Username', { exact: true }));
   await readable(page.getByLabel('Password', { exact: true }));
+});
+
+test('stream completion keeps the whole touch message row in place', async ({
+  page,
+  context,
+}, info) => {
+  await installFixture(context);
+  await page.goto('/');
+  await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
+  await emit(page, 'message.start');
+  const reply = 'Your research is ready.';
+  await emit(page, 'message.delta', { text: reply });
+  const live = page.locator('.pc-message.streaming');
+  await expect(live).toBeVisible();
+  const element = (await live.elementHandle())!;
+  const before = (await live.boundingBox())!.height;
+  await page.screenshot({
+    animations: 'disabled',
+    scale: 'css',
+    path: info.outputPath('streaming.png'),
+  });
+  await page.route('**/v1/rpc', async (route) => {
+    if (route.request().postDataJSON().operation === 'chat.history')
+      await route.fulfill({
+        json: {
+          result: {
+            messages: [
+              ...history,
+              { row_id: 901, role: 'assistant', text: reply, timestamp: new Date().toISOString() },
+            ],
+          },
+        },
+      });
+    else await route.fallback();
+  });
+  await emit(page, 'message.complete', {
+    status: 'done',
+    persisted_turn: { final_assistant_row_id: 901 },
+  });
+  const saved = page.locator('[data-message-id="901"]');
+  await expect(saved).toBeVisible();
+  expect(await element.evaluate((node) => node.isConnected)).toBe(true);
+  expect((await saved.boundingBox())!.height).toBeCloseTo(before, 0);
+  await page.screenshot({
+    animations: 'disabled',
+    scale: 'css',
+    path: info.outputPath('completed.png'),
+  });
 });
 
 test('visual keyboard resize and pan keep the composer visible and preserve the draft', async ({
