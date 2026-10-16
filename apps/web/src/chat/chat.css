@@ -1,21 +1,5 @@
 /* Shared conversation tokens; every pane uses the same surface and spacing scale. */
-:root {
-  --chat-bg: #080909;
-  --rail-bg: #121313;
-  --panel-bg: #0c0d0d;
-  --surface: #252626;
-  --hover: #202222;
-  --selected: #303232;
-  --line: #292b2b;
-  --muted: #979c9c;
-  --ink: #f4f5f5;
-  --radius: 20px;
-  --rail-width: 340px;
-  --inspector-width: 304px;
-  --tap: 36px;
-  --text-sm: 12px;
-  --text-base: 15px;
-}
+
 .workspace {
   grid-template-columns: var(--rail-width) minmax(0, 1fr) var(--inspector-width);
   background: var(--chat-bg);

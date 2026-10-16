@@ -1,4 +1,4 @@
-import { BODY_PATHS, blendPose, nextPoseDelay, samplePose, seedFromId } from './engine';
+import { BODY_PATHS, blendPose, nextPoseDelay, samplePose, seedFromId, easeGaze } from './engine';
 import type { Activity, Pose, Shape } from './engine';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -58,6 +58,9 @@ export class AvatarView {
   private readonly seed: number;
   private lastPose: Pose | undefined;
   private transitionPose: Pose | undefined;
+  private pointer: { x: number; y: number } | undefined;
+  private lastClock: number | undefined;
+  private detachPointer = () => {};
   state: Activity;
   changedAt = 0;
   nextAt = 0;
@@ -120,19 +123,82 @@ export class AvatarView {
     this.changedAt = clock;
   }
 
+  bindPointer(root: Element, scheduler: AvatarScheduler) {
+    this.detachPointer();
+    const move = (event: Event) => {
+      const pointer = event as PointerEvent;
+      if (pointer.pointerType && !['mouse', 'pen'].includes(pointer.pointerType)) return;
+      const box = this.svg.getBoundingClientRect();
+      this.pointer = {
+        x: Math.max(
+          -6,
+          Math.min(6, ((pointer.clientX - box.left - box.width / 2) / Math.max(48, box.width)) * 6),
+        ),
+        y: Math.max(
+          -5,
+          Math.min(
+            5,
+            ((pointer.clientY - box.top - box.height * 0.46) / Math.max(48, box.height)) * 6,
+          ),
+        ),
+      };
+      scheduler.wake(this);
+    };
+    const leave = () => {
+      this.pointer = undefined;
+      scheduler.wake(this);
+    };
+    const focus = () => {
+      this.pointer = { x: 3.4, y: -2.8 };
+      scheduler.wake(this);
+    };
+    root.addEventListener('pointerenter', move);
+    root.addEventListener('pointermove', move);
+    root.addEventListener('pointerleave', leave);
+    root.addEventListener('pointercancel', leave);
+    root.addEventListener('focusin', focus);
+    root.addEventListener('focusout', leave);
+    this.detachPointer = () => {
+      root.removeEventListener('pointerenter', move);
+      root.removeEventListener('pointermove', move);
+      root.removeEventListener('pointerleave', leave);
+      root.removeEventListener('pointercancel', leave);
+      root.removeEventListener('focusin', focus);
+      root.removeEventListener('focusout', leave);
+      this.pointer = undefined;
+    };
+  }
+  resetPointer() {
+    this.pointer = undefined;
+  }
+  disposeInteraction() {
+    this.detachPointer();
+  }
   render(clock: number, reduced: boolean, crowded = false) {
+    if (this.state === 'done' && clock - this.changedAt >= 900) this.setState('ready', clock);
     const target = samplePose(this.state, clock - this.changedAt, this.seed, reduced);
     const progress = (clock - this.changedAt) / 280;
     const pose =
       !reduced && this.transitionPose && progress < 1
         ? blendPose(this.transitionPose, target, progress)
         : target;
+    if (!reduced) {
+      const dt = this.lastClock === undefined ? 16 : clock - this.lastClock;
+      pose.gazeX = easeGaze(this.lastPose?.gazeX ?? pose.gazeX, this.pointer?.x ?? pose.gazeX, dt);
+      pose.gazeY = easeGaze(this.lastPose?.gazeY ?? pose.gazeY, this.pointer?.y ?? pose.gazeY, dt);
+      if (this.pointer && this.state === 'ready') {
+        pose.leftOpen *= 1.08;
+        pose.rightOpen *= 1.08;
+      }
+    }
+    this.lastClock = clock;
     this.lastPose = pose;
-    const fps = this.large && !crowded ? 24 : 15;
+    this.svg.dataset.state = this.state;
+    const fps = this.pointer ? 60 : crowded ? 15 : this.large ? 30 : 24;
     this.nextAt = reduced
       ? Infinity
       : clock +
-        (progress < 1 && this.transitionPose
+        (this.pointer || (progress < 1 && this.transitionPose)
           ? 1000 / fps
           : nextPoseDelay(this.state, clock - this.changedAt, this.seed, fps));
     update(
@@ -169,7 +235,7 @@ export interface FrameStats {
   running: boolean;
 }
 
-/** One deadline clock. Idle rows park; observers wake newly visible faces. */
+/** One deadline clock. Offscreen rows park; visible poses share bounded frame budgets. */
 export class AvatarScheduler {
   private readonly views = new Map<Element, AvatarView>();
   private readonly visible = new Set<AvatarView>();
@@ -199,8 +265,11 @@ export class AvatarScheduler {
         if (!view) continue;
         if (entry.isIntersecting) {
           this.visible.add(view);
-          view.render(this.clock, this.reduced || !this.enabled, this.visible.size > 60);
-        } else this.visible.delete(view);
+          view.render(this.clock, this.reduced || !this.enabled, this.visible.size > 40);
+        } else {
+          this.visible.delete(view);
+          view.resetPointer();
+        }
       }
       this.sync();
     });
@@ -213,21 +282,29 @@ export class AvatarScheduler {
     view.render(this.clock, this.reduced || !this.enabled);
   }
   remove(view: AvatarView) {
+    view.disposeInteraction();
     this.observer.unobserve(view.svg);
     this.views.delete(view.svg);
     this.visible.delete(view);
     this.sync();
   }
   configure(enabled: boolean, reduced: boolean) {
+    if (this.enabled === enabled && this.reduced === reduced) return;
     this.enabled = enabled;
     this.reduced = reduced;
     this.sync();
     this.invalidate();
   }
+  wake(view: AvatarView) {
+    if (!this.shouldRun() || !this.visible.has(view)) return;
+    view.nextAt = 0;
+    this.cancel();
+    this.schedule();
+  }
   invalidate() {
     const clock = this.clock;
     for (const view of this.views.values())
-      view.render(clock, this.reduced || !this.enabled, this.visible.size > 60);
+      view.render(clock, this.reduced || !this.enabled, this.visible.size > 40);
     this.sync();
   }
   private shouldRun() {
@@ -240,6 +317,7 @@ export class AvatarScheduler {
   }
   private sync = () => {
     this.cancel();
+    if (document.hidden) for (const view of this.views.values()) view.resetPointer();
     const advancing = this.enabled && !this.reduced && !document.hidden;
     if (advancing !== this.advancing) {
       this.elapsed = this.clock;
@@ -286,7 +364,7 @@ export class AvatarScheduler {
     let painted = false;
     for (const view of this.visible) {
       if (view.nextAt > clock) continue;
-      view.render(clock, false, this.visible.size > 60);
+      view.render(clock, false, this.visible.size > 40);
       painted = true;
     }
     if (painted) {
@@ -308,6 +386,7 @@ export class AvatarScheduler {
     this.sync();
     document.removeEventListener('visibilitychange', this.sync);
     this.observer.disconnect();
+    for (const view of this.views.values()) view.disposeInteraction();
     this.views.clear();
     this.visible.clear();
   }

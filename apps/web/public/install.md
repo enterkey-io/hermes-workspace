@@ -56,7 +56,8 @@ rollback window, it can be archived privately with the old service/code.
 
 Choose one canonical HTTPS origin on owner-controlled infrastructure. Reuse an
 appropriate reverse proxy, ingress or private tailnet route. Preserve its Host
-header, disable response buffering, and allow streams longer than the 15-second
+header, pass WebSocket upgrades for `/v1/computer/stream` without changing
+Origin/Host, disable response buffering, and allow streams longer than the 15-second
 heartbeat interval. Only the web listener needs external routing: it forwards
 `/v1/*` internally. Preserve all unrelated routes and keep the integration port
 on loopback. Disable logging of bodies, Authorization headers, cookies, private
@@ -71,13 +72,13 @@ installation.
 
 ## 3. Obtain the immutable combined release
 
-Candidate: `v0.5.0-preview.1`. If these assets are not published, stop and report
+Candidate: `v0.6.0-preview.1`. If these assets are not published, stop and report
 that the candidate is unavailable. Do not substitute main or an API-only package.
 
-- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.5.0-preview.1/workspace-manifest.json)
-- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.5.0-preview.1/SHA256SUMS)
-- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.5.0-preview.1/workspace-plugin-preview.zip)
-- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.5.0-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-manifest.json)
+- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/SHA256SUMS)
+- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-plugin-preview.zip)
+- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-source-preview.zip)
 
 Verify size and SHA-256 against both manifest and checksum file. Reject absolute
 archive paths, traversal, symlinks and entries escaping private staging. The
@@ -197,7 +198,7 @@ with `hermes bot-web setup-link` (use `--renew-setup` only if it expired).
 remaining seconds). Its output contains the private file path, never the secret.
 
 Event parsing and legacy access controls are specified in
-[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.5.0-preview.1/docs/WIRE_PROTOCOL.md).
+[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.6.0-preview.1/docs/WIRE_PROTOCOL.md).
 Never use global revocation for diagnostic cleanup: use DELETE `/v1/connect`
 with the probe's own lease. Global revocation now requires `hermes bot-web revoke
 --all` or the operator-only HTTP body `{"all":true}`.
@@ -230,7 +231,7 @@ If initial setup expires before account creation, run `hermes bot-web setup-link
 --renew-setup` and privately deliver the new link. It refuses to replace a claimed
 owner account. Never delete a claimed account or regenerate keys to repair an update.
 
-## Verify the 0.5 conversation update
+## Verify the 0.6 interface update
 
 Do not recreate the owner login, repeat onboarding, add a placeholder, or enroll
 extra profiles to test this update. Preserve the existing primary identity,
@@ -259,3 +260,18 @@ Independent Node/SQLite and Cloudflare Worker/D1 hosting remain available for an
 owner who intentionally chooses that topology. Follow `docs/INDEPENDENT_INSTALL.md`
 and its matching release. This is an advanced alternative, not a requirement for
 the combined plugin.
+
+## 0.6 interface and optional capabilities
+
+The combined update includes the complete redesigned UI and matching integration.
+Do not update only the static files when enabling Files/Computer. Direct-chat
+files use a private owner-local staging/index store under the integration state;
+no message bodies are stored in its send receipts. Group attachments and automatic
+generated-output indexing remain unavailable. Preserve this store during updates.
+The experimental Computer viewer is disabled by default pending Linux acceptance.
+An operator testing it may explicitly set `HERMES_BOT_WEB_EXPERIMENTAL_COMPUTER=1`
+in the bridge service environment. Do not enable it as part of ordinary install.
+It uses native Bot Screen only on supported 0.21.7 Linux hosts with its
+desktop packages configured. Do not install packages or request sudo as a side
+effect of opening the app. Full Linux screen startup remains a host-specific
+acceptance check; ordinary chat does not require it. Never expose a raw VNC port.

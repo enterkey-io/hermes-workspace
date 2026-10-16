@@ -122,13 +122,14 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue(
     'Synthetic unsent draft stays here',
   );
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'teams', exact: true }).click();
-  await page.getByLabel('New team name').fill('Research');
-  await page.getByRole('button', { name: 'Create team', exact: true }).click();
-  await expect(page.locator('.team-edit input')).toHaveValue('Research');
-  await page.getByRole('button', { name: 'agents', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'New crew', exact: true }).click();
+  const crew = page.getByRole('dialog', { name: 'New crew', exact: true });
+  await crew.getByLabel('Name', { exact: true }).fill('Research');
+  await crew.getByRole('button', { name: 'Create crew', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Actions for Alpha', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = 16;
@@ -149,23 +150,26 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   );
   await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
   await expect(
-    page.getByRole('navigation', { name: 'Bots' }).locator('.agent-avatar img'),
+    page.getByRole('navigation', { name: 'Pebbles' }).locator('.agent-avatar img'),
   ).toHaveCount(1);
   await page.getByRole('button', { name: 'Animated', exact: true }).click();
   await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
   await expect(
-    page.getByRole('navigation', { name: 'Bots' }).locator('.agent-avatar img'),
+    page.getByRole('navigation', { name: 'Pebbles' }).locator('.agent-avatar img'),
   ).toHaveCount(0);
   await page.getByRole('button', { name: 'Photo', exact: true }).click();
   await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
   await expect(
-    page.getByRole('navigation', { name: 'Bots' }).locator('.agent-avatar img'),
+    page.getByRole('navigation', { name: 'Pebbles' }).locator('.agent-avatar img'),
   ).toHaveCount(1);
-  await page.getByLabel('Role title', { exact: true }).fill('Team lead');
+  await page.getByRole('tab', { name: 'Role', exact: true }).click();
+  await page.getByLabel('Title', { exact: true }).fill('Team lead');
   await page.getByLabel('Description', { exact: true }).fill('Coordinates synthetic research');
-  await page.getByRole('button', { name: 'Save role & reporting', exact: true }).click();
-  await expect(page.getByLabel('Role title', { exact: true })).toHaveValue('Team lead');
-  await page.getByRole('button', { name: 'account', exact: true }).click();
+  await page.getByRole('button', { name: 'Save role', exact: true }).click();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Team lead');
+  await page.getByRole('button', { name: 'Close Edit Alpha', exact: true }).click();
+  await page.getByRole('button', { name: 'Your account' }).click();
+  await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Current password', { exact: true }).fill('synthetic-owner-password-123');
   await page.getByLabel('New password', { exact: true }).fill('synthetic-owner-password-456');
   await page
@@ -177,8 +181,11 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await expect(page.getByRole('status')).toContainText(
     'Other devices will be signed out within five minutes.',
   );
+  await page.getByRole('button', { name: 'Close Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Actions for Alpha', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
+  await page.getByRole('tab', { name: 'Tools & skills', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'agents', exact: true }).click();
   await page
     .getByRole('button', { name: 'Save tools & skills', exact: true })
     .scrollIntoViewIfNeeded();
@@ -187,11 +194,12 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   ).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Edit Alpha', exact: true }).click();
   await page.reload();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled({ timeout: 30000 });
   await expect(page.getByRole('heading', { name: 'Create your login' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.getByRole('button', { name: 'Your account' }).click();
+  await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await page.getByLabel('Username', { exact: true }).fill('owner');
   await page.getByLabel('Password', { exact: true }).fill('synthetic-owner-password-456');

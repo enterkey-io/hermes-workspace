@@ -19,8 +19,25 @@ export class BotBridgeClient {
   #connection = '';
   #existingAgents = false;
   #workspace = false;
+  #attachments = false;
+  #computer = false;
   #rpcActive = 0;
   readonly #rpcWaiting: (() => void)[] = [];
+
+  get supportsComputer(): boolean {
+    return this.#computer;
+  }
+  computerSocket(ticket: string): WebSocket {
+    if (!this.#connection || !this.#computer || !/^[A-Za-z0-9_-]{43}$/.test(ticket))
+      throw new ClientError('UNSUPPORTED');
+    const url = endpointUrl(this.#endpoint, 'v1/computer/stream');
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.searchParams.set('ticket', ticket);
+    return new WebSocket(url);
+  }
+  get supportsAttachments(): boolean {
+    return this.#attachments;
+  }
 
   get supportsWorkspace(): boolean {
     return this.#workspace;
@@ -55,17 +72,14 @@ export class BotBridgeClient {
     this.#connection = data.connection;
     this.#existingAgents = existingAgents;
     this.#workspace = !!data.capabilities && record(data.capabilities).workspace === true;
+    this.#attachments = !!data.capabilities && record(data.capabilities).attachments === true;
+    this.#computer = !!data.capabilities && record(data.capabilities).computer === true;
   }
 
   async invoke(operation: string, params: Readonly<Record<string, unknown>>): Promise<unknown> {
     if (!this.#connection) throw new ClientError('DISCONNECTED');
     const generation = this.#lifetime.capture();
-    // Leave capacity for connection maintenance. Queue before dispatch; never retry
-    // an already dispatched mutation just because its acknowledgement was lost.
-    if (this.#rpcWaiting.length >= 64) throw new ClientError('RPC_FAILED');
-    if (this.#rpcActive >= 3) await new Promise<void>((done) => this.#rpcWaiting.push(done));
-    else this.#rpcActive++;
-    try {
+    return this.#withSlot(async () => {
       this.#lifetime.assertCurrent(generation);
       return record(
         await this.#request(
@@ -76,6 +90,17 @@ export class BotBridgeClient {
           { operation, params },
         ),
       ).result;
+    });
+  }
+
+  async #withSlot<T>(task: () => Promise<T>): Promise<T> {
+    // Uploads, downloads and RPC share three slots; the fourth is reserved for renewal.
+    // Queued work is never a retry of an already dispatched mutation.
+    if (this.#rpcWaiting.length >= 64) throw new ClientError('RPC_FAILED');
+    if (this.#rpcActive >= 3) await new Promise<void>((done) => this.#rpcWaiting.push(done));
+    else this.#rpcActive++;
+    try {
+      return await task();
     } finally {
       const next = this.#rpcWaiting.shift();
       if (next)
@@ -91,10 +116,113 @@ export class BotBridgeClient {
     await this.#request('v1/renew', 'POST');
   }
 
-  async #request(route: string, method: 'POST' | 'DELETE', body?: unknown): Promise<unknown> {
+  async uploadFile(sessionId: string, file: File, signal?: AbortSignal) {
+    const generation = this.#lifetime.capture();
+    return this.#withSlot(() => {
+      this.#lifetime.assertCurrent(generation);
+      signal?.throwIfAborted();
+      return this.#uploadFile(sessionId, file, signal);
+    });
+  }
+  async #uploadFile(
+    sessionId: string,
+    file: File,
+    signal?: AbortSignal,
+  ): Promise<{ id: string; name: string; size: number; kind: string; state: string }> {
+    if (!this.#connection || !this.#attachments) throw new ClientError('UNSUPPORTED');
+    if (!file.size || file.size > 10 * 1024 * 1024) throw new ClientError('INVALID_ATTACHMENT');
+    const generation = this.#lifetime.capture();
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    this.#lifetime.assertCurrent(generation);
+    signal?.throwIfAborted();
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 32768)
+      binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+    const result = record(
+      record(
+        await this.#request(
+          'v1/files/upload',
+          'POST',
+          {
+            operation: 'files.upload',
+            params: { session_id: sessionId, name: file.name, data: btoa(binary) },
+          },
+          signal,
+        ),
+      ).result,
+    );
+    if (
+      typeof result.id !== 'string' ||
+      !/^[A-Za-z0-9_-]{43}$/.test(result.id) ||
+      typeof result.name !== 'string' ||
+      typeof result.size !== 'number'
+    )
+      throw new ClientError('INVALID_RESPONSE');
+    return result as { id: string; name: string; size: number; kind: string; state: string };
+  }
+  async downloadFile(sessionId: string, id: string): Promise<Blob> {
+    const generation = this.#lifetime.capture();
+    return this.#withSlot(() => {
+      this.#lifetime.assertCurrent(generation);
+      return this.#downloadFile(sessionId, id);
+    });
+  }
+  async #downloadFile(sessionId: string, id: string): Promise<Blob> {
+    if (!this.#connection) throw new ClientError('DISCONNECTED');
+    const generation = this.#lifetime.capture(),
+      controller = new AbortController();
+    this.#active.add(controller);
+    const timer = setTimeout(() => controller.abort(), 50000);
+    try {
+      const url = endpointUrl(this.#endpoint, 'v1/files/read');
+      const response = await this.#fetch(
+        url,
+        this.#options(controller, 'POST', {
+          operation: 'files.read',
+          params: { session_id: sessionId, id },
+        }),
+      );
+      await this.#check(response, url);
+      this.#lifetime.assertCurrent(generation);
+      if (Number(response.headers.get('content-length')) > 10 * 1024 * 1024 || !response.body)
+        throw new ClientError('INVALID_RESPONSE');
+      const reader = response.body.getReader(),
+        parts: Uint8Array<ArrayBuffer>[] = [];
+      let bytes = 0;
+      try {
+        while (true) {
+          const item = await reader.read();
+          if (item.done) break;
+          bytes += item.value.length;
+          if (bytes > 10 * 1024 * 1024) throw new ClientError('INVALID_RESPONSE');
+          parts.push(new Uint8Array(item.value));
+        }
+      } finally {
+        await reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      }
+      this.#lifetime.assertCurrent(generation);
+      return new Blob(parts, { type: 'application/octet-stream' });
+    } catch (e) {
+      this.#lifetime.assertCurrent(generation);
+      throw safeError(e);
+    } finally {
+      clearTimeout(timer);
+      this.#active.delete(controller);
+    }
+  }
+  async #request(
+    route: string,
+    method: 'POST' | 'DELETE',
+    body?: unknown,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
     const generation = this.#lifetime.capture();
     const controller = new AbortController();
     this.#active.add(controller);
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) controller.abort();
     const timer = setTimeout(() => controller.abort(), 50_000);
     try {
       const url = endpointUrl(this.#endpoint, route);
@@ -109,6 +237,7 @@ export class BotBridgeClient {
       throw safeError(error);
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
       this.#active.delete(controller);
     }
   }
@@ -150,6 +279,8 @@ export class BotBridgeClient {
         'REQUIRES_SETUP',
         'INVALID_PHOTO',
         'INVALID_PARAMETERS',
+        'INVALID_ATTACHMENT',
+        'ATTACHMENT_QUOTA',
       ] as const;
       const match = known.find((item) => item === code);
       throw new ClientError(match ?? 'RPC_FAILED');
@@ -233,6 +364,8 @@ export class BotBridgeClient {
     this.#token = '';
     this.#connection = '';
     this.#existingAgents = false;
+    this.#attachments = false;
+    this.#computer = false;
     this.#workspace = false;
     for (const controller of this.#active) controller.abort();
     this.#active.clear();

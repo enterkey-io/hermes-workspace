@@ -3,10 +3,20 @@ import { normalizeEndpoint, safeError } from '@hermes-client/core';
 import { BotBridgeClient } from '@hermes-client/protocol';
 import type { BridgeEvent } from '@hermes-client/protocol';
 import { FirstRun } from './FirstRun';
-import { AgentPicker } from './AgentPicker';
-import { nativeMessages as transcript, roomMessages } from './conversation';
+import { lazy, Suspense } from 'react';
+const NewPebble = lazy(() => import('./NewPebble').then((m) => ({ default: m.NewPebble })));
+const CrewEditor = lazy(() => import('./CrewEditor').then((m) => ({ default: m.CrewEditor })));
+const WorkspaceSettings = lazy(() =>
+  import('./WorkspaceSettings').then((m) => ({ default: m.WorkspaceSettings })),
+);
+
+import { useMedia, scrollToLatest } from './ui/motion';
+import { nativeMessages as transcript, roomMessages, withSharedFiles } from './conversation';
 import type { ChatMessage as Message } from './conversation';
 import { RosterLoader } from './chat/roster';
+import { useUploads } from './chat/uploads';
+import type { SharedFile } from './chat/FilesPanel';
+import { fileSize } from './chat/FilesPanel';
 import { Rail, PebbleAvatar, CrewAvatar } from './chat/Rail';
 import type { ChatBot as Bot } from './chat/Rail';
 import { Transcript } from './chat/Transcript';
@@ -16,7 +26,7 @@ import { Drawer } from './chat/Drawer';
 import { RequestReview } from './chat/RequestReview';
 import type { OwnerConnection } from './OwnerShell';
 import { WorkspaceSetup } from './WorkspaceSetup';
-import { WorkspaceSettings } from './WorkspaceSettings';
+
 import { workspaceState } from './workspace';
 import type { WorkspaceState, WorkspaceBot } from './workspace';
 import type { Activity } from './avatar-lab/engine';
@@ -41,7 +51,9 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   ownerRef.current = owner;
   const [workspace, setWorkspace] = useState<WorkspaceState>();
   const [settings, setSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'agents' | 'requests'>('agents');
+  const [settingsTab, setSettingsTab] = useState<'agents' | 'requests' | 'account' | 'connections'>(
+    'account',
+  );
   const [agentStates, setAgentStates] = useState<Record<string, Activity>>({});
   const sessionProfiles = useRef(new Map<string, string>());
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -78,7 +90,52 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const [streamState, setStreamState] = useState<'opening' | 'live' | 'lost'>('opening');
   const [error, setError] = useState('');
   const [nav, setNav] = useState(false);
-  const [details, setDetails] = useState(false);
+  const desktop = useMedia('(min-width: 1200px)');
+  const [details, setDetails] = useState(
+    () =>
+      matchMedia('(min-width:1200px)').matches &&
+      localStorage.getItem('pebblecrew.details') !== 'closed',
+  );
+  const [detailsPresent, setDetailsPresent] = useState(details);
+  useEffect(() => {
+    if (!desktop) setDetails(false);
+  }, [desktop]);
+  const [editProfile, setEditProfile] = useState<string>();
+  const dirtyEditor = useRef(false),
+    pendingNavigation = useRef<(() => void) | undefined>(undefined);
+  const [confirmNavigation, setConfirmNavigation] = useState(false);
+  const onDirtyChange = useCallback((dirty: boolean) => {
+    dirtyEditor.current = dirty;
+  }, []);
+  function navigate(action: () => void) {
+    if (dirtyEditor.current) {
+      pendingNavigation.current = action;
+      setConfirmNavigation(true);
+      return false;
+    }
+    action();
+    return true;
+  }
+
+  const [crewEditor, setCrewEditor] = useState<{ id?: string }>();
+  const [pinIntents, setPinIntents] = useState<Record<string, boolean>>({});
+  const pendingPinIds = useRef(new Set<string>());
+  const mutationQueue = useRef(Promise.resolve());
+  const scrollAnimation = useRef<(() => void) | undefined>(undefined);
+  const scrollAnimating = useRef(false);
+  const detailsAnchor = useRef<{ id: string; offset: number } | undefined>(undefined);
+  useEffect(() => {
+    localStorage.setItem('pebblecrew.details', details ? 'open' : 'closed');
+    if (details) {
+      setDetailsPresent(true);
+      return;
+    }
+    const timer = setTimeout(
+      () => setDetailsPresent(false),
+      matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180,
+    );
+    return () => clearTimeout(timer);
+  }, [details]);
   const [routinePending, setRoutinePending] = useState('');
   const [stopping, setStopping] = useState(false);
   const [pinOrder, setPinOrder] = useState<string[]>([]);
@@ -143,6 +200,57 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       ? `bot:${target.bot.id ?? target.bot.profile}`
       : `room:${text(target.room.room_id)}`;
 
+  const attachmentInput = useRef<HTMLInputElement>(null);
+  const uploads = useUploads(
+    client,
+    selection ? draftKey(selection) : '',
+    selection?.kind === 'bot' ? selection.sessionId : undefined,
+  );
+  const [attachmentUncertain, setAttachmentUncertain] = useState(false);
+  const [sharedFiles, setSharedFiles] = useState<SharedFile[]>([]),
+    [filesVersion, setFilesVersion] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setSharedFiles([]);
+    if (client?.supportsAttachments && selection?.kind === 'bot')
+      void client
+        .invoke('files.list', { session_id: selection.sessionId })
+        .then((v) => {
+          if (live && Array.isArray((v as { files: SharedFile[] }).files))
+            setSharedFiles((v as { files: SharedFile[] }).files);
+        })
+        .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [client, selection, filesVersion]);
+  async function checkAttachmentSend(discard = false) {
+    if (!client || selection?.kind !== 'bot') return;
+    const target = selection,
+      connection = client;
+    try {
+      const value = (await client.invoke(discard ? 'files.discard' : 'files.reconcile', {
+        session_id: selection.sessionId,
+      })) as { state: string; ids?: string[] };
+      await refreshHistory(connection, target);
+      if (current.current !== connection || selected.current !== target) return;
+      if (value.state !== 'uncertain') {
+        setBlocked(false);
+        setAttachmentUncertain(false);
+        setError('');
+        if (value.state === 'accepted') {
+          uploads.sent(draftKey(selection), value.ids ?? []);
+          setDraft('');
+          drafts.current.delete(draftKey(selection));
+        }
+      } else
+        setError(
+          'The send is still unconfirmed. Review the conversation before discarding pending files.',
+        );
+    } catch (e) {
+      fail(e);
+    }
+  }
   function fail(error: unknown) {
     setError(safeError(error).message);
   }
@@ -286,7 +394,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   }, [client, streamState, busy, workspace, bots, rooms]);
   useLayoutEffect(() => {
     const pane = transcriptPane.current;
-    if (pane && followLatest.current && !pickingAgents) pane.scrollTop = pane.scrollHeight;
+    if (pane && followLatest.current && !pickingAgents && !scrollAnimating.current)
+      pane.scrollTop = pane.scrollHeight;
   }, [messages, stream, pickingAgents, running]);
   useLayoutEffect(() => {
     const input = composer.current;
@@ -307,12 +416,51 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       composer.current.focus();
     }
   }, [busy, blocked, pickingAgents, selection]);
-  function jumpToLatest() {
-    followLatest.current = true;
-    setShowLatest(false);
+  function toggleDetails(value: boolean) {
     const pane = transcriptPane.current;
-    if (pane) pane.scrollTop = pane.scrollHeight;
-    acknowledgeRead();
+    if (pane && !followLatest.current) {
+      const top = pane.getBoundingClientRect().top;
+      const message = [...pane.querySelectorAll<HTMLElement>('[data-message-id]')].find(
+        (n) => n.getBoundingClientRect().bottom > top,
+      );
+      if (message)
+        detailsAnchor.current = {
+          id: message.dataset.messageId!,
+          offset: message.getBoundingClientRect().top - top,
+        };
+    }
+    setDetails(value);
+  }
+  useLayoutEffect(() => {
+    const pane = transcriptPane.current,
+      anchor = detailsAnchor.current;
+    if (pane && anchor) {
+      const node = pane.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(anchor.id)}"]`);
+      if (node)
+        pane.scrollTop +=
+          node.getBoundingClientRect().top - pane.getBoundingClientRect().top - anchor.offset;
+    }
+    detailsAnchor.current = undefined;
+  }, [details, desktop]);
+  useEffect(() => () => scrollAnimation.current?.(), []);
+  function jumpToLatest() {
+    const pane = transcriptPane.current;
+    if (!pane) return;
+    scrollAnimation.current?.();
+    scrollAnimating.current = true;
+    scrollAnimation.current = scrollToLatest(
+      pane,
+      () => {
+        scrollAnimating.current = false;
+        followLatest.current = true;
+        setShowLatest(false);
+        acknowledgeRead();
+        composer.current?.focus({ preventScroll: true });
+      },
+      () => {
+        scrollAnimating.current = false;
+      },
+    );
   }
 
   async function refreshHistory(connection: BotBridgeClient, target: Selection) {
@@ -578,6 +726,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     setApprovals([]);
     setRoutines([]);
     setError('');
+    setAttachmentUncertain(false);
+    setBlocked(false);
     setBusy(true);
     setNav(false);
     setPickingAgents(false);
@@ -607,6 +757,20 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         requestAnimationFrame(() => {
           if (transcriptPane.current) transcriptPane.current.scrollTop = saved.top;
         });
+      }
+      setAttachmentUncertain(false);
+      if (client.supportsAttachments) {
+        const receipt = (await client.invoke('files.reconcile', {
+          session_id: target.sessionId,
+        })) as { state: string };
+        if (current.current !== client || selected.current !== target) return;
+        if (receipt.state === 'uncertain') {
+          setAttachmentUncertain(true);
+          setBlocked(true);
+          setError(
+            'An earlier file send has not been confirmed. Check its outcome before sending again.',
+          );
+        }
       }
       const inflight = data.inflight ? object(data.inflight) : {};
       setRunning(data.running === true);
@@ -661,6 +825,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     setRunning(false);
     setBusy(false);
     setActivity('Native room driver');
+    setAttachmentUncertain(false);
     setError('');
     setNav(false);
   }
@@ -739,7 +904,16 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   }, [client, selection]);
 
   async function send() {
-    if (!client || !selection || !draft.trim() || busy || running || blocked) return;
+    if (
+      !client ||
+      !selection ||
+      (!draft.trim() && !uploads.files.length) ||
+      !uploads.ready ||
+      busy ||
+      running ||
+      blocked
+    )
+      return;
     const connection = client;
     const target = selection;
     const generation = selectGeneration.current;
@@ -750,16 +924,36 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     setBusy(true);
     setError('');
     const message = draft;
+    const fileIds = uploads.files.flatMap((f) => (f.id ? [f.id] : []));
     followLatest.current = true;
     setShowLatest(false);
-    setMessages((old) => [...old, { role: 'user', text: message }]);
+    setMessages((old) => [
+      ...old,
+      {
+        role: 'user',
+        text: message,
+        ...(fileIds.length
+          ? {
+              files: uploads.files
+                .filter((f) => f.id)
+                .map((f) => ({ id: f.id!, name: f.name, size: f.size })),
+            }
+          : {}),
+      },
+    ]);
     if (target.kind === 'bot') {
       setRunning(true);
       setActivity('Working');
     }
     try {
       if (selection.kind === 'bot') {
-        await client.invoke('chat.send', { session_id: selection.sessionId, text: message });
+        const result = (await client.invoke('chat.send', {
+          session_id: selection.sessionId,
+          text: message,
+          ...(fileIds.length ? { attachments: fileIds, request_id: crypto.randomUUID() } : {}),
+        })) as Row;
+        if (fileIds.length && result.state !== 'accepted')
+          throw new Error('Attachment outcome uncertain');
       } else
         await client.invoke('room.send', {
           room_id: text(selection.room.room_id),
@@ -768,10 +962,13 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         });
       if (owns()) {
         drafts.current.delete(draftKey(target));
+        uploads.sent(draftKey(target), fileIds);
+        if (fileIds.length) setFilesVersion((v) => v + 1);
         setDraft('');
       }
     } catch (error) {
-      if (current.current === connection) setBlocked(true);
+      if (owns()) setBlocked(true);
+      if (owns() && fileIds.length) setAttachmentUncertain(true);
       if (owns())
         setError(
           `${safeError(error).message} The send outcome is uncertain. Reconnect and inspect history before another send.`,
@@ -833,6 +1030,37 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     }
   }
 
+  async function pinPebble(bot: WorkspaceBot, pinned: boolean) {
+    if (!client || pendingPinIds.current.has(bot.id)) return;
+    pendingPinIds.current.add(bot.id);
+    setPinIntents((old) => ({ ...old, [bot.id]: pinned }));
+    const connection = client;
+    const task = mutationQueue.current.then(async () => {
+      try {
+        await connection.invoke('agent.pin', {
+          profile: bot.profile,
+          id: bot.id,
+          pinned,
+          expected_revision: workspaceRef.current!.revision,
+        });
+        await loadRoster(connection, true);
+      } catch (e) {
+        if (current.current === connection) {
+          fail(e);
+          await loadRoster(connection, true).catch(() => undefined);
+        }
+      } finally {
+        pendingPinIds.current.delete(bot.id);
+        setPinIntents((old) => {
+          const next = { ...old };
+          delete next[bot.id];
+          return next;
+        });
+      }
+    });
+    mutationQueue.current = task.catch(() => undefined);
+    await task;
+  }
   async function presentationAction(operation: string, params: Row) {
     if (!client) return;
     try {
@@ -910,9 +1138,13 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       client={client}
       activity={activity}
       routines={routines}
+      sessionId={selection?.kind === 'bot' ? selection.sessionId : undefined}
+      filesVersion={filesVersion}
       pending={routinePending}
       onToggle={(r) => void toggleRoutine(r)}
+      onClose={() => toggleDetails(false)}
       onEdit={() => {
+        setEditProfile(selection?.kind === 'bot' ? selection.bot.profile : undefined);
         setSettingsTab('agents');
         setSettings(true);
         setDetails(false);
@@ -993,8 +1225,41 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     <Rail
       bots={bots}
       rooms={rooms}
-      workspace={workspace}
+      workspace={
+        workspace
+          ? {
+              ...workspace,
+              bots: workspace.bots.map((b) =>
+                Object.hasOwn(pinIntents, b.id)
+                  ? { ...b, pinned: pinIntents[b.id]!, pin_configured: true }
+                  : b,
+              ),
+            }
+          : undefined
+      }
       client={client}
+      pendingPins={Object.fromEntries(Object.keys(pinIntents).map((id) => [id, true]))}
+      onNewCrew={() =>
+        navigate(() => {
+          setCrewEditor({});
+          setNav(false);
+        })
+      }
+      onEditCrew={(id) =>
+        navigate(() => {
+          setCrewEditor({ id });
+          setNav(false);
+        })
+      }
+      onEdit={(profile) =>
+        navigate(() => {
+          setEditProfile(profile);
+          setSettingsTab('agents');
+          setSettings(true);
+          setPickingAgents(false);
+          setNav(false);
+        })
+      }
       selected={
         selection?.kind === 'bot'
           ? selection.bot.profile
@@ -1005,30 +1270,35 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       states={agentStates}
       online={streamState === 'live'}
       pinOrder={pinOrder}
-      onOpen={(bot) => {
-        if (bot.canonical) void open(bot);
-        else setPickingAgents(true);
-      }}
-      onRoom={openRoom}
-      onAdd={() => {
-        setPickingAgents(true);
-        setNav(false);
-        setSettings(false);
-      }}
-      onSettings={() => {
-        setSettingsTab('agents');
-        setSettings(true);
-        setPickingAgents(false);
-        setNav(false);
-      }}
-      onPin={(bot, pinned) =>
-        void presentationAction('agent.pin', {
-          profile: bot.profile,
-          id: bot.id,
-          expected_revision: workspace!.revision,
-          pinned,
+      onOpen={(bot) =>
+        navigate(() => {
+          setSettings(false);
+          if (bot.canonical) void open(bot);
+          else setPickingAgents(true);
         })
       }
+      onRoom={(room) =>
+        navigate(() => {
+          setSettings(false);
+          openRoom(room);
+        })
+      }
+      onAdd={() =>
+        navigate(() => {
+          setPickingAgents(true);
+          setNav(false);
+          setSettings(false);
+        })
+      }
+      onSettings={() =>
+        navigate(() => {
+          setSettingsTab(owner ? 'account' : 'connections');
+          setSettings(true);
+          setPickingAgents(false);
+          setNav(false);
+        })
+      }
+      onPin={(bot, pinned) => void pinPebble(bot, pinned)}
       onVisibility={(bot, hidden) => void visibility(bot, hidden)}
       onDelete={(bot) => void proposeDelete(bot)}
       onOrder={(ids) =>
@@ -1045,7 +1315,9 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     />
   );
   return (
-    <main className={`workspace ${settings ? 'editing' : ''}`}>
+    <main
+      className={`workspace ${settings ? 'editing' : ''} ${details && desktop && !settings ? 'has-details' : ''}`}
+    >
       <aside className="sidebar">{rail}</aside>
       {nav && (
         <Drawer title="navigation" onClose={closeNav}>
@@ -1054,18 +1326,28 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       )}
       <section className="conversation" aria-label="Conversation">
         {settings && workspace ? (
-          <WorkspaceSettings
-            initialTab={settingsTab}
-            initialProfile={selection?.kind === 'bot' ? selection.bot.profile : undefined}
-            client={client}
-            owner={!!owner}
-            state={workspace}
-            onChange={(state) => {
-              setWorkspace(state);
-              void loadRoster(client).catch(fail);
-            }}
-            onClose={() => setSettings(false)}
-          />
+          <Suspense fallback={<p role="status">Loading Settings…</p>}>
+            <WorkspaceSettings
+              key={`${settingsTab}:${editProfile ?? ''}`}
+              onDirtyChange={onDirtyChange}
+              initialTab={settingsTab}
+              initialProfile={
+                settingsTab === 'agents'
+                  ? editProfile
+                  : selection?.kind === 'bot'
+                    ? selection.bot.profile
+                    : undefined
+              }
+              client={client}
+              owner={!!owner}
+              state={workspace}
+              onChange={(state) => {
+                setWorkspace(state);
+                void loadRoster(client).catch(fail);
+              }}
+              onClose={() => setSettings(false)}
+            />
+          </Suspense>
         ) : (
           <>
             <header className="chat-header">
@@ -1123,10 +1405,12 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                 )}
                 <button
                   className="icon-button details-trigger"
-                  aria-label="Show details"
-                  onClick={() => setDetails(true)}
+                  aria-label={details ? 'Hide details' : 'Show details'}
+                  aria-expanded={details}
+                  aria-controls="pebble-details"
+                  onClick={() => toggleDetails(!details)}
                 >
-                  <Icon name="info" />
+                  <Icon name="settings" />
                   {approvals.length > 0 && <span className="unread-dot" />}
                 </button>
               </div>
@@ -1134,6 +1418,14 @@ export function App({ owner }: { owner?: OwnerConnection }) {
             {(error || (blocked && streamState !== 'opening')) && (
               <div className="error banner" role="alert">
                 {error || 'Reconnecting to Hermes…'}
+                {attachmentUncertain && (
+                  <span className="attachment-recovery">
+                    <button onClick={() => void checkAttachmentSend()}>Check send outcome</button>
+                    <button onClick={() => void checkAttachmentSend(true)}>
+                      Discard pending files
+                    </button>
+                  </span>
+                )}
                 {streamState === 'lost' && (
                   <button onClick={owner ? scheduleReconnect : disconnect}>
                     {owner ? 'Try reconnecting now' : 'Disconnect and reconnect'}
@@ -1163,18 +1455,42 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               }}
             >
               {pickingAgents ? (
-                <AgentPicker
-                  client={client}
-                  connected={streamState === 'live'}
-                  onClose={() => setPickingAgents(false)}
-                  onDone={async () => {
-                    await loadRoster(client);
-                    if (current.current === client) setPickingAgents(false);
-                  }}
-                />
+                <Suspense fallback={<p role="status">Loading…</p>}>
+                  <NewPebble
+                    client={client}
+                    state={workspace!}
+                    onDirtyChange={onDirtyChange}
+                    connected={streamState === 'live'}
+                    onClose={() => navigate(() => setPickingAgents(false))}
+                    onDone={async (profile) => {
+                      await loadRoster(client, true);
+                      if (current.current === client) {
+                        setPickingAgents(false);
+                        if (profile) {
+                          const bot = workspaceRef.current?.bots.find((b) => b.profile === profile);
+                          if (bot) await open(bot);
+                        }
+                      }
+                    }}
+                  />
+                </Suspense>
               ) : (
                 <Transcript
-                  messages={messages}
+                  messages={withSharedFiles(messages, sharedFiles)}
+                  onDownloadFile={(file) => {
+                    if (selection?.kind !== 'bot') return;
+                    void client
+                      .downloadFile(selection.sessionId, file.id)
+                      .then((blob) => {
+                        const url = URL.createObjectURL(blob),
+                          a = document.createElement('a');
+                        a.href = url;
+                        a.download = file.name;
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                      })
+                      .catch(fail);
+                  }}
                   title={title}
                   crew={selection?.kind === 'room'}
                   stream={stream}
@@ -1224,13 +1540,94 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                     Approval needed · Review
                   </button>
                 )}
-                <div className="composer">
+                <div
+                  className="composer"
+                  onDragOver={(e) => {
+                    if (selection?.kind === 'bot' && client.supportsAttachments) e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    if (selection?.kind === 'bot' && client.supportsAttachments) {
+                      e.preventDefault();
+                      uploads.add([...e.dataTransfer.files]);
+                    }
+                  }}
+                >
+                  {uploads.error && (
+                    <p className="upload-error" role="alert">
+                      {uploads.error}
+                    </p>
+                  )}
+                  {!!uploads.files.length && (
+                    <ul className="attachment-chips">
+                      {uploads.files.map((file) => (
+                        <li key={file.key} data-status={file.status}>
+                          <Icon name="file" />
+                          <span>
+                            <strong>{file.name}</strong>
+                            <small>
+                              {file.status === 'uploading'
+                                ? 'Uploading…'
+                                : file.status === 'error'
+                                  ? file.error
+                                  : fileSize(file.size)}
+                            </small>
+                          </span>
+                          {file.status === 'error' && (
+                            <button
+                              type="button"
+                              aria-label={`Retry ${file.name}`}
+                              onClick={() => uploads.retry(file)}
+                            >
+                              <Icon name="refresh" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${file.name}`}
+                            disabled={busy}
+                            onClick={() => uploads.remove(file)}
+                          >
+                            <Icon name="close" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
                       void send();
                     }}
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget) composer.current?.focus();
+                    }}
                   >
+                    {client.supportsAttachments && selection?.kind === 'bot' && (
+                      <>
+                        <input
+                          ref={attachmentInput}
+                          type="file"
+                          className="sr-only"
+                          tabIndex={-1}
+                          aria-label="Choose attachments"
+                          multiple
+                          onChange={(e) => {
+                            uploads.add([...(e.target.files ?? [])]);
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="attach-button icon-button"
+                          aria-label="Attach files"
+                          disabled={busy || blocked || uploads.files.length >= 5}
+                          onClick={() => attachmentInput.current?.click()}
+                        >
+                          <Icon name="attachment" />
+                        </button>
+                      </>
+                    )}
                     <textarea
                       ref={composer}
                       rows={1}
@@ -1239,6 +1636,16 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                       value={draft}
                       disabled={!selection || busy || blocked}
                       maxLength={16000}
+                      onPaste={(e) => {
+                        if (
+                          client.supportsAttachments &&
+                          selection?.kind === 'bot' &&
+                          e.clipboardData.files.length
+                        ) {
+                          e.preventDefault();
+                          uploads.add([...e.clipboardData.files]);
+                        }
+                      }}
                       onChange={(e) => {
                         setDraft(e.target.value);
                         if (selected.current)
@@ -1266,7 +1673,13 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                       <button
                         className="send-button"
                         aria-label="Send message"
-                        disabled={!selection || !draft.trim() || busy || blocked}
+                        disabled={
+                          !selection ||
+                          (!draft.trim() && !uploads.files.length) ||
+                          !uploads.ready ||
+                          busy ||
+                          blocked
+                        }
                       >
                         <Icon name="send" />
                       </button>
@@ -1278,10 +1691,66 @@ export function App({ owner }: { owner?: OwnerConnection }) {
           </>
         )}
       </section>
-      <aside className="details-panel">{!settings && detailsContent}</aside>
-      {details && (
+      <>
+        {desktop && detailsPresent && !settings && (
+          <aside
+            id="pebble-details"
+            className={`details-panel ${!details ? 'is-leaving' : ''}`}
+            inert={!details}
+          >
+            {detailsContent}
+          </aside>
+        )}
+      </>
+      {details && !desktop && !settings && (
         <Drawer title="details" onClose={closeDetails}>
           {detailsContent}
+        </Drawer>
+      )}
+      {confirmNavigation && (
+        <Drawer
+          title="Unsaved changes"
+          variant="dialog"
+          onClose={() => setConfirmNavigation(false)}
+        >
+          <h2>Discard unsaved changes?</h2>
+          <div className="form-actions">
+            <button onClick={() => setConfirmNavigation(false)}>Keep editing</button>
+            <button
+              className="danger-text"
+              onClick={() => {
+                dirtyEditor.current = false;
+                setConfirmNavigation(false);
+                pendingNavigation.current?.();
+                pendingNavigation.current = undefined;
+              }}
+            >
+              Discard changes
+            </button>
+          </div>
+        </Drawer>
+      )}
+      {crewEditor && workspace && (
+        <Drawer
+          title={crewEditor.id ? 'Edit crew' : 'New crew'}
+          variant="dialog"
+          onClose={() => navigate(() => setCrewEditor(undefined))}
+        >
+          <Suspense fallback={<p role="status">Loading crew…</p>}>
+            <CrewEditor
+              client={client}
+              state={workspace}
+              crewId={crewEditor.id}
+              onDirtyChange={(v) => {
+                dirtyEditor.current = v;
+              }}
+              onClose={() => navigate(() => setCrewEditor(undefined))}
+              onDone={async () => {
+                await loadRoster(client, true);
+                setCrewEditor(undefined);
+              }}
+            />
+          </Suspense>
         </Drawer>
       )}
       {review && (

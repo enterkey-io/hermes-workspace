@@ -1,6 +1,6 @@
 {
   "name": "pebble-crew",
-  "version": "0.5.0-preview.1",
+  "version": "0.6.0-preview.1",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -37,6 +37,7 @@
     "test:installed-plugin": "node scripts/test-installed-plugin.mjs"
   },
   "dependencies": {
+    "@novnc/novnc": "1.7.0",
     "better-auth": "1.7.10",
     "jose": "6.2.3",
     "kysely": "0.29.6",
@@ -46,6 +47,7 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.0",
     "@types/node": "26.6.5",

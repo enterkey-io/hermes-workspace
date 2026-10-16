@@ -113,7 +113,7 @@ def normalize_photo(data):
 
 
 class WorkspaceService:
-    METHODS = {'workspace.snapshot', 'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose', 'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
+    METHODS = {'crews.save', 'workspace.snapshot', 'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose', 'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
         'bots.update_handle', 'bots.appearance.get', 'bots.appearance.update', 'roles.update', 'teams.save',
         'models.describe', 'agent.model', 'agent.create', 'agent.update', 'agent.attach', 'requests.reconcile', 'requests.list', 'requests.approve', 'requests.deny',
         'connections.add', 'connections.permissions', 'connections.set_key', 'connections.list', 'connections.test', 'services.catalog', 'agent.capabilities'}
@@ -245,6 +245,20 @@ class WorkspaceService:
         self._snapshot = None
         snapshot, profiles = await self.sync(include_model=operation in {'workspace.describe', 'workspace.detect_primary', 'models.describe', 'agent.model', 'agent.create'})
         state = self.store.read()
+        if operation == 'crews.save':
+            from .crews import save
+            return await save(self, params)
+        if operation == 'agent.propose' and params.get('action') == 'agent.create':
+            fields(params, ['action', 'spec'])
+            spec = params['spec']
+            fields(spec, ['name', 'display_name', 'soul', 'role', 'model_source', 'model_fingerprint', 'skills', 'toolsets', 'manager', 'team', 'expected_revision'])
+            if spec['expected_revision'] != state['revision']:
+                raise InvalidOperation('Refresh before reviewing creation', 'STALE_REVISION')
+            bounded(spec['name'], 40, False)
+            bounded(spec['display_name'], 80, False)
+            bounded(spec['soul'], 12000, False)
+            request_id, status = self.store.request('owner', 'agent.create', spec)
+            return {'request_id': request_id, 'state': status}
         if operation in {'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose'}:
             return await presentation.invoke(self, operation, params, state, profiles)
         if operation in {'room.send', 'room.log'}:
@@ -357,7 +371,7 @@ class WorkspaceService:
             self.store.save(state, state['revision'])
             # At-most-once submission: a crash/lost acknowledgement never retries a prompt.
             opened = await self.ops.invoke('bot.open', {'profile': profile})
-            prompt = 'I have just set up my private workspace. Please introduce yourself in your own voice, preserving your existing SOUL and personality. Read your current workspace context and bot-web:manage-team skill. Tell me your public handle and that you are my orchestrator. Explain only the verified features available here and invite me to give you our first task. Do not create or change any other agents or connections.'
+            prompt = 'I have just set up my private workspace. Please introduce yourself in your own voice, preserving your existing SOUL and personality. Read your current workspace context and bot-web:manage-team skill. Tell me your public handle and that you are my Main Pebble. Explain only the verified features available here and invite me to give you our first task. Do not create or change any other agents or connections.'
             try:
                 await self.ops.invoke('chat.send', {'session_id': opened['session_id'], 'text': prompt})
                 status = 'accepted'
@@ -420,7 +434,7 @@ class WorkspaceService:
             await self.ops.enable_existing(name)
             await self.sync()
             state = self.store.read()
-            state['bots'][name].update(enrolled=True, manager=params['manager'], team=params['team'], role={'title': display_name, 'description': role, 'responsibilities': '', 'boundaries': '', 'expectedOutputs': ''})
+            state['bots'][name].update(enrolled=True, manager=params['manager'], team=params['team'], role={'title': '', 'description': role, 'responsibilities': '', 'boundaries': '', 'expectedOutputs': ''})
             self.store.save(state, state['revision'])
             return {'state': 'completed' if granted.get('configured') is True and attached.get('applied', {}).get('toolsets') is True and attached.get('applied', {}).get('skills') is True else 'partial', 'profile': name, 'created': result.get('ok') is True, 'provider': 'configured' if granted.get('configured') else 'authorization_required', 'runtime': 'unverified', 'canonical': True}
         if operation == 'connections.add':

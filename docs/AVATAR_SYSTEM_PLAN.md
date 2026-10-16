@@ -196,3 +196,19 @@ Acceptance evidence must include:
 The first web renderer is recommended; final roster capacity and cadence remain measurement-dependent. Native app frameworks and shared-webview versus native rendering are unresolved. The precise deployed Hermes event contract, stale-stream threshold and older-build avatar metadata behavior need compatibility tests. The final art family/palette and desired motion intensity need review in the local playground. Native-source reuse requires pinned license review. None of these uncertainties prevents an isolated original SVG demo or a renderer-independent specification.
 
 Technical native options: [Apple SwiftUI Canvas](https://developer.apple.com/documentation/swiftui/canvas) is a candidate immediate-mode drawing surface, and [Microsoft Win2D](https://learn.microsoft.com/en-us/windows/apps/develop/win2d/) provides a candidate Windows 2D path. These establish available drawing approaches, not completed ports or parity guarantees. Keep shared semantics and fixtures authoritative whichever platform surface is eventually selected.
+
+## 0.6 owner feedback: idle and interaction motion
+
+Resting eyes now look slightly up/right, with continuous seeded micro-motion
+instead of stepped gaze positions. Idle bodies breathe, bob and tilt gently.
+Completion acknowledges once, then returns to rest rather than freezing.
+Hovering the entire pebble row/tile, details area or avatar chooser wakes gaze
+tracking. Pointer motion uses frame-rate-independent exponential easing (70 ms
+time constant), stays local to the view and never triggers React/network writes.
+Keyboard focus provides a wake cue; touch does not track and photos stay photos.
+
+The same procedural renderer drives production and the lab. One scheduler
+samples only visible instances: 24 fps normal rows, 30 fps large, 15 fps dense
+views above 40 visible instances, and 60 fps for the hovered face. Document
+hiding, offscreen suspension, listener cleanup and static reduced motion remain
+mandatory. These limits are sampler budgets, not complete CPU/energy claims.

@@ -11,9 +11,24 @@ export function Icon({
     | 'settings'
     | 'pin'
     | 'chevron'
-    | 'refresh';
+    | 'refresh'
+    | 'account'
+    | 'attachment'
+    | 'file';
 }) {
   const paths = {
+    account: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 22v-2a8 8 0 0 1 16 0v2" />
+      </>
+    ),
+    attachment: <path d="m8 13 7-7a3 3 0 0 1 4 4L9 20a5 5 0 0 1-7-7L13 2m-7 13 9-9" />,
+    file: (
+      <>
+        <path d="M5 3h9l5 5v13H5zM14 3v6h5M8 13h8M8 17h5" />
+      </>
+    ),
     search: (
       <>
         <circle cx="10.5" cy="10.5" r="6.5" />

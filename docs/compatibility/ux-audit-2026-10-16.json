@@ -1,0 +1,102 @@
+{
+  "scope": "Synthetic fixture only; no owner server or user data accessed",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "main": {
+    "openMenu": {
+      "x": -26.34375,
+      "y": 99,
+      "width": 140,
+      "height": 80,
+      "left": -26.34375,
+      "right": 113.65625,
+      "top": 99,
+      "bottom": 179
+    },
+    "pin": {
+      "x": 18,
+      "y": 74,
+      "width": 95.65625,
+      "height": 140,
+      "left": 18,
+      "right": 113.65625,
+      "top": 74,
+      "bottom": 214
+    },
+    "textareaCursor": "text",
+    "pointerElement": {
+      "tag": "TEXTAREA",
+      "class": "",
+      "cursor": "text"
+    },
+    "textareaOutline": "rgb(244, 245, 245) none 3px",
+    "emptyAssistantBubbles": 1,
+    "renderedTools": 1,
+    "headings": [
+      "Operations",
+      "Research",
+      "Crews",
+      "Arlo",
+      "Research update",
+      "Arlo",
+      "Routines"
+    ]
+  },
+  "latest": {
+    "before": 0,
+    "immediatelyAfter": {
+      "top": 2544,
+      "max": 2544
+    }
+  },
+  "settings": {
+    "tag": "SECTION",
+    "class": "settings-panel",
+    "headings": [
+      "Settings",
+      "Avatar",
+      "Role & reporting",
+      "Tools & skills"
+    ],
+    "tabs": [
+      "agents",
+      "teams",
+      "requests",
+      "connections",
+      "account"
+    ],
+    "formCount": 4,
+    "inputCount": 8
+  },
+  "mobile": {
+    "menuBounds": {
+      "x": -22,
+      "y": 99,
+      "width": 140,
+      "height": 80
+    },
+    "documentWidth": 390,
+    "viewportWidth": 390
+  },
+  "date": "2026-10-16",
+  "source_checkout": "af75aa37c226054525bcea185466255f2655d9ea",
+  "bundle": {
+    "workspace-B7ZkV_KI.js": "aadd5d2049444d8f45c6050c5bc323702275aeb5e1ac9578828d330e2d03304c",
+    "workspace-DqshR0Z6.css": "cc7b83ca0191ee95c4c412025741211199935bf26b206ee9de94422313b1d35d"
+  },
+  "fixture": "test/chat-workspace/fixtures.ts plus valid empty capabilities and synthetic empty/tool history records; HTTP and event traffic intercepted",
+  "limitations": [
+    "Prebuilt staged production bundle; bundle reproducibility was not revalidated in this planning-only audit.",
+    "No owner installation, real native prompt, provider, pin network latency or actual reported payload was exercised.",
+    "Cursor report not reproduced in the tested editable Chrome state.",
+    "Full keyboard/screen-reader/zoom/contrast/performance acceptance remains implementation work."
+  ],
+  "captures": [
+    "artifacts/ux-audit-2026-10-16/main-menu-desktop.png",
+    "artifacts/ux-audit-2026-10-16/main-menu-mobile.png",
+    "artifacts/ux-audit-2026-10-16/tool-history-desktop.png",
+    "artifacts/ux-audit-2026-10-16/settings-desktop.png"
+  ]
+}

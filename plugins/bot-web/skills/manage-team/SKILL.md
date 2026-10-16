@@ -3,7 +3,7 @@ name: manage-team
 description: Read workspace identity and propose native agent changes for owner approval.
 ---
 Read `workspace_agents` with action `describe` and spec `{}` first. Use the current
-public handle, role, manager and orchestrator supplied in your per-turn context.
+public handle, role, manager and Main Pebble supplied in your per-turn context.
 You remain the same Hermes personality, SOUL, memory and skills.
 
 Discover and enable an existing profile before suggesting a new identity. To
@@ -31,14 +31,14 @@ propose a change, use exactly one of the following actions and spec fields:
   Select installed resources; no arbitrary URLs, commands, code or credentials.
 
 Use the latest workspace revision. Every mutation creates a pending proposal for
-review in the owner's app. No role, including orchestrator, can self-approve,
-change trust, grant privileges or transfer the orchestrator. Reuse an existing
+review in the owner's app. No role, including Main Pebble, can self-approve,
+change trust, grant privileges or transfer the Main Pebble. Reuse an existing
 request after uncertain outcomes; never create duplicates or manually edit files.
 Read request state through `describe`; pending, partial and uncertain are not
 success. Never put service keys, tokens or complete transcript contents in specs.
 
 Delegate using native `message_agent` with `native_target` from the live directory.
 The integration also resolves configured public handles. Report to your immediate
-manager and ultimately the orchestrator. A queue acknowledgement is not completion:
+manager and ultimately the Main Pebble. A queue acknowledgement is not completion:
 wait for a substantive result before starting dependent work. Do not invent task
 scheduler guarantees or bypass owner approvals.

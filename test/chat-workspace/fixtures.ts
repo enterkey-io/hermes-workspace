@@ -95,6 +95,19 @@ export async function installFixture(context: BrowserContext) {
     },
   ];
   let leaseCounter = 0;
+  let uploadCounter = 0;
+  const uploaded = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      size: number;
+      kind: string;
+      state: string;
+      data: string;
+      session: string;
+    }
+  >();
   const leases = new Map<string, Set<string>>();
   const read = new Map<string, number>();
   let approvals: Record<string, unknown>[] = [];
@@ -164,7 +177,7 @@ export async function installFixture(context: BrowserContext) {
         json: {
           protocol: 'hermes-bot-web.v1',
           connection,
-          capabilities: { workspace: true, existing_agents: true },
+          capabilities: { workspace: true, existing_agents: true, attachments: true },
         },
       });
       return;
@@ -175,7 +188,10 @@ export async function installFixture(context: BrowserContext) {
     }
     const { operation, params } = route.request().postDataJSON();
     const lease = leases.get(route.request().headers()['x-bot-connection'] ?? '');
-    if (operation.startsWith('chat.') && !lease?.has(params.session_id)) {
+    if (
+      (operation.startsWith('chat.') || operation.startsWith('files.')) &&
+      !lease?.has(params.session_id)
+    ) {
       await route.fulfill({ status: 400, json: { code: 'INVALID_PARAMETERS' } });
       return;
     }
@@ -199,6 +215,120 @@ export async function installFixture(context: BrowserContext) {
         ],
         preferences: prefs,
       };
+    if (operation === 'connections.list' || operation === 'services.catalog')
+      result = { servers: [] };
+    if (operation === 'models.describe')
+      result = {
+        supported: true,
+        fingerprint: 'synthetic-model-grant',
+        provider: 'Local fixture',
+        model: 'fixture-model',
+        source: 'default',
+        auth_kind: 'api_key',
+      };
+    if (operation === 'agent.capabilities')
+      result = {
+        skills: [{ name: 'example-skill', enabled: true }],
+        toolsets: [
+          { name: 'workspace', label: 'Workspace', enabled: true },
+          { name: 'browser', label: 'Browser', enabled: false },
+        ],
+      };
+    if (operation === 'agents.list')
+      result = {
+        agents: [
+          ...state.bots,
+          {
+            profile: 'existing-example',
+            name: 'Existing example',
+            description: 'Existing personality',
+            managed: false,
+            canonical: false,
+          },
+        ],
+      };
+    if (operation === 'agent.enable') {
+      if (!state.bots.some((b) => b.profile === params.profile)) {
+        const template = state.bots[1]!;
+        state.bots.push({
+          ...structuredClone(template),
+          id: 'existing-id',
+          profile: params.profile,
+          name: 'Existing example',
+          handle: params.profile,
+          pinned: false,
+          manager: 'arlo',
+          team: null,
+        });
+        state.revision++;
+      }
+      result = { managed: true, canonical: true };
+    }
+    if (operation === 'bots.update_handle') {
+      state.bots.find((b) => b.profile === params.profile)!.handle = params.handle;
+      state.revision++;
+    }
+    if (operation === 'roles.update') {
+      Object.assign(
+        state.bots.find((b) => b.profile === params.profile)!,
+        { role: params.role, manager: params.manager, team: params.team },
+      );
+      state.revision++;
+    }
+    if (operation === 'bots.appearance.update') {
+      state.bots.find((b) => b.profile === params.profile)!.appearance = params.appearance;
+      state.revision++;
+    }
+    if (operation === 'crews.save') {
+      state.teams = state.teams.filter((t) => t.id !== params.id);
+      if (!params.remove) state.teams.push({ id: params.id, name: params.name });
+      state.bots.forEach((b) => {
+        if (params.members.includes(b.profile) && !params.remove) b.team = params.id;
+        else if (b.team === params.id) b.team = null;
+      });
+      state.revision++;
+      result = { state: 'completed' };
+    }
+    if (operation === 'files.upload') {
+      const id = String(++uploadCounter).padStart(43, 'f');
+      const file = {
+        id,
+        name: params.name,
+        size: Buffer.from(params.data, 'base64').length,
+        kind: 'file',
+        state: 'staged',
+        data: params.data,
+        session: params.session_id,
+      };
+      uploaded.set(id, file);
+      result = file;
+    }
+    if (operation === 'files.list')
+      result = {
+        files: [...uploaded.values()].filter(
+          (f) => f.session === params.session_id && f.state === 'sent',
+        ),
+      };
+    if (operation === 'files.remove') {
+      uploaded.delete(params.id);
+      result = { removed: true };
+    }
+    if (operation === 'files.reconcile') result = { state: 'clear' };
+    if (operation === 'files.read') {
+      const file = uploaded.get(params.id)!;
+      await route.fulfill({
+        body: Buffer.from(file.data, 'base64'),
+        headers: { 'content-type': 'application/octet-stream' },
+      });
+      return;
+    }
+    if (operation === 'chat.send') {
+      for (const id of params.attachments ?? []) {
+        const file = uploaded.get(id)!;
+        file.state = 'sent';
+      }
+      result = { state: 'accepted' };
+    }
     if (operation === 'workspace.describe') result = state;
     if (operation === 'requests.list') result = { requests };
     if (operation === 'presentation.read') {
@@ -267,7 +397,26 @@ export async function installFixture(context: BrowserContext) {
     if (operation === 'requests.approve') {
       const request = requests[0]!;
       const spec = request.spec as { id: string };
-      state.bots = state.bots.filter((b) => b.id !== spec.id);
+      if (request.action === 'agent.create') {
+        const value = request.spec as Record<string, unknown>;
+        state.bots.push({
+          ...structuredClone(state.bots[1]!),
+          id: 'created-' + String(value.name),
+          profile: String(value.name),
+          handle: String(value.name),
+          name: String(value.display_name),
+          pinned: false,
+          team: null,
+          role: {
+            title: '',
+            description: String(value.role),
+            responsibilities: '',
+            boundaries: '',
+            expectedOutputs: '',
+          },
+        });
+        state.revision++;
+      } else state.bots = state.bots.filter((b) => b.id !== spec.id);
       request.state = 'completed';
       result = { state: 'completed' };
     }

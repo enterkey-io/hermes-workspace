@@ -1,9 +1,20 @@
 # Installed-owner implementation status
 
-This file tracks the 0.5.0 combined-plugin update and the earlier published
-0.3.0 owner-login preview. It is not production certification or a claim that an
-owner's remote Hermes has been upgraded. The default distribution is now one
-installable plugin; independent app hosting remains optional.
+**16 October 0.6.0 update:** the owner authorized inline implementation of the
+[design system](PEBBLE_CREW_DESIGN_SYSTEM.md) and [UX plan](PEBBLE_CREW_UX_IMPLEMENTATION_PLAN.md).
+Settings, New/Edit pebble, Crews, account/connection/request flows and chat now
+share production components and tokens. All PC-008–PC-023 have implementation
+and automated coverage recorded in [the backlog](BUGS_AND_IMPROVEMENTS.md) and
+[verification report](compatibility/preview-0.6.0-local.json). Native files are
+implemented for direct chats. The optional Computer transport is tested against
+real native ticket/RFB/control code with a synthetic framebuffer; full Linux
+Xvnc startup/device testing remains open. Generated-output indexing and group
+attachments are deferred. No formal accessibility certification is claimed.
+
+The default distribution is one installable plugin, with optional independent
+hosting. Publishing an update does not upgrade an owner's remote Hermes host.
+The following section records the preceding 0.5.0 baseline; the 0.6.0 changes
+and limits above supersede its UI details.
 
 Implemented and exercised locally:
 
@@ -124,3 +135,7 @@ Combined package evidence: [installed-plugin-local.json](compatibility/installed
 Both supported source builds pass 33 local installation/browser checks each,
 including an interrupted first installation. Each runs one synthetic inference;
 metadata probes are separate. The tested combined archive is identified by SHA-256.
+
+The experimental Computer viewer remains disabled by default while Linux
+acceptance is open. Explicit operator-only test opt-in is
+`HERMES_BOT_WEB_EXPERIMENTAL_COMPUTER=1`; native revision/host checks still apply.

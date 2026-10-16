@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { nativeMessages, roomMessages, messageDate } from './conversation';
+import {
+  nativeMessages,
+  roomMessages,
+  messageDate,
+  projectTimeline,
+  withSharedFiles,
+} from './conversation';
 describe('native conversation projection', () => {
   it('retains durable identities and native timestamps without fabricating them', () => {
     const messages = nativeMessages([
@@ -28,5 +34,58 @@ describe('native conversation projection', () => {
     expect(messages.map((m) => m.id)).toEqual(['m1', 'u1']);
     expect(messages[0]?.author).toBe('research');
     expect(messages[1]?.role).toBe('user');
+  });
+});
+
+describe('lossless native timeline presentation', () => {
+  it('retains source rows but omits empty/hidden reasoning and groups tools around meaningful final replies', () => {
+    const source = [
+      { row_id: 1, role: 'assistant', text: '', reasoning: 'private' },
+      { row_id: 2, role: 'tool', text: 'Read result', name: 'read_file' },
+      { row_id: 3, role: 'assistant', text: '', tool_calls: [{ id: 'x' }] },
+      { row_id: 4, role: 'tool', text: 'Failure: unavailable', name: 'write_file' },
+      {
+        row_id: 5,
+        role: 'assistant',
+        text: '',
+        codex_message_items: JSON.stringify([
+          {
+            type: 'message',
+            role: 'assistant',
+            phase: 'analysis',
+            content: [{ type: 'output_text', text: 'private' }],
+          },
+          {
+            type: 'message',
+            role: 'assistant',
+            phase: 'final_answer',
+            content: [{ type: 'output_text', text: 'Real final' }],
+          },
+        ]),
+      },
+    ];
+    const messages = nativeMessages(source),
+      items = projectTimeline(messages);
+    expect(messages.map((m) => m.id)).toEqual(['1', '2', '3', '4', '5']);
+    expect(messages[0]!.source).toBe(source[0]);
+    expect(items).toHaveLength(2);
+    expect(items[0]!.kind).toBe('activity');
+    expect(items[1]).toMatchObject({ kind: 'message', message: { text: 'Real final' } });
+    expect(JSON.stringify(items)).not.toContain('Real finalprivate');
+  });
+  it('replaces only conversation-owned references with file chips', () => {
+    const files = [{ id: 'f'.repeat(43), name: 'notes.txt', size: 8 }];
+    const result = withSharedFiles(
+      [
+        {
+          role: 'user',
+          text: `Read @file:/private/${files[0]!.id}_notes.txt and @file:/private/unrelated.txt`,
+        },
+      ],
+      files,
+    );
+    expect(result[0]!.text).toContain('unrelated.txt');
+    expect(result[0]!.text).not.toContain(files[0]!.id);
+    expect(result[0]!.files).toEqual(files);
   });
 });

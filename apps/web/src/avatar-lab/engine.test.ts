@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blendPose, nextPoseDelay, samplePose, seedFromId, STATES } from './engine';
+import { blendPose, nextPoseDelay, samplePose, seedFromId, STATES, easeGaze } from './engine';
 
 describe('portable avatar motion', () => {
   it('replays the same pose regardless of intervening frame samples', () => {
@@ -27,11 +27,15 @@ describe('portable avatar motion', () => {
       expect(samplePose(state, 0, 123, true)).toEqual(samplePose(state, 999999, 123, true));
     expect(samplePose('attention', 0, 123, true)).not.toEqual(samplePose('working', 0, 123, true));
   });
-  it('stops completion motion and parks idle between meaningful events', () => {
+  it('bounds completion poses and samples continuous resting motion', () => {
     const seed = seedFromId('fixture');
     expect(samplePose('done', 1000, seed)).toEqual(samplePose('done', 900000, seed));
     expect(nextPoseDelay('done', 1000, seed, 15)).toBe(Infinity);
-    expect(nextPoseDelay('ready', 2000, seed, 15)).toBeGreaterThan(100);
+    expect(nextPoseDelay('ready', 2000, seed, 24)).toBeCloseTo(1000 / 24);
+    const rest = samplePose('ready', 2000, seed);
+    expect(rest.gazeX).toBeGreaterThan(2.5);
+    expect(rest.gazeY).toBeLessThan(-2);
+    expect(rest.y).not.toBe(0);
     expect(nextPoseDelay('working', 2000, seed, 15)).toBeCloseTo(1000 / 15);
   });
   it('interrupted transitions preserve their endpoints and bound interpolation', () => {
@@ -44,4 +48,14 @@ describe('portable avatar motion', () => {
       expect(blendPose(from, to, 3)[key]).toBeCloseTo(to[key]);
     }
   });
+});
+
+it('gaze easing approaches targets continuously across different refresh rates', () => {
+  let a = 0,
+    b = 0;
+  for (let i = 0; i < 60; i++) a = easeGaze(a, 6, 1000 / 60);
+  for (let i = 0; i < 24; i++) b = easeGaze(b, 6, 1000 / 24);
+  expect(a).toBeCloseTo(b, 6);
+  expect(easeGaze(0, 6, 16)).toBeGreaterThan(0);
+  expect(easeGaze(0, 6, 16)).toBeLessThan(2);
 });

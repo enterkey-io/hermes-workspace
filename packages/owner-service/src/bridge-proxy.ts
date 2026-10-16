@@ -1,4 +1,5 @@
 import { request } from 'node:http';
+import { createHash } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const routes = new Map([
@@ -6,6 +7,8 @@ const routes = new Map([
   ['/v1/renew', ['POST']],
   ['/v1/rpc', ['POST']],
   ['/v1/avatar', ['POST']],
+  ['/v1/files/upload', ['POST']],
+  ['/v1/files/read', ['POST']],
   ['/v1/events', ['GET']],
   ['/v1/oauth/callback', ['GET']],
 ]);
@@ -29,7 +32,12 @@ export function proxyBridge(
     outgoing.writeHead(403).end();
     return;
   }
-  const limit = url.pathname === '/v1/avatar' ? 3_000_000 : 65_536;
+  const limit =
+    url.pathname === '/v1/files/upload'
+      ? 14 * 1024 * 1024 + 4096
+      : url.pathname === '/v1/avatar'
+        ? 3_000_000
+        : 65_536;
   if (Number(incoming.headers['content-length'] ?? 0) > limit) {
     outgoing.writeHead(413).end();
     return;
@@ -57,7 +65,7 @@ export function proxyBridge(
     (response) => {
       // The integration cannot set owner-login cookies or replace security headers.
       const responseHeaders: Record<string, string | string[]> = {};
-      for (const name of ['content-type', 'location', 'retry-after']) {
+      for (const name of ['content-type', 'content-disposition', 'location', 'retry-after']) {
         const value = response.headers[name];
         if (value) responseHeaders[name] = value;
       }
@@ -89,4 +97,88 @@ export function proxyBridge(
   });
   incoming.on('aborted', () => upstream.destroy());
   incoming.pipe(upstream);
+}
+
+/** One fixed WebSocket route. Owner cookies and arbitrary destinations never cross it. */
+export function proxyBridgeUpgrade(
+  incoming: IncomingMessage,
+  socket: import('node:net').Socket,
+  head: Buffer,
+  origin: string,
+  port: number,
+) {
+  const url = new URL(incoming.url ?? '/', origin);
+  const reject = () => {
+    socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+  };
+  if (
+    incoming.method !== 'GET' ||
+    incoming.headers.upgrade?.toLowerCase() !== 'websocket' ||
+    !String(incoming.headers.connection).toLowerCase().split(/,\s*/).includes('upgrade') ||
+    incoming.headers.host !== new URL(origin).host ||
+    incoming.headers.origin !== origin ||
+    url.pathname !== '/v1/computer/stream' ||
+    [...url.searchParams].length !== 1 ||
+    !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('ticket') ?? '') ||
+    incoming.headers['sec-websocket-version'] !== '13' ||
+    !/^[A-Za-z0-9+/]{22}==$/.test(String(incoming.headers['sec-websocket-key'] ?? '')) ||
+    ['host', 'origin', 'sec-websocket-key'].some(
+      (name) =>
+        incoming.rawHeaders.filter((v, i) => i % 2 === 0 && v.toLowerCase() === name).length !== 1,
+    )
+  ) {
+    reject();
+    return;
+  }
+  const upstream = request({
+    hostname: '127.0.0.1',
+    port,
+    method: 'GET',
+    path: url.pathname + url.search,
+    headers: {
+      Host: new URL(origin).host,
+      Origin: origin,
+      Upgrade: 'websocket',
+      Connection: 'Upgrade',
+      'Sec-WebSocket-Key': String(incoming.headers['sec-websocket-key']),
+      'Sec-WebSocket-Version': '13',
+    },
+  });
+  upstream.setTimeout(10000, () => upstream.destroy());
+  upstream.on('upgrade', (response, peer, buffer) => {
+    upstream.setTimeout(0);
+    if (
+      response.statusCode !== 101 ||
+      response.headers['sec-websocket-accept'] !==
+        createHash('sha1')
+          .update(
+            String(incoming.headers['sec-websocket-key']) + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
+          )
+          .digest('base64')
+    ) {
+      peer.destroy();
+      reject();
+      return;
+    }
+    socket.write(
+      'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ' +
+        String(response.headers['sec-websocket-accept']) +
+        '\r\n\r\n',
+    );
+    if (buffer.length) socket.write(buffer);
+    if (head.length) peer.write(head);
+    socket.pipe(peer);
+    peer.pipe(socket);
+    socket.on('error', () => peer.destroy());
+    peer.on('error', () => socket.destroy());
+    socket.on('close', () => peer.destroy());
+    peer.on('close', () => socket.destroy());
+  });
+  upstream.on('response', () => {
+    upstream.destroy();
+    reject();
+  });
+  upstream.on('error', reject);
+  socket.on('close', () => upstream.destroy());
+  upstream.end();
 }

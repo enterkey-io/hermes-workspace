@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
+  outputDir: 'test-results/owner',
   testDir: 'test/owner-browser',
   timeout: 90000,
   workers: 1,

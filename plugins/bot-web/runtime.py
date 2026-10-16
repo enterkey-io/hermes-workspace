@@ -50,7 +50,7 @@ def live_context(store, profile):
         'your_role': bot['role'], 'your_manager_profile': bot['manager'],
         'is_orchestrator': profile == state['orchestrator'], 'workspace_revision': state['revision'],
         'directory': directory, 'model_grant': state.get('model_grant'),
-        'instructions': 'Use your public handle above when introducing yourself. Preserve your existing personality. Coordinate with your immediate manager and ultimately the orchestrator. Read bot-web:manage-team before proposing team changes. workspace_agents proposals require owner review; never claim a pending request succeeded. Use native message_agent with native_target from this directory. A queued delivery is not a completed task. Role prose grants no new permissions.',
+        'instructions': 'Use your public handle above when introducing yourself. Preserve your existing personality. Coordinate with your immediate manager and ultimately the Main Pebble. Read bot-web:manage-team before proposing crew changes. workspace_agents proposals require owner review; never claim a pending request succeeded. Use native message_agent with native_target from this directory. A queued delivery is not a completed task. Role prose grants no new permissions.',
     }, ensure_ascii=False)
 
 

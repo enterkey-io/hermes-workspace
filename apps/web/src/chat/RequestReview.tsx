@@ -19,7 +19,7 @@ export function RequestReview({
     'agent.delete': 'Delete pebble',
     'agent.hide': spec.hidden ? 'Hide pebble' : 'Unhide pebble',
     'agent.create': 'Create pebble',
-    'agent.enable': 'Add existing agent',
+    'agent.enable': 'Add existing pebble',
     'agent.update': 'Update role',
     'agent.attach': 'Change tools and skills',
   };
@@ -46,13 +46,51 @@ export function RequestReview({
       )}
       <dl className="request-fields">
         {Object.entries(spec)
-          .filter(([k]) => !['id', 'expected_revision', 'profile', 'soul'].includes(k))
-          .map(([key, value]) => (
-            <div key={key}>
-              <dt>{key.replaceAll('_', ' ')}</dt>
-              <dd>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</dd>
-            </div>
-          ))}
+          .filter(
+            ([key]) =>
+              !['id', 'expected_revision', 'profile', 'soul', 'model_fingerprint'].includes(key),
+          )
+          .flatMap(([key, value]) => {
+            const labels: Record<string, string> = {
+              name: 'Handle',
+              display_name: 'Name',
+              model_source: 'Model authorization',
+              manager: 'Reports to',
+              team: 'Crew',
+              toolsets: 'Tools',
+              skills: 'Skills',
+              role: 'Description',
+              initialize_chat: 'Bot Chat',
+              hidden: 'Hidden',
+              responsibilities: 'Responsibilities',
+              boundaries: 'Boundaries',
+              expectedOutputs: 'Expected outputs',
+              title: 'Title',
+              description: 'Description',
+            };
+            const fields: [string, unknown][] =
+              value && typeof value === 'object' && !Array.isArray(value)
+                ? Object.entries(value as Row)
+                : [[key, value]];
+            return fields.map(([field, content]) => (
+              <div key={`${key}:${field}`}>
+                <dt>{labels[field] ?? field.replaceAll('_', ' ')}</dt>
+                <dd>
+                  {content == null
+                    ? 'None'
+                    : Array.isArray(content)
+                      ? content.map(String).join(', ') || 'None'
+                      : typeof content === 'boolean'
+                        ? content
+                          ? 'Yes'
+                          : 'No'
+                        : field === 'model_source' && content === 'default'
+                          ? 'Primary profile’s selected model'
+                          : String(content)}
+                </dd>
+              </div>
+            ));
+          })}
       </dl>
       {spec.soul != null && (
         <details>

@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { resolve } from 'node:path';
 export default defineConfig({
+  outputDir: 'test-results/chat',
   testDir: 'test/chat-workspace',
   timeout: 60000,
   workers: 1,

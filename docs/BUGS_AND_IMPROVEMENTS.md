@@ -4,6 +4,49 @@ Track owner reports here through implementation, verification and release. A
 published fix is separate from updating and verifying the owner's installation.
 New reports receive a stable ID; later work updates the existing entry.
 
+## Reported 16 October 2026 — implemented in 0.6.0 candidate
+
+The owner authorized inline implementation after the Astra-high audit and plan.
+The shared system now covers the production screens. Automated validation is
+recorded in [the release evidence](compatibility/preview-0.6.0-local.json); the
+owner's installed host still needs the combined-package update and review.
+
+See the [UX audit](PEBBLE_CREW_UX_AUDIT.md),
+[starter design system](PEBBLE_CREW_DESIGN_SYSTEM.md),
+[implementation sequence](PEBBLE_CREW_UX_IMPLEMENTATION_PLAN.md), and
+[native feature findings](PEBBLE_CREW_NATIVE_CAPABILITIES.md).
+UX IDs map to the detailed evidence and acceptance criteria in those documents.
+
+| ID     | UX ID | Report / required result                                                                                                                                          | Status                                                                                                                                                                  |
+| ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-008 | UX-01 | Empty/tool-only chat bubbles: project meaningful messages and expandable turn activity without losing real replies, files, approvals or native cursor scope.      | Implemented: lossless source rows, grouped tool activity, final sidecars; browser and unit coverage.                                                                    |
+| PC-009 | UX-02 | Pinned menu leaves the viewport: accessible, collision-aware overlay at every rail/viewport edge.                                                                 | Implemented: portaled collision-aware menu, keyboard/Escape/focus and phone coverage.                                                                                   |
+| PC-010 | UX-03 | Settings needs the same design system and scoped, understandable forms as chat.                                                                                   | Implemented: Account/Connections/Requests use shared forms, tabs, loading/error states.                                                                                 |
+| PC-011 | UX-04 | Rename organizational Teams to Crews; create/manage from sidebar +, alongside New pebble. Preserve distinct native group chats and reporting relationships.       | Implemented: sidebar New crew and per-Crew editor; typed native Group chat creation stays separate.                                                                     |
+| PC-012 | UX-05 | Redesign Add/Edit pebble; distinguish adding an existing native agent from creating a new one, preserve edits and make save outcomes clear.                       | Implemented: existing/fresh paths, reviewed native creation, scoped forms, draft/conflict/retired-identity protection.                                                  |
+| PC-013 | UX-06 | Audit main-page usability/accessibility first, then establish tokens, components and states covering every app surface.                                           | Implemented: shared tokens, menu, tabs, form sections, notices, dialog/drawer and all screen migration.                                                                 |
+| PC-014 | UX-07 | Keep three-dot triggers transparent with no hover background; provide readable glyph/focus feedback and reliable touch discovery.                                 | Implemented: transparent always-discoverable overflow triggers; glyph/focus feedback without hover fill.                                                                |
+| PC-015 | UX-08 | Pin responds promptly, indicates pending/confirmed state honestly, and animates the same identity into/out of the shelf with reconciliation and rollback.         | Implemented: immediate pending pin intent, identity-preserving animation, authoritative commit or rollback.                                                             |
+| PC-016 | UX-09 | Center pinned pebbles, including incomplete rows, without changing saved order.                                                                                   | Implemented: centered incomplete pin rows, stable saved order.                                                                                                          |
+| PC-017 | UX-10 | Show genuine role/title beside ordinary sidebar names; preserve readable long titles and missing-data behavior.                                                   | Implemented: actual role chip, truncated long labels, no invented role for missing data.                                                                                |
+| PC-018 | UX-11 | Use Main Pebble throughout user-facing and model-facing prose; preserve compatible internal IDs and actual permissions.                                           | Implemented: Main Pebble in product/model prose; compatible persisted identifiers retained.                                                                             |
+| PC-019 | UX-12 | Toggle/close details at every size with a sliders icon, attached avatar star, no idle Ready text, and Routines/Files/Computer tabs backed by actual capabilities. | Implemented: optional details, attached star, Routines/Files tabs; Computer native transport probe passed; viewer disabled by default pending Linux desktop acceptance. |
+| PC-020 | UX-13 | Replace exposed footer actions with the owner's avatar menu for Settings, Show hidden and Sign out.                                                               | Implemented: owner avatar menu contains Settings, Show hidden, Sign out.                                                                                                |
+| PC-021 | UX-14 | Cohesive motion: fast visible Latest messages scroll, gentle hover/panel/selection/reorder transitions, cancellable and reduced-motion equivalents.               | Implemented: 240 ms Latest motion, cancellation, hover/panel/reorder feedback and reduced motion.                                                                       |
+| PC-022 | UX-15 | Correct composer cursor/focus behavior and add real file pick/paste/drop, upload, send and history/Files support on owner infrastructure.                         | Implemented: caret/focus, private pick/paste/drop, real native file send and Files download. Direct chats only; generated-output indexing deferred.                     |
+| PC-023 | UX-16 | Complete keyboard, screen-reader, focus, target-size, contrast, zoom/reflow, async-state and small-screen acceptance across all flows.                            | Automated keyboard, contrast, focus, phone, reflow/resize, async and browser Back coverage passed. Manual assistive-technology/device review remains.                   |
+
+Product terms are **Main Pebble** and **Crews**. Stable internal
+`orchestrator`/`teams` fields remain compatible. Existing native identities,
+canonical histories and reporting are preserved. A published candidate and an
+owner-host update are separate checkpoints.
+
+## Additional avatar feedback — 16 October 2026
+
+| ID     | Report                                                                                                                                                                    | Status                                                                                                                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-024 | Rest looking up/right, wake and follow the pointer over rows/details/settings, restore fluid eye/body motion from the demo, and avoid a permanent frozen completion pose. | Implemented in the shared app/lab renderer: seeded idle breathing/gaze, local eased hover/focus, one scheduler, visible-instance budgets, static reduced motion, completion → rest. Unit, app and dense-roster browser checks cover the change. |
+
 ## Implemented in 0.5.0
 
 | ID     | Report                                                                                             | Required result                                                                                                                                                                                                                                                                                                                    | Status                                                                                                                                                                                                                                    |

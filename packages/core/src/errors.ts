@@ -4,6 +4,8 @@ export type ErrorCode =
   | 'INVALID_REPORTING'
   | 'MODEL_UNAVAILABLE'
   | 'REQUIRES_SETUP'
+  | 'INVALID_ATTACHMENT'
+  | 'ATTACHMENT_QUOTA'
   | 'INVALID_PHOTO'
   | 'INVALID_PARAMETERS'
   | 'INVALID_ENDPOINT'
@@ -21,10 +23,12 @@ const messages: Record<ErrorCode, string> = {
   STALE_REVISION: 'Your workspace changed. Refresh it before saving again.',
   HANDLE_TAKEN: 'That handle already belongs to another agent. Choose a different handle.',
   INVALID_REPORTING:
-    'Every agent must report to the orchestrator without a cycle. Move team members before deleting their team.',
+    'Every pebble must report to the Main Pebble without a cycle. Move crew members before removing their crew.',
   MODEL_UNAVAILABLE:
     'The selected model authorization changed or needs setup in Hermes. Review it before creating this agent.',
   REQUIRES_SETUP: 'This service needs its native Hermes installation before it can be added here.',
+  INVALID_ATTACHMENT: 'Choose a valid file up to 10 MB. Images must be PNG, JPEG or WebP.',
+  ATTACHMENT_QUOTA: 'Attachment storage is full on your Hermes host.',
   INVALID_PHOTO: 'That photo could not be safely opened. Choose a PNG, JPEG or WebP image.',
   INVALID_PARAMETERS:
     'These settings could not be saved. Check the fields and refresh before trying again.',

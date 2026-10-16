@@ -77,9 +77,17 @@ export function samplePose(
   };
   switch (state) {
     case 'ready':
+      // A relaxed look away from the owner, with continuous, seeded micro-motion.
+      pose.gazeX = 3.4;
+      pose.gazeY = -2.8;
       if (!reduced) {
-        pose.gazeX = Math.sin(Math.floor(t / 2.8 + phase * 6) * 2.3) * 2.8;
-        pose.gazeY = Math.cos(Math.floor(t / 4.1 + phase * 3)) * 1.1;
+        pose.gazeX += Math.sin(t * 0.55 + phase * TAU) * 0.55;
+        pose.gazeY += Math.cos(t * 0.43 + phase * TAU) * 0.35;
+        pose.x = Math.sin(t * 0.75 + phase * TAU) * 0.45;
+        pose.y = Math.sin(t * 1.05 + phase * TAU) * 1.25;
+        pose.rotation = Math.sin(t * 0.68 + phase * TAU) * 1.4;
+        pose.sy = 1 + Math.sin(t * 1.05 + phase * TAU) * 0.014;
+        pose.sx = 2 - pose.sy;
       }
       break;
     case 'thinking':
@@ -148,7 +156,7 @@ export function samplePose(
   return pose;
 }
 
-/** Next meaningful pose deadline. Idle faces sleep between blinks and held looks. */
+/** Bounded pose deadline; offscreen/background suspension belongs to the shared scheduler. */
 export function nextPoseDelay(
   state: Activity,
   milliseconds: number,
@@ -156,16 +164,13 @@ export function nextPoseDelay(
   fps: number,
 ): number {
   const t = Math.max(0, milliseconds) / 1000;
-  const phase = (seed % 10007) / 10007;
+  void seed;
   const frame = 1000 / Math.max(1, Math.min(30, fps));
   if (state === 'done') return t < 0.9 ? frame : Infinity;
   if (state !== 'ready') return frame;
-  const interval = 4.7 + phase * 2.4;
-  const blinkPosition = (t + phase * interval) % interval;
-  if (blinkPosition < 0.19) return frame;
-  const gazeX = ((Math.floor(t / 2.8 + phase * 6) + 1 - phase * 6) * 2.8 - t) * 1000;
-  const gazeY = ((Math.floor(t / 4.1 + phase * 3) + 1 - phase * 3) * 4.1 - t) * 1000;
-  return Math.max(frame, Math.min((interval - blinkPosition) * 1000, gazeX, gazeY));
+  // Slow idle body/gaze motion is continuous; no stepped held looks.
+  // Only visible avatars are sampled. Dense rosters use a lower frame budget.
+  return frame;
 }
 
 /** Interruption starts at the currently drawn pose, including partially closed eyes. */
@@ -193,4 +198,9 @@ export function blendPose(from: Pose, to: Pose, progress: number): Pose {
       mix(from.dots[2], to.dots[2]),
     ],
   };
+}
+
+/** Frame-rate-independent gaze easing, shared by pointer and rest transitions. */
+export function easeGaze(current: number, target: number, elapsedMs: number): number {
+  return current + (target - current) * (1 - Math.exp(-clamp(elapsedMs, 0, 100) / 70));
 }

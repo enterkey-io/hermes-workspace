@@ -33,6 +33,59 @@ describe('direct Bot Mode bridge', () => {
       3,
     );
   });
+  it('shares the three-request budget between multi-file uploads and ordinary RPC', async () => {
+    const pending: (() => void)[] = [];
+    let active = 0,
+      peak = 0,
+      completed = 0;
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input, options) => {
+      if (String(input).endsWith('/v1/connect'))
+        return Response.json({
+          protocol: 'hermes-bot-web.v1',
+          connection,
+          capabilities: { attachments: true },
+        });
+      active++;
+      peak = Math.max(peak, active);
+      const body = JSON.parse(String(options?.body));
+      return new Promise<Response>((resolve) =>
+        pending.push(() => {
+          active--;
+          completed++;
+          resolve(
+            Response.json({
+              result:
+                body.operation === 'files.upload'
+                  ? {
+                      id: 'f'.repeat(43),
+                      name: body.params.name,
+                      size: 4,
+                      kind: 'file',
+                      state: 'staged',
+                    }
+                  : { ok: true },
+            }),
+          );
+        }),
+      );
+    });
+    const client = new BotBridgeClient(endpoint, token, fetcher);
+    await client.connect();
+    const calls = [
+      ...Array.from({ length: 5 }, (_, i) =>
+        client.uploadFile('session', new File(['note'], `file-${i}.txt`)),
+      ),
+      client.invoke('workspace.describe', {}),
+    ];
+    await vi.waitFor(() => expect(pending).toHaveLength(3));
+    while (completed < 6) {
+      pending.splice(0).forEach((done) => done());
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    await Promise.all(calls);
+    expect(peak).toBe(3);
+    expect(completed).toBe(6);
+  });
   it('renews an owner ticket without replacing its live connection or replaying a mutation', async () => {
     const fetcher = vi
       .fn<typeof fetch>()

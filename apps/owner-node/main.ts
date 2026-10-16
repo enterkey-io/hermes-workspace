@@ -7,7 +7,7 @@ import { generateKeyPair, exportJWK } from 'jose';
 import { NodeOwnerDatabase } from '../../packages/owner-service/src/node-store';
 import { createOwnerService, digest } from '../../packages/owner-service/src/service';
 import type { OwnerSettings } from '../../packages/owner-service/src/service';
-import { proxyBridge } from '../../packages/owner-service/src/bridge-proxy';
+import { proxyBridge, proxyBridgeUpgrade } from '../../packages/owner-service/src/bridge-proxy';
 
 const command = process.argv[2];
 function flag(name: string) {
@@ -118,8 +118,8 @@ if (command === 'init' || command === 'recover') {
   );
   if (bridgePort !== undefined && headers['Content-Security-Policy'])
     headers['Content-Security-Policy'] = headers['Content-Security-Policy'].replace(
-      'connect-src https:',
-      "connect-src 'self'",
+      'connect-src https: wss:',
+      `connect-src 'self' ${settings.origin.replace(/^https:/, 'wss:')}`,
     );
   const mime: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
@@ -217,6 +217,19 @@ if (command === 'init' || command === 'recover') {
     } catch {
       res.writeHead(404).end();
     }
+  });
+  server.on('upgrade', (request, socket, head) => {
+    if (bridgePort === undefined) {
+      socket.destroy();
+      return;
+    }
+    proxyBridgeUpgrade(
+      request,
+      socket as import('node:net').Socket,
+      head,
+      settings.origin,
+      bridgePort,
+    );
   });
   server.listen(Number(flag('--port') ?? 8081), '127.0.0.1');
   function shutdown() {

@@ -60,7 +60,7 @@ test('populated production workspace: layout, drafts, scroll, crew authors and r
     'false',
   );
   await page.getByLabel('Actions for Mica').click();
-  await page.getByRole('button', { name: 'Move earlier', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Move earlier', exact: true }).click();
   await expect(page.locator('.pinned-tile strong')).toHaveText(['Mica', 'Arlo']);
   fixture.setApprovals([{ request_id: 'exact-approval', command: 'Review synthetic operation' }]);
   await emit(page, 'approval.request');
@@ -114,9 +114,10 @@ test('live changes reconcile two browsers, protect the selected draft and never 
   await expect(second.getByRole('button', { name: 'Mica Bot Chat', exact: true })).toHaveCount(0, {
     timeout: 6500,
   });
-  await page.getByRole('button', { name: 'Show hidden', exact: true }).click();
+  await page.getByRole('button', { name: 'Your account' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Show hidden', exact: true }).click();
   await page.getByLabel('Actions for Mica').click();
-  await page.getByRole('button', { name: 'Unhide', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Unhide', exact: true }).click();
   await page.getByRole('button', { name: 'Mica Bot Chat', exact: true }).click();
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue('Private unsent draft');
   fixture.replace('mica');
@@ -125,7 +126,7 @@ test('live changes reconcile two browsers, protect the selected draft and never 
   await page.getByRole('button', { name: 'Mica Bot Chat', exact: true }).click();
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue('');
   await page.getByLabel('Actions for Rowan').click();
-  await page.getByRole('button', { name: 'Delete…', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Delete…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Review deletion' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();

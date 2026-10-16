@@ -201,6 +201,17 @@ class BotOperations:
             if result.get('success') is not True:
                 raise NativeError('Routine change was not confirmed')
             return result
+        if operation == 'room.create':
+            fields(params, ['room_id', 'name', 'profiles'])
+            room_id = identifier(params['room_id'])
+            name, profiles = params['name'], params['profiles']
+            if not isinstance(name, str) or not name.strip() or len(name) > 80 or not isinstance(profiles, list) or not 2 <= len(profiles) <= 6 or any(not isinstance(p,str) for p in profiles) or len(set(profiles)) != len(profiles):
+                raise InvalidOperation('Choose a name and 2–6 distinct pebbles')
+            members = []
+            for profile in profiles:
+                row = await self.bot(identifier(profile))
+                members.append({'member_id': profile, 'profile': profile, 'handle': 'hermes' if profile == 'default' else profile, 'display_name': self.summary(row)['name']})
+            return await self.gateway.call('groups.create', {'room_id': room_id, 'name': name.strip(), 'members': members})
         if operation == "rooms.list":
             fields(params, [])
             return await self.gateway.call("groups.list", {"limit": 100, "offset": 0})

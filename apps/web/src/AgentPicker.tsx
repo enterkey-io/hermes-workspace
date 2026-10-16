@@ -98,23 +98,15 @@ export function AgentPicker({
     <section className="agent-picker" aria-labelledby="agent-picker-title">
       <div className="agent-picker-heading">
         <div>
-          <p className="eyebrow">YOUR EXISTING HERMES AGENTS</p>
-          <h2 id="agent-picker-title">Choose who appears here.</h2>
+          <h2 id="agent-picker-title">Add existing pebbles</h2>
         </div>
         <button onClick={onClose} disabled={working}>
           Close
         </button>
       </div>
-      <p>
-        Choose the agents you want here. They keep their personality, memory, skills and settings.
+      <p className="field-hint">
+        Choose existing Hermes agents. Their personality and memory stay with them.
       </p>
-      <details className="agent-explainer">
-        <summary>What happens when I add an agent?</summary>
-        <p>
-          Each keeps its own SOUL and the same Hermes profile. Adding it enables its native Bot
-          Chat, reusing an existing chat. Conversations from other channels stay separate.
-        </p>
-      </details>
       {!client.supportsExistingAgents ? (
         <p role="status">
           Your integration needs an update to add existing agents here. Your current bots can still
@@ -130,11 +122,11 @@ export function AgentPicker({
             </p>
           )}
           <label className="agent-search">
-            <span>Find an agent</span>
+            <span>Find a pebble</span>
             <input
               ref={search}
               type="search"
-              placeholder="Search by name…"
+              placeholder="Search pebbles…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -172,11 +164,7 @@ export function AgentPicker({
                     <small>{agent.description || agent.profile}</small>
                   </span>
                   <small>
-                    {ready
-                      ? 'Already added'
-                      : agent.canonical
-                        ? 'Existing Bot Chat'
-                        : 'Enable Bot Chat'}
+                    {ready ? 'Added' : agent.canonical ? 'Existing Bot Chat' : 'Not added'}
                   </small>
                 </label>
               );
@@ -189,7 +177,7 @@ export function AgentPicker({
           )}
           <div className="agent-picker-actions">
             <button onClick={() => void refresh()} disabled={working || loading || !connected}>
-              Refresh agents
+              Refresh pebbles
             </button>
             <button
               className="primary"
@@ -198,7 +186,7 @@ export function AgentPicker({
             >
               {working
                 ? 'Adding selected agents…'
-                : `Add selected agents${chosen.length ? ` (${chosen.length})` : ''}`}
+                : `Add selected pebbles${chosen.length ? ` (${chosen.length})` : ''}`}
             </button>
           </div>
         </>

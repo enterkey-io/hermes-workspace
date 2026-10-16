@@ -226,6 +226,16 @@ try {
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await expect(page.getByText('Native fixture reply', { exact: true }).last()).toBeVisible();
   checks.actual_native_bot_mode_round_trip = true;
+  await page.getByLabel('Choose attachments').setInputFiles({
+    name: 'private-fixture.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('Synthetic private staging probe'),
+  });
+  await expect(page.locator('.attachment-chips')).toContainText('private-fixture.txt');
+  await expect(page.locator('.attachment-chips [data-status=ready]')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Remove private-fixture.txt', exact: true }).click();
+  await expect(page.locator('.attachment-chips')).toHaveCount(0);
+  checks.actual_combined_authenticated_upload_and_remove = true;
   console.log('Installed package: first use and native Bot Mode reply passed.');
   console.log('Synthetic model audit after first turn:', await control('audit'));
   const cookie = (await context.cookies()).find((c) => c.name.includes('session_token'));

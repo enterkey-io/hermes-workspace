@@ -27,6 +27,7 @@ export function AgentAvatar({
   client,
   profile,
   large = false,
+  revision,
 }: {
   id: string;
   look: Appearance;
@@ -36,6 +37,7 @@ export function AgentAvatar({
   client?: BotBridgeClient;
   profile?: string;
   large?: boolean;
+  revision?: number | undefined;
 }) {
   const host = useRef<HTMLSpanElement>(null);
   const view = useRef<AvatarView | undefined>(undefined);
@@ -61,7 +63,7 @@ export function AgentAvatar({
       live = false;
       setSavedPhoto('');
     };
-  }, [look.kind, photo, client, profile]);
+  }, [look.kind, photo, client, profile, revision]);
   const image = look.kind === 'photo' ? photo || savedPhoto : '';
   useEffect(() => {
     if (!host.current || look.kind !== 'shape') return;
@@ -81,6 +83,13 @@ export function AgentAvatar({
     view.current = avatar;
     host.current.append(avatar.svg);
     scheduler.add(avatar);
+    const root =
+      host.current.closest('.pebble-row,.pinned-tile') ??
+      host.current.closest('.details-panel') ??
+      host.current.closest('.chat-drawer') ??
+      host.current.closest('.appearance-picker') ??
+      host.current;
+    avatar.bindPointer(root, scheduler);
     return () => {
       scheduler.remove(avatar);
       avatar.svg.remove();
@@ -96,11 +105,14 @@ export function AgentAvatar({
     }
   }, [state]);
   return (
-    <span className={`agent-avatar ${large ? 'large' : ''}`} ref={host}>
+    <span
+      className={`agent-avatar avatar-${look.kind} avatar-${look.shape} ${large ? 'large' : ''}`}
+      ref={host}
+    >
       {image && (
         <>
           <img src={image} alt="" />
-          {state !== 'ready' && (
+          {state !== 'ready' && state !== 'done' && (
             <span className="photo-status" aria-label={state}>
               ●
             </span>
@@ -108,7 +120,7 @@ export function AgentAvatar({
         </>
       )}
       {orchestrator && (
-        <span className="avatar-star" aria-label="Orchestrator">
+        <span className="avatar-star" aria-label="Main Pebble">
           ★
         </span>
       )}
@@ -129,6 +141,7 @@ export function AvatarChooser({
   client,
   profile,
   onBusyChange,
+  revision,
 }: {
   look: Appearance;
   onChange: (v: Appearance) => void;
@@ -137,6 +150,7 @@ export function AvatarChooser({
   client?: BotBridgeClient;
   profile?: string;
   onBusyChange?: (busy: boolean) => void;
+  revision?: number | undefined;
 }) {
   const [storedPhoto, setStoredPhoto] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
@@ -160,7 +174,7 @@ export function AvatarChooser({
     return () => {
       live = false;
     };
-  }, [client, profile]);
+  }, [client, profile, revision]);
   const [error, setError] = useState('');
   const [decoding, setDecoding] = useState(false);
   const missingPhoto = look.kind === 'photo' && !photo && !storedPhoto;
@@ -254,7 +268,7 @@ export function AvatarChooser({
                     d={BODY_PATHS[shape]}
                     fill={COLORS.find((c) => c.id === look.color)?.hex ?? COLORS[0].hex}
                   />
-                  <g fill="#222329">
+                  <g fill="#222329" transform="translate(3.4 -2.8)">
                     <rect x="35" y="40" width="8" height="18" rx="4" />
                     <rect x="56" y="40" width="8" height="18" rx="4" />
                   </g>

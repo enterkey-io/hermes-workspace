@@ -1,3 +1,8 @@
+import { useEffect, useState } from 'react';
+import { Tabs } from '../ui/primitives';
+import { Icon } from './Icon';
+import { FilesPanel } from './FilesPanel';
+import { ComputerPanel } from './ComputerPanel';
 import type { ReactNode } from 'react';
 import type { ChatBot } from './Rail';
 import { PebbleAvatar, CrewAvatar } from './Rail';
@@ -15,6 +20,9 @@ export function Inspector({
   pending,
   onToggle,
   onEdit,
+  onClose,
+  sessionId,
+  filesVersion,
 }: {
   bot?: ChatBot | undefined;
   room?: Row | undefined;
@@ -26,10 +34,33 @@ export function Inspector({
   pending: string;
   onToggle: (r: Row) => void;
   onEdit: () => void;
+  onClose: () => void;
+  sessionId?: string | undefined;
+  filesVersion: number;
 }) {
+  const [tab, setTab] = useState('routines'),
+    [computer, setComputer] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setComputer(false);
+    setTab('routines');
+    if (client.supportsComputer && bot)
+      void client
+        .invoke('computer.status', { profile: bot.profile })
+        .then((v) => {
+          if (live) setComputer((v as { supported?: boolean }).supported === true);
+        })
+        .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [client, bot?.profile]);
   const identity = workspace?.bots.find((b) => b.profile === bot?.profile);
   return (
     <>
+      <button className="icon-button details-close" aria-label="Close details" onClick={onClose}>
+        <Icon name="close" />
+      </button>
       <div className="identity-summary">
         {bot ? (
           <PebbleAvatar bot={bot} workspace={workspace} client={client} large />
@@ -46,38 +77,58 @@ export function Inspector({
         )}
       </div>
       <div className="inspector-body">
-        <p className="live-activity" role="status">
-          {activity}
-        </p>
+        {activity !== 'Ready' && (
+          <p className="live-activity" role="status">
+            {activity}
+          </p>
+        )}
         {children}
         {bot && (
           <>
-            <h3>Routines</h3>
-            <div className="routine-list">
-              {routines.map((r) => {
-                const id = String(r.id ?? r.job_id ?? '');
-                const enabled = r.enabled !== false && r.paused !== true && r.state !== 'paused';
-                return (
-                  <div className="routine" key={id}>
-                    <div>
-                      <strong>{String(r.name ?? 'Routine')}</strong>
-                      <p>{String(r.schedule_display ?? r.schedule ?? '')}</p>
-                    </div>
-                    <button
-                      role="switch"
-                      aria-checked={enabled}
-                      aria-label={`${enabled ? 'Pause' : 'Resume'} ${String(r.name ?? 'routine')}`}
-                      className="routine-switch"
-                      disabled={!!pending}
-                      onClick={() => onToggle(r)}
-                    >
-                      <span />
-                    </button>
-                  </div>
-                );
-              })}
-              {!routines.length && <p className="empty-note">No routines yet.</p>}
-            </div>
+            <Tabs
+              tabs={[
+                { id: 'routines', label: 'Routines' },
+                ...(client.supportsAttachments && sessionId
+                  ? [{ id: 'files', label: 'Files' }]
+                  : []),
+                ...(computer ? [{ id: 'computer', label: 'Computer' }] : []),
+              ]}
+              value={tab}
+              onChange={setTab}
+            >
+              {tab === 'computer' ? (
+                <ComputerPanel client={client} profile={bot.profile} name={bot.name} />
+              ) : tab === 'files' && sessionId ? (
+                <FilesPanel client={client} sessionId={sessionId} version={filesVersion} />
+              ) : (
+                <div className="routine-list">
+                  {routines.map((r) => {
+                    const id = String(r.id ?? r.job_id ?? '');
+                    const enabled =
+                      r.enabled !== false && r.paused !== true && r.state !== 'paused';
+                    return (
+                      <div className="routine" key={id}>
+                        <div>
+                          <strong>{String(r.name ?? 'Routine')}</strong>
+                          <p>{String(r.schedule_display ?? r.schedule ?? '')}</p>
+                        </div>
+                        <button
+                          role="switch"
+                          aria-checked={enabled}
+                          aria-label={`${enabled ? 'Pause' : 'Resume'} ${String(r.name ?? 'routine')}`}
+                          className="routine-switch"
+                          disabled={!!pending}
+                          onClick={() => onToggle(r)}
+                        >
+                          <span />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {!routines.length && <p className="empty-note">No routines yet.</p>}
+                </div>
+              )}
+            </Tabs>
           </>
         )}
         {identity?.role.description && (

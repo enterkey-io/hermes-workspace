@@ -35,7 +35,7 @@ def web_payload():
     allowed = {'index.html', 'avatar-lab.html', '_headers', 'install.html', 'install.md',
                'install.css', 'connection.json', 'version.json'}
     return [path for path in web_root.rglob('*') if path.is_file() and not path.is_symlink()
-            and (str(path.relative_to(web_root)) in allowed or path.relative_to(web_root).parts[0] == 'assets')]
+            and (str(path.relative_to(web_root)) in allowed or path.relative_to(web_root).parts[0] in {'assets', 'licenses'})]
 
 
 web = [(path, str(path.relative_to(web_root))) for path in web_payload()]

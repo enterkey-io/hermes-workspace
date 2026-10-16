@@ -14,6 +14,10 @@ def main():
     register_models()
     from lifecycle_native import register as register_lifecycle
     register_lifecycle()
+    from attachments_native import register as register_attachments
+    register_attachments()
+    from screen_native import register as register_screen
+    register_screen()
     start_hosted_room_service()
     try:
         entry.main()

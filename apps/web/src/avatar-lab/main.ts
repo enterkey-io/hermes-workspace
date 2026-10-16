@@ -33,7 +33,7 @@ root.innerHTML = `
   <main>
     <section class="intro"><p class="eyebrow">PRESENCE, WITH PERSONALITY</p><h1>A little character.<br><span>A clear signal.</span></h1><p>Recognizable teammates. Expressive eyes.<br>Just enough movement to know what’s happening.</p></section>
     <section class="workbench" aria-label="Avatar appearance and activity preview">
-      <div class="stage"><div class="stage-caption"><span>YOUR PRIMARY AGENT</span><span class="tag">Preview</span></div><div id="hero" class="hero-avatar"></div><div class="hero-caption"><h2 id="hero-name">Pebble</h2><span class="hero-status" id="hero-status">Thinking</span></div><p class="stage-footnote">The star marks your orchestrator.</p></div>
+      <div class="stage"><div class="stage-caption"><span>YOUR PRIMARY AGENT</span><span class="tag">Preview</span></div><div id="hero" class="hero-avatar"></div><div class="hero-caption"><h2 id="hero-name">Pebble</h2><span class="hero-status" id="hero-status">Thinking</span></div><p class="stage-footnote">The star marks your Main Pebble.</p></div>
       <div class="controls"><div class="avatar-type" role="group" aria-label="Avatar type"><button id="shape-mode" aria-pressed="true">Animated shape</button><button id="photo-mode" aria-pressed="false">Photo</button></div><div class="photo-controls" hidden><input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose avatar photo" hidden><button id="choose-photo">Choose photo…</button><button id="remove-photo" hidden>Remove photo</button><p id="photo-status" role="status">Photos stay on your device in this demo. Nothing is uploaded.</p></div><div class="control-section"><div class="section-label"><h2>Give them a look</h2><span>01</span></div><p id="look-description">Choose a shape and color. Their personality stays their own.</p><div class="shape-choices" role="group" aria-label="Avatar shape" id="shapes"></div><div class="color-choices" role="group" aria-label="Avatar color" id="colors"></div><p class="choice-caption"><span id="color-name">Iris</span> · Change it anytime in Settings</p></div><div class="control-section state-section"><div class="section-label"><h2>See them in action</h2><span>02</span></div><div id="states" class="state-choices" role="group" aria-label="Simulated activity"></div><p id="state-description" class="state-description"></p><label class="check-label"><input type="checkbox" id="tour"> Cycle through the states</label></div></div>
     </section>
     <div class="notice"><span class="notice-dot"></span><p>Motion study only. Activity is simulated. Choices stay on this page and do not change your Hermes agents.</p></div>
@@ -62,6 +62,7 @@ const reducePreference = matchMedia('(prefers-reduced-motion: reduce)');
 const hero = new AvatarView('primary-agent-study', shape, color.hex, state, true, true);
 document.querySelector('#hero')!.append(hero.svg);
 scheduler.add(hero);
+hero.bindPointer(document.querySelector('#hero')!, scheduler);
 const mini = new AvatarView('onboarding-row', shape, color.hex, 'ready', true);
 const shapeButtons = new Map<Shape, HTMLButtonElement>();
 const colorButtons: HTMLButtonElement[] = [];
@@ -142,6 +143,7 @@ for (const [i, candidate] of SHAPES.entries()) {
   card.append(name, caption);
   document.querySelector('#cast')!.append(card);
   scheduler.add(view);
+  view.bindPointer(card, scheduler);
 }
 let rosterViews: AvatarView[] = [];
 function populateRoster(count: number) {
@@ -173,7 +175,10 @@ function populateRoster(count: number) {
     if (i === 0 && photoMode && photoData) item.replaceChild(photoNode(true), view.svg);
     roster.append(item);
     rosterViews.push(view);
-    if (i !== 0 || !photoMode) scheduler.add(view);
+    if (i !== 0 || !photoMode) {
+      scheduler.add(view);
+      view.bindPointer(item, scheduler);
+    }
   }
 }
 populateRoster(24);

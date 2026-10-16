@@ -152,3 +152,20 @@ The owner distribution is also extracted outside the repository and installed
 using `npm ci --omit=dev --ignore-scripts`; its initialization and public setup/key
 endpoints must work without source/dev dependencies. None of these tests certifies
 a remote owner's supervision, trusted TLS deployment or installed update/rollback.
+
+## 0.6 design-system and native capability coverage
+
+`npx playwright test --config playwright.chat.config.ts` exercises populated
+production chat, Settings, Add/Edit pebble, Crews, uploads/downloads, menus,
+conflicting/retired drafts, browser Back, responsive layouts, motion and pin
+rollback. It runs axe WCAG checks on the actual rendered states; this does not
+replace manual screen-reader/device review. Use the same build root for the
+static server and tests. Native owner-browser acceptance separately covers
+first use, login, idle renewal, native restart, saved photo/shape switching and
+account changes.
+
+`computer_transport.py`, with the exact 0.21.7 checkout/interpreter, uses the
+real native private ticket bridge and RFB filter against a synthetic framebuffer.
+It verifies wrong-origin rejection, replay rejection, watcher input blocking,
+human input and clean-close hand-back. It does not launch Linux Xvnc or certify
+its packages/runtime on a Mac. Never run disposable fixtures against personal state.

@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { AgentAvatar } from '../AgentAvatar';
 import { Icon } from './Icon';
+import { Menu } from '../ui/primitives';
+import type { MenuItem } from '../ui/primitives';
 import type { WorkspaceState, WorkspaceBot } from '../workspace';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import type { Activity } from '../avatar-lab/engine';
@@ -37,6 +39,7 @@ export function PebbleAvatar({
       orchestrator={workspace?.orchestrator === bot.profile}
       state={state ?? 'ready'}
       large={large ?? false}
+      revision={workspace?.revision}
     />
   ) : (
     <span className="avatar">{bot.name.slice(0, 1)}</span>
@@ -64,7 +67,13 @@ export function CrewAvatar({
         return (
           <span key={`${profile}-${i}`} style={{ left: `${i * 9}px`, top: `${(i % 2) * 12}px` }}>
             {b ? (
-              <AgentAvatar id={b.id} look={b.appearance} client={client} profile={profile} />
+              <AgentAvatar
+                id={b.id}
+                look={b.appearance}
+                client={client}
+                profile={profile}
+                revision={workspace?.revision}
+              />
             ) : (
               <span className="crew-member-placeholder">{i + 1}</span>
             )}
@@ -88,6 +97,10 @@ export function Rail({
   onOpen,
   onRoom,
   onAdd,
+  onNewCrew,
+  onEditCrew,
+  onEdit,
+  pendingPins,
   onSettings,
   onPin,
   onVisibility,
@@ -108,6 +121,10 @@ export function Rail({
   onOpen: (b: ChatBot) => void;
   onRoom: (r: Row) => void;
   onAdd: () => void;
+  onNewCrew: () => void;
+  onEditCrew: (id: string) => void;
+  onEdit: (profile: string) => void;
+  pendingPins: Record<string, boolean>;
   onSettings: () => void;
   onPin: (b: WorkspaceBot, pinned: boolean) => void;
   onVisibility: (b: WorkspaceBot, hidden: boolean) => void;
@@ -121,6 +138,46 @@ export function Rail({
   const [search, setSearch] = useState(false);
   const [hidden, setHidden] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const motion = useRef<HTMLDivElement>(null);
+  const positions = useRef(new Map<string, DOMRect>());
+  useLayoutEffect(() => {
+    const next = new Map<string, DOMRect>();
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    motion.current?.querySelectorAll<HTMLElement>('[data-motion-id]').forEach((node) => {
+      const id = node.dataset.motionId!,
+        bounds = node.getBoundingClientRect(),
+        previous = positions.current.get(id);
+      next.set(id, bounds);
+      if (
+        previous &&
+        !reduce &&
+        (Math.abs(previous.x - bounds.x) > 1 ||
+          Math.abs(previous.y - bounds.y) > 1 ||
+          previous.width !== bounds.width)
+      ) {
+        node.getAnimations().forEach((a) => a.cancel());
+        node.animate(
+          [
+            {
+              transform: `translate(${previous.x - bounds.x}px,${previous.y - bounds.y}px) scale(${previous.width / bounds.width})`,
+              transformOrigin: 'top left',
+            },
+            { transform: 'none', transformOrigin: 'top left' },
+          ],
+          { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' },
+        );
+      }
+    });
+    positions.current = next;
+  }, [
+    bots,
+    workspace?.revision,
+    pinOrder.join(','),
+    JSON.stringify(pendingPins),
+    query,
+    search,
+    hidden,
+  ]);
   const identity = (b: ChatBot) => workspace?.bots.find((a) => a.profile === b.profile);
   const pinned = (b: ChatBot) => {
     const row = identity(b);
@@ -159,34 +216,31 @@ export function Rail({
   );
   const controls = (b: ChatBot, position?: number) => {
     const row = identity(b);
+    if (!row) return null;
+    const items: MenuItem[] = [
+      {
+        label: pinned(b) ? 'Unpin' : 'Pin',
+        action: () => onPin(row, !pinned(b)),
+        disabled: !!pendingPins[row.id],
+      },
+      { label: 'Edit pebble', action: () => onEdit(b.profile) },
+      { label: b.hidden ? 'Unhide' : 'Hide', action: () => onVisibility(row, !b.hidden) },
+    ];
+    if (b.profile !== 'default' && workspace?.orchestrator !== b.profile)
+      items.push({ label: 'Delete…', action: () => onDelete(row), danger: true });
+    if (position != null && position > 0)
+      items.push({
+        label: 'Move earlier',
+        action: () => {
+          const ids = pins.map((p) => identity(p)!.id);
+          [ids[position - 1], ids[position]] = [ids[position]!, ids[position - 1]!];
+          onOrder(ids);
+        },
+      });
     return (
-      row && (
-        <details className="pebble-menu">
-          <summary aria-label={`Actions for ${b.name}`}>···</summary>
-          <div>
-            <button onClick={() => onPin(row, !pinned(b))}>{pinned(b) ? 'Unpin' : 'Pin'}</button>
-            <button onClick={() => onVisibility(row, !b.hidden)}>
-              {b.hidden ? 'Unhide' : 'Hide'}
-            </button>
-            {b.profile !== 'default' && workspace?.orchestrator !== b.profile && (
-              <button className="danger-text" onClick={() => onDelete(row)}>
-                Delete…
-              </button>
-            )}
-            {position != null && position > 0 && (
-              <button
-                onClick={() => {
-                  const ids = pins.map((p) => identity(p)!.id);
-                  [ids[position - 1], ids[position]] = [ids[position]!, ids[position - 1]!];
-                  onOrder(ids);
-                }}
-              >
-                Move earlier
-              </button>
-            )}
-          </div>
-        </details>
-      )
+      <Menu className="pebble-menu" label={`Actions for ${b.name}`} items={items}>
+        <span aria-hidden>···</span>
+      </Menu>
     );
   };
   return (
@@ -203,15 +257,16 @@ export function Rail({
         >
           <Icon name="search" />
         </button>
-        <button
-          className="icon-button"
-          aria-label="Add existing agents"
-          title="Add existing agents"
-          onClick={onAdd}
+        <Menu
+          label="New"
           disabled={!online}
+          items={[
+            { label: 'New pebble', action: onAdd },
+            { label: 'New crew', action: onNewCrew },
+          ]}
         >
           <Icon name="plus" />
-        </button>
+        </Menu>
         {onClose && (
           <button className="icon-button" aria-label="Close navigation" onClick={onClose}>
             <Icon name="close" />
@@ -228,8 +283,8 @@ export function Rail({
           onChange={(e) => setQuery(e.target.value)}
         />
       )}
-      <div className="rail-scroll">
-        <nav aria-label="Bots">
+      <div className="rail-scroll" ref={motion}>
+        <nav aria-label="Pebbles">
           {!!pins.length && (
             <div className="pinned-pebbles">
               {pins.map((b, i) => (
@@ -243,12 +298,24 @@ export function Rail({
                     onClick={() => onOpen(b)}
                     disabled={!online}
                   >
-                    {avatar(b, true)}
+                    <span className="motion-avatar" data-motion-id={identity(b)?.id}>
+                      {avatar(b, true)}
+                    </span>
                     <strong>{b.name}</strong>
+                    {pendingPins[identity(b)?.id ?? ''] && (
+                      <span className="pin-saving" role="status">
+                        Saving…
+                      </span>
+                    )}
                     {identity(b)?.role.title && (
                       <span className="role-chip">{identity(b)?.role.title}</span>
                     )}
-                    {identity(b)?.unread && <span className="unread-dot" />}
+                    {identity(b)?.unread && (
+                      <>
+                        <span className="unread-dot" aria-hidden />
+                        <span className="sr-only">Unread messages</span>
+                      </>
+                    )}
                   </button>
                   {controls(b, i)}
                 </div>
@@ -258,9 +325,19 @@ export function Rail({
           {sections.map((section) => {
             const members = regular.filter((b) => (identity(b)?.team ?? null) === section.id);
             return (
-              members.length > 0 && (
+              (members.length > 0 || section.id != null) && (
                 <section key={section.id ?? 'unsectioned'} className="rail-section">
-                  <h2>{section.name}</h2>
+                  <div className="crew-heading">
+                    <h2>{section.name}</h2>
+                    {section.id && (
+                      <Menu
+                        label={`Actions for ${section.name}`}
+                        items={[{ label: 'Edit crew', action: () => onEditCrew(section.id!) }]}
+                      >
+                        <span aria-hidden>···</span>
+                      </Menu>
+                    )}
+                  </div>
                   {members.map((b) => (
                     <div
                       key={b.id ?? b.profile}
@@ -273,7 +350,9 @@ export function Rail({
                         disabled={!online || !!b.hidden}
                         onClick={() => onOpen(b)}
                       >
-                        {avatar(b)}
+                        <span className="motion-avatar" data-motion-id={identity(b)?.id}>
+                          {avatar(b)}
+                        </span>
                         <span className="pebble-copy">
                           <span className="pebble-heading">
                             <strong>{b.name}</strong>
@@ -293,7 +372,12 @@ export function Rail({
                                     `@${identity(b)?.handle ?? b.profile}`)}
                           </span>
                         </span>
-                        {identity(b)?.unread && <span className="unread-dot" />}
+                        {identity(b)?.unread && (
+                          <>
+                            <span className="unread-dot" aria-hidden />
+                            <span className="sr-only">Unread messages</span>
+                          </>
+                        )}
                       </button>
                       {controls(b)}
                     </div>
@@ -303,8 +387,8 @@ export function Rail({
             );
           })}
         </nav>
-        <nav aria-label="Rooms" className="rail-section">
-          {rooms.length > 0 && <h2>Crews</h2>}
+        <nav aria-label="Group chats" className="rail-section">
+          {rooms.length > 0 && <h2>Group chats</h2>}
           {rooms
             .filter((r) =>
               String(r.name ?? '')
@@ -323,7 +407,12 @@ export function Rail({
                   <strong>{String(r.name ?? 'Crew')}</strong>
                   <span className="chat-preview">{String(r.preview ?? 'Group conversation')}</span>
                 </span>
-                {r.unread === true && <span className="unread-dot" />}
+                {r.unread === true && (
+                  <>
+                    <span className="unread-dot" aria-hidden />
+                    <span className="sr-only">Unread messages</span>
+                  </>
+                )}
               </button>
             ))}
         </nav>
@@ -333,35 +422,36 @@ export function Rail({
             <button onClick={onAdd}>Add existing agents</button>
           </div>
         )}
-        {!pins.length && !regular.length && all.length > 0 && (
-          <p className="empty-note">No matches.</p>
-        )}
+        {!pins.length &&
+          !regular.length &&
+          !rooms.some((r) =>
+            String(r.name ?? '')
+              .toLowerCase()
+              .includes(query.toLowerCase()),
+          ) &&
+          all.length > 0 && <p className="empty-note">No matches.</p>}
       </div>
       <footer className="rail-footer">
-        <div>
-          <span className={`connection-dot ${online ? 'live' : 'lost'}`} />
-          <span>{online ? 'Connected' : 'Reconnecting…'}</span>
-          <button className="text-button" onClick={onLogout}>
-            {owner ? 'Sign out' : 'Disconnect'}
-          </button>
-        </div>
-        <div>
-          {workspace && (
-            <>
-              <button onClick={onSettings}>
-                <Icon name="settings" />
-                Settings
-              </button>
-              <button
-                className="text-button"
-                aria-pressed={hidden}
-                onClick={() => setHidden(!hidden)}
-              >
-                {hidden ? 'Hide hidden' : 'Show hidden'}
-              </button>
-            </>
-          )}
-        </div>
+        <Menu
+          className="owner-menu"
+          label="Your account"
+          upward
+          items={[
+            ...(workspace
+              ? [
+                  { label: 'Settings', action: onSettings },
+                  { label: 'Show hidden', checked: hidden, action: () => setHidden(!hidden) },
+                ]
+              : []),
+            { label: owner ? 'Sign out' : 'Disconnect', action: onLogout },
+          ]}
+        >
+          <span className="owner-mark" aria-hidden>
+            <Icon name="account" />
+          </span>
+        </Menu>
+        <span className={`connection-dot ${online ? 'live' : 'lost'}`} aria-hidden />
+        <span className="connection-label">{online ? 'Hermes connected' : 'Reconnecting…'}</span>
       </footer>
     </>
   );

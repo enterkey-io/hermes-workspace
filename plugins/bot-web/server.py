@@ -10,7 +10,7 @@ import secrets
 import time
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import JSONResponse, Response, StreamingResponse, RedirectResponse
 
 from .native import NativeError, NativeGateway
@@ -54,7 +54,15 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
         from .workspace import WorkspaceService, WorkspaceStore, workspace_path
         from .setup import installed_primary
         workspace = WorkspaceService(ops, WorkspaceStore(workspace_path()), primary=installed_primary())
+    files = None
+    if workspace:
+        from pathlib import Path
+        from .attachments import AttachmentStore
+        state_path = Path(workspace.store.db.execute('PRAGMA database_list').fetchone()[2])
+        files = AttachmentStore(state_path.parent / 'files')
     clients = {}
+    from .computer import Computer
+    computer = Computer(native, ops, clients, origins, hosts, enabled=os.environ.get("HERMES_BOT_WEB_EXPERIMENTAL_COMPUTER") == "1")
     pairing = BrowserPairing()
     owner_trust = trust
 
@@ -89,6 +97,8 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
             await native.stop()
             if workspace:
                 workspace.store.db.close()
+            if files:
+                files.db.close()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -146,7 +156,8 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                 return await reject(403)
             scope["bot.principal"] = principal
             scope["bot.origin"] = origin
-            body_limit = 3_000_000 if scope["path"] == "/v1/avatar" else MAX_BODY
+            from .attachments import MAX_UPLOAD_BODY
+            body_limit = MAX_UPLOAD_BODY if scope["path"] == "/v1/files/upload" else 3_000_000 if scope["path"] == "/v1/avatar" else MAX_BODY
             try:
                 if int(headers.get(b"content-length", b"0")) > body_limit:
                     return await reject(413)
@@ -183,7 +194,7 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
 
     @app.exception_handler(InvalidOperation)
     async def invalid(request, error):
-        return JSONResponse({"error": "Operation unavailable or invalid. Refresh and check the connection.", "code": error.code if error.code in {"STALE_REVISION", "HANDLE_TAKEN", "INVALID_REPORTING", "MODEL_UNAVAILABLE", "REQUIRES_SETUP", "INVALID_PHOTO", "INVALID_PARAMETERS"} else "INVALID_PARAMETERS"}, 409 if error.code == "STALE_REVISION" else 400)
+        return JSONResponse({"error": "Operation unavailable or invalid. Refresh and check the connection.", "code": error.code if error.code in {"STALE_REVISION", "HANDLE_TAKEN", "INVALID_REPORTING", "MODEL_UNAVAILABLE", "REQUIRES_SETUP", "INVALID_PHOTO", "INVALID_PARAMETERS", "INVALID_ATTACHMENT", "ATTACHMENT_QUOTA"} else "INVALID_PARAMETERS"}, 409 if error.code == "STALE_REVISION" else 400)
 
     @app.exception_handler(NativeError)
     async def native_error(request, error):
@@ -207,7 +218,7 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                                "expires": request.scope.get("bot.ticket_expires"), "ended": None}
         build = getattr(native, "build", None) or {}
         return {"connection": connection, "protocol": "hermes-bot-web.v1", "bridge_version": VERSION,
-                "capabilities": {"existing_agents": True, "owner_login": owner_trust is not None, "workspace": bool(workspace)},
+                "capabilities": {"existing_agents": True, "owner_login": owner_trust is not None, "workspace": bool(workspace), "attachments": bool(files), "computer": computer.supported},
                 "hermes_version": build.get("version"), "hermes_revision": build.get("revision")}
 
     @app.post("/v1/renew")
@@ -223,6 +234,8 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
             pairing.grants.pop(client["principal"], None)
         return {"disconnected": True}
 
+    @app.post("/v1/files/upload")
+    @app.post("/v1/files/read")
     @app.post("/v1/avatar")
     @app.post("/v1/rpc")
     async def rpc(request: Request):
@@ -242,11 +255,43 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
             operation, params = data["operation"], data["params"]
             if not isinstance(operation, str) or not isinstance(params, dict):
                 raise InvalidOperation("Invalid operation")
+            if request.url.path == '/v1/files/upload' and operation != 'files.upload':
+                raise InvalidOperation('Upload operation required')
+            if request.url.path == '/v1/files/read' and operation != 'files.read':
+                raise InvalidOperation('Download operation required')
+            if operation == 'files.upload' and request.url.path != '/v1/files/upload':
+                raise InvalidOperation('Dedicated upload route required')
+            if operation == 'files.read' and request.url.path != '/v1/files/read':
+                raise InvalidOperation('Dedicated download route required')
             if request.url.path == "/v1/avatar" and operation not in {"bots.appearance.update", "workspace.initialize"}:
                 raise InvalidOperation("Avatar operation required")
-            if operation.startswith("chat.") and params.get("session_id") not in client["sessions"]:
+            if (operation.startswith("chat.") or operation.startswith("files.")) and params.get("session_id") not in client["sessions"]:
                 raise InvalidOperation("Session belongs to another connection")
-            if operation in {"connections.auth_start", "connections.auth_status", "connections.auth_cancel"}:
+            if operation.startswith('computer.'):
+                result = await computer.invoke(operation, params, client, request.headers['x-bot-connection'])
+            elif operation.startswith('files.'):
+                if not files:
+                    raise InvalidOperation('Attachments unavailable')
+                if operation == 'files.upload':
+                    result = await files.upload(ops, client['principal'], params)
+                elif operation == 'files.read':
+                    row, blob = await files.invoke(ops, client['principal'], operation, params)
+                    from urllib.parse import quote
+                    return Response(blob, media_type='application/octet-stream', headers={'Content-Disposition': "attachment; filename*=UTF-8''" + quote(row['name'], safe='')})
+                elif operation in {'files.list', 'files.remove', 'files.reconcile', 'files.discard'}:
+                    result = await files.invoke(ops, client['principal'], operation, params)
+                else:
+                    raise InvalidOperation('Attachment operation unavailable')
+            elif operation == 'chat.send':
+                if files and 'attachments' in params:
+                    result = await files.submit(ops, client['principal'], params)
+                else:
+                    if files:
+                        state = await files.invoke(ops, client['principal'], 'files.reconcile', {'session_id': params.get('session_id')})
+                        if state['state'] == 'uncertain':
+                            raise NativeError('Check the previous attachment send before sending again')
+                    result = await ops.invoke(operation, params)
+            elif operation in {"connections.auth_start", "connections.auth_status", "connections.auth_cancel"}:
                 if not public_callback or not owner_trust:
                     raise InvalidOperation("Owner enrollment and a fixed HTTPS callback are required")
                 required = {"profile", "name"} if operation.endswith("start") else {"id"}
@@ -263,6 +308,10 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
             raise InvalidOperation("Invalid operation values") from error
         finally:
             client["inflight"] -= 1
+
+    @app.websocket("/v1/computer/stream")
+    async def computer_stream(websocket: WebSocket):
+        await computer.stream(websocket)
 
     @app.get("/v1/oauth/callback")
     async def oauth_callback(request: Request):

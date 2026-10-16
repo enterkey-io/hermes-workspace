@@ -1,5 +1,14 @@
 # Pebble Crew interface implementation plan
 
+Historical 15 October implementation record. The owner's 16 October reports
+reopen the experience and reveal unfinished Settings/forms, motion, menu and
+timeline work. The proposed next direction is defined by the
+[current audit](PEBBLE_CREW_UX_AUDIT.md),
+[starter design system](PEBBLE_CREW_DESIGN_SYSTEM.md) and
+[new implementation plan](PEBBLE_CREW_UX_IMPLEMENTATION_PLAN.md).
+The owner subsequently authorized inline implementation; the 0.6.0 release
+report records completed work and the remaining Linux desktop gate.
+
 Rebuild the daily conversation interface around pebbles, crews and readable
 messages. Preserve the installed plugin, local owner login, actual Hermes Bot
 Mode, existing identities and the approved avatar renderer. This is the proposed

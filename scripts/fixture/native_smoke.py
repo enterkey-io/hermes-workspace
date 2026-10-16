@@ -30,6 +30,8 @@ class Model(BaseHTTPRequestHandler):
     saw_native_tool = False
     emitted_handoff = False
     emitted_approval = False
+    emitted_attachment = False
+    saw_attachment = False
     approval_target = ""
     slow_started = threading.Event()
     turns = 0
@@ -66,6 +68,11 @@ class Model(BaseHTTPRequestHandler):
         text = "Native fixture reply"
         latest_user = next((m for m in reversed(data.get("messages", [])) if m.get("role") == "user"), {})
         tools = data.get("tools", [])
+        if any('PEBBLE_FIXTURE_FILE_INPUT' in str(m.get('content')) for m in data.get('messages', []) if m.get('role') == 'tool'):
+            Model.saw_attachment = True
+        import re
+        reference = re.search(r'@file:(?:`([^`]+)`|"([^"]+)"|(\S+))', str(latest_user.get('content')))
+        attachment = ('nativeattachment' in str(latest_user.get('content')) and reference and not Model.emitted_attachment and any(t.get('function', {}).get('name') == 'terminal' for t in tools))
         Model.tools_seen.update(t.get("function", {}).get("name", "") for t in tools)
         handoff = ("nativehandoff" in str(latest_user.get("content"))
             and not Model.emitted_handoff
@@ -78,7 +85,12 @@ class Model(BaseHTTPRequestHandler):
             text = "Slow fixture reply"
         message = {"role": "assistant", "content": text}
         finish = "stop"
-        if handoff:
+        if attachment:
+            Model.emitted_attachment = True
+            path = next(group for group in reference.groups() if group)
+            message = {"role": "assistant", "content": None, "tool_calls": [{"id": "fixture-file-read", "type": "function", "function": {"name": "terminal", "arguments": json.dumps({"command": "cat " + shlex.quote(path)})}}]}
+            finish = 'tool_calls'
+        elif handoff:
             Model.emitted_handoff = True
             message = {"role": "assistant", "content": None, "tool_calls": [{"id": "fixture-dm",
                 "type": "function", "function": {"name": "message_agent", "arguments": json.dumps(
@@ -98,7 +110,7 @@ class Model(BaseHTTPRequestHandler):
         self.end_headers()
         if data.get("stream"):
             delta = {"role": "assistant", "content": text}
-            if handoff or approval:
+            if handoff or approval or attachment:
                 delta = {"role": "assistant", "tool_calls": [{"index": 0, **message["tool_calls"][0]}]}
             for delta, reason in [(delta, None), ({}, finish)]:
                 chunk = {**output, "object": "chat.completion.chunk", "choices": [{"index": 0,
@@ -152,9 +164,7 @@ async def exercise(root, home, port, *, seed_only=False):
             routine = await gateway.call("cron.manage", {"profile": name, "action": "add",
                 "name": f"{name}-routine", "schedule": "0 9 * * *", "prompt": "Synthetic routine", "deliver": f"bot-chat:{name}"})
             assert routine.get("success") is True
-        await gateway.call("groups.create", {"room_id": "fixture-room", "name": "Team room",
-            "members": [{"member_id": name, "profile": name, "handle": name, "display_name": name.title()}
-                        for name in ("alpha", "beta")]})
+        await ops.invoke("room.create", {"room_id": "fixture-room", "name": "Team room", "profiles": ["alpha", "beta"]})
         if seed_only:
             return
         roster = await ops.invoke("bots.list", {})
@@ -197,6 +207,43 @@ async def exercise(root, home, port, *, seed_only=False):
                 await asyncio.sleep(0.1)
             raise AssertionError("Native bot remained running")
         await idle()
+        from bot_web.attachments import AttachmentStore
+        import base64
+        files = AttachmentStore(home / 'bot-web' / 'file-test')
+        uploaded = await files.upload(ops, 'fixture-owner', {'session_id': sid, 'name': 'fixture-input.txt', 'data': base64.b64encode(b'PEBBLE_FIXTURE_FILE_INPUT').decode()})
+        native_prompt_submits=0
+        actual_call=gateway.call
+        async def counted_call(method,params):
+            nonlocal native_prompt_submits
+            if method=='prompt.submit':native_prompt_submits+=1
+            return await actual_call(method,params)
+        gateway.call=counted_call
+        before_attachment = Model.turns
+        result = await files.submit(ops, 'fixture-owner', {'session_id': sid, 'text': 'nativeattachment: read the attached file', 'attachments': [uploaded['id']], 'request_id': 'native-file-send'})
+        assert result['state'] == 'accepted'
+        await idle()
+        assert Model.turns > before_attachment and Model.saw_attachment, 'Actual native tool did not read the uploaded file'
+        before_retry = native_prompt_submits
+        assert (await files.submit(ops, 'fixture-owner', {'session_id': sid, 'text': 'nativeattachment: read the attached file', 'attachments': [uploaded['id']], 'request_id': 'native-file-send'}))['state'] == 'accepted'
+        # Other native room agents may finish concurrently; count actual submissions, not global model traffic.
+        assert native_prompt_submits == before_retry, 'A repeated receipt replayed the native prompt'
+        files.db.close()
+        files = AttachmentStore(home / 'bot-web' / 'file-test')
+        assert (await files.invoke(ops, 'fixture-owner', 'files.list', {'session_id': sid}))['files'][0]['name'] == 'fixture-input.txt'
+        row, content = await files.invoke(ops, 'fixture-owner', 'files.read', {'session_id': sid, 'id': uploaded['id']})
+        assert content == b'PEBBLE_FIXTURE_FILE_INPUT'
+        import io
+        from PIL import Image
+        picture=io.BytesIO();Image.new('RGB',(8,8),'purple').save(picture,format='PNG')
+        image=await files.upload(ops,'fixture-owner',{'session_id':sid,'name':'native-image.png','data':base64.b64encode(picture.getvalue()).decode()})
+        assert image['kind']=='image'
+        image_result=await files.submit(ops,'fixture-owner',{'session_id':sid,'text':'Native image input probe','attachments':[image['id']],'request_id':'native-image-send'})
+        assert image_result['state']=='accepted'
+        await idle()
+        image_history=await ops.invoke('chat.history',{'session_id':sid})
+        assert image['id'] in json.dumps([m for m in image_history['messages'] if m.get('role')=='user']), 'Native image did not appear in real user input history'
+        files.db.close()
+        print('Native file upload, tool read, reload and no-replay receipt verified')
         await ops.invoke("chat.send", {"session_id": sid, "text": "nativeapproval: require explicit permission"})
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
@@ -275,6 +322,7 @@ async def exercise(root, home, port, *, seed_only=False):
         assert next(b for b in current['bots'] if b['profile'] == 'delete-probe')['id'] != bot['id']
         store.db.close()
         print(json.dumps({"native_bot_mode": "pass", "canonical_continuity": "pass",
+            "native_attachment_tool_read": "pass", "native_image_history": "pass", "attachment_download_restart": "pass", "attachment_receipt_no_replay": "pass", "typed_room_creation": "pass",
             "native_message_agent_injection": "pass", "owner_scoped_routines": "pass",
             "native_teammate_delivery": "pass", "native_room_driver_execution": "pass",
             "native_denied_approval": "pass", "native_stop": "pass",

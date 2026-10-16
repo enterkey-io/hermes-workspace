@@ -10,3 +10,5 @@ apps/web/public/connection.json
 
 **/worker-configuration.d.ts
 **/artifacts/
+
+apps/web/public/licenses
