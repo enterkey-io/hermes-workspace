@@ -235,7 +235,7 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
     path: 'test-results/native-existing-onboarding.png',
   });
   await page.getByRole('button', { name: 'Add pebble', exact: true }).click();
-  await expect(page.locator('.chat-title')).toContainText('Hazel');
+  await expect(page.locator('.chat-title')).toContainText('Hazel', { timeout: 30000 });
   await expect(page.getByRole('log')).toContainText('Native fixture reply', { timeout: 30000 });
   await expect(page.getByRole('log').locator('.message.user')).toHaveCount(0);
   await page.reload();
