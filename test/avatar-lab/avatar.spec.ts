@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const pose = '#hero svg > g:nth-child(2)';
+const pose = '#hero svg [data-avatar-part="body"]';
 
 test('appearance and activity controls work without contacting Hermes or external services', async ({
   page,
@@ -20,13 +20,13 @@ test('appearance and activity controls work without contacting Hermes or externa
   await page.getByRole('button', { name: 'Petal', exact: true }).click();
   await page.getByRole('button', { name: 'Lagoon', exact: true }).click();
   await expect(page.locator('#hero-name')).toHaveText('Petal');
-  await expect(page.locator('#hero svg > g:nth-child(2) > path')).toHaveAttribute(
+  await expect(page.locator('#hero svg [data-avatar-part="body"] > path')).toHaveAttribute(
     'fill',
     '#8dcec6',
   );
   await page.getByRole('button', { name: 'Working', exact: true }).click();
   await page.getByRole('button', { name: 'White', exact: true }).click();
-  await expect(page.locator('#hero svg > g:nth-child(2) > path')).toHaveAttribute(
+  await expect(page.locator('#hero svg [data-avatar-part="body"] > path')).toHaveAttribute(
     'fill',
     '#f4f3ef',
   );

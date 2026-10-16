@@ -1,5 +1,9 @@
 # Pebble Crew interface implementation plan
 
+**Historical plan.** The latest owner rejection reopens the interface.
+[UI_SYSTEM_RESET.md](UI_SYSTEM_RESET.md) defines the replacement architecture,
+component foundation, motion contracts and staged migration.
+
 Historical 15 October implementation record. The owner's 16 October reports
 reopen the experience and reveal unfinished Settings/forms, motion, menu and
 timeline work. The proposed next direction is defined by the

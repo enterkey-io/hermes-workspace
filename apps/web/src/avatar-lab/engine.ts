@@ -78,10 +78,10 @@ export function samplePose(
   switch (state) {
     case 'ready':
       // A relaxed look away from the owner, with continuous, seeded micro-motion.
-      pose.gazeX = 3.4;
-      pose.gazeY = -2.8;
+      pose.gazeX = 3.375;
+      pose.gazeY = -2.727;
       if (!reduced) {
-        pose.gazeX += Math.sin(t * 0.55 + phase * TAU) * 0.55;
+        pose.gazeX += Math.sin(t * 0.55 + phase * TAU) * 0.32;
         pose.gazeY += Math.cos(t * 0.43 + phase * TAU) * 0.35;
         pose.x = Math.sin(t * 0.75 + phase * TAU) * 0.45;
         pose.y = Math.sin(t * 1.05 + phase * TAU) * 1.25;

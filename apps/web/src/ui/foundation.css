@@ -1,0 +1,151 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: dark;
+  --background: #0c0c0e;
+  --foreground: #eeeeef;
+  --card: #171719;
+  --card-foreground: #eeeeef;
+  --popover: #222225;
+  --popover-foreground: #eeeeef;
+  --primary: #e9e8f3;
+  --primary-foreground: #1a1920;
+  --secondary: #27272b;
+  --secondary-foreground: #c7c6cd;
+  --muted: #202023;
+  --muted-foreground: #a4a3ad;
+  --accent: #2a292f;
+  --accent-foreground: #f3f2f7;
+  --destructive: #f39d9d;
+  --border: #34333c;
+  --input: #484650;
+  --ring: #b6a8f4;
+  --radius: 0.625rem;
+  --rail: #151517;
+  --surface-selected: #2b2a2f;
+  --surface-hover: #222125;
+  --surface-raised: #29272e;
+  --details: #111113;
+  --bubble: #242426;
+  --bubble-owner: #343338;
+  --motion-hover: 120ms;
+  --motion-overlay: 160ms;
+  --motion-panel: 240ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-synthesis: none;
+  }
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+  input,
+  textarea {
+    cursor: text;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  [data-slot='button'] {
+    transition-property: background-color, color, box-shadow, opacity;
+    transition-duration: var(--motion-hover);
+  }
+  [data-slot='dropdown-menu-item'] {
+    min-height: 36px;
+    padding-inline: 12px;
+    gap: 10px;
+  }
+  [data-slot='dropdown-menu-content'] {
+    border: 0;
+    padding: 6px;
+    border-radius: 12px;
+    box-shadow: 0 16px 48px #0006;
+  }
+  [data-slot='tabs-list'][data-variant='line'] {
+    width: 100%;
+    height: 40px;
+    padding: 0;
+    gap: 16px;
+  }
+  [data-slot='tabs-trigger'] {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 8px 0;
+    box-shadow: none;
+  }
+  [data-slot='tabs-trigger'][data-state='active'] {
+    background: transparent;
+    box-shadow: none;
+  }
+  [data-slot='tabs-trigger']::after {
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+  }
+  [data-slot='dialog-content'] {
+    border: 0;
+    border-radius: 18px;
+    background: var(--card);
+    box-shadow: 0 24px 90px #0009;
+  }
+  [data-slot='dialog-overlay'] {
+    background: #0007;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

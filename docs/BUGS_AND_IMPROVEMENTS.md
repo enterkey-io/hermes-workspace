@@ -4,7 +4,29 @@ Track owner reports here through implementation, verification and release. A
 published fix is separate from updating and verifying the owner's installation.
 New reports receive a stable ID; later work updates the existing entry.
 
-## Reported 16 October 2026 — implemented in 0.6.0 candidate
+## UI foundation reset — latest 16 October reports
+
+The owner rejected the 0.6.0 interface across its main routes. Reopen the visual
+and interaction acceptance for PC-009, PC-010, PC-012–PC-015, PC-019, PC-021,
+PC-022's composer interaction and PC-024. Their historical implementation notes
+below are not current acceptance. The replacement has an isolated synthetic
+reference and an independent Astra review; **production migration remains open**.
+No issue is closed by the prototype.
+
+| ID     | New report                                                                                          | Current work                                                                                                                              |
+| ------ | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-025 | Ordinary row overflow overlays name/title; pinned overflow overlays the face.                       | Dedicated row column and pin action strip in reference. R03/R04 production gates open.                                                    |
+| PC-026 | Search breaks the rail header and only filters names. Must search system content in an overlay.     | Reference overlay stable. Owner-local history/file-content capability required; R05/R06 open.                                             |
+| PC-027 | Sent messages enter abruptly and remount/reflow on acknowledgement.                                 | Stable render-key/delivery/scroll contracts and reference entry. Native reconciliation and delayed/error cases open; R07.                 |
+| PC-028 | Timestamp appears seconds later and floats awkwardly inside bubble.                                 | Immediate reserved metadata lane in reference. Native confirmation/missing-time/anchor cases open; R08.                                   |
+| PC-029 | Copy word clutters metadata; use a separately placed icon.                                          | Accessible icon in reference. Actual-route clipboard success/failure/touch review open; R09.                                              |
+| PC-030 | Inconsistent rounded tabs, arbitrary divider lines and page controls lack a real shared foundation. | Actual shadcn/Radix, Tailwind, Lucide and Motion installed. Settings, editors and every real route still need migration; R01/R02/R11/R12. |
+
+The full matrix, including avatars and coordinated panel motion, is
+[UI_RESET_REVIEW_CHECKLIST.md](UI_RESET_REVIEW_CHECKLIST.md). The replacement
+design and executable sequence are [UI_SYSTEM_RESET.md](UI_SYSTEM_RESET.md).
+
+## Historical 16 October 2026 — implementation in the rejected 0.6.0 candidate
 
 The owner authorized inline implementation after the Astra-high audit and plan.
 The shared system now covers the production screens. Automated validation is

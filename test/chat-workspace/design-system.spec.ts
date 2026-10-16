@@ -406,31 +406,37 @@ test('resting pebbles look away, breathe, track only the hovered row smoothly, t
   await installFixture(context);
   await ready(page);
   await page.mouse.move(800, 800);
-  const face = page.locator('.pinned-tile').first().locator('.avatar > g:nth-child(2) > g');
-  const body = page.locator('.pinned-tile').first().locator('.avatar > g:nth-child(2)');
-  await expect
-    .poll(async () =>
-      Number((await face.getAttribute('transform'))?.match(/translate\(([-.\d]+)/)?.[1]),
-    )
-    .toBeGreaterThan(2.5);
+  const avatar = page.locator('.pinned-tile').first().locator('svg.avatar');
+  const body = avatar.locator('[data-avatar-part="body"]');
+  const center = () =>
+    avatar.evaluate((svg) => {
+      const eyes = [...svg.querySelectorAll('rect')];
+      const local = (svg as SVGSVGElement).getCTM()!.inverse();
+      return eyes.reduce((sum, eye) => sum + local.multiply(eye.getCTM()!).e, 0) / eyes.length;
+    });
+  await expect.poll(center).toBeGreaterThan(55);
   const before = await body.getAttribute('transform');
   await expect.poll(() => body.getAttribute('transform')).not.toBe(before);
   const samples = await page.evaluate(async () => {
-    const row = document.querySelector('.pinned-tile')!;
-    const face = row.querySelector('.avatar > g:nth-child(2) > g')!;
-    const svg = row.querySelector('svg')!.getBoundingClientRect();
+    const row = document.querySelector('.pinned-tile')!,
+      svg = row.querySelector('svg')!,
+      box = row.getBoundingClientRect();
     const values: number[] = [];
     row.dispatchEvent(
       new PointerEvent('pointerenter', {
         pointerType: 'mouse',
-        clientX: svg.left - 80,
-        clientY: svg.top + 30,
+        clientX: box.left + 1,
+        clientY: box.top + box.height / 2,
       }),
     );
     await new Promise<void>((resolve) => {
       const start = performance.now();
       function read() {
-        values.push(Number(face.getAttribute('transform')!.match(/translate\(([-.\d]+)/)![1]));
+        const eyes = [...svg.querySelectorAll('rect')];
+        const local = (svg as SVGSVGElement).getCTM()!.inverse();
+        values.push(
+          eyes.reduce((sum, eye) => sum + local.multiply(eye.getCTM()!).e, 0) / eyes.length,
+        );
         if (performance.now() - start < 400) requestAnimationFrame(read);
         else resolve();
       }
@@ -439,26 +445,15 @@ test('resting pebbles look away, breathe, track only the hovered row smoothly, t
     row.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
     return values;
   });
-  expect(samples.some((x) => x < 2 && x > -4)).toBe(true);
-  expect(samples.at(-1)).toBeLessThan(-4);
-  await expect
-    .poll(async () =>
-      Number((await face.getAttribute('transform'))?.match(/translate\(([-.\d]+)/)?.[1]),
-    )
-    .toBeGreaterThan(2.5);
+  expect(samples.some((x) => x > 43 && x < 54)).toBe(true);
+  expect(samples.at(-1)).toBeLessThan(43);
+  await expect.poll(center).toBeGreaterThan(55);
   await emit(page, 'message.start');
   await emit(page, 'message.complete', { status: 'done' });
-  await expect(page.locator('.pinned-tile').first().locator('svg')).toHaveAttribute(
-    'data-state',
-    'done',
-  );
-  await expect(page.locator('.pinned-tile').first().locator('svg')).toHaveAttribute(
-    'data-state',
-    'ready',
-    { timeout: 4000 },
-  );
+  await expect(avatar).toHaveAttribute('data-state', 'done');
+  await expect(avatar).toHaveAttribute('data-state', 'ready', { timeout: 4000 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(body).toHaveAttribute('transform', /^translate\(0.000 0.000\).*rotate\(0.000\)/);
+  await expect(avatar).toHaveAttribute('data-motion', 'static');
   const frozen = await body.getAttribute('transform');
   await page.locator('.pinned-tile').first().hover();
   await page.waitForTimeout(350);

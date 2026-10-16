@@ -16,6 +16,7 @@
     "skipLibCheck": true,
     "types": ["node"],
     "paths": {
+      "@/*": ["./apps/web/src/*"],
       "@hermes-client/core": ["./packages/core/src/index.ts"],
       "@hermes-client/protocol": ["./packages/hermes-client/src/index.ts"]
     }

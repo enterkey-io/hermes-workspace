@@ -1,5 +1,10 @@
 # Pebble Crew design system — starter specification
 
+**Superseded for new UI work.** The owner rejected the implemented direction.
+Use [UI_SYSTEM_RESET.md](UI_SYSTEM_RESET.md) and its
+[independent acceptance record](UI_RESET_REVIEW_CHECKLIST.md). The specification
+below is historical; prior implementation labels do not establish usability.
+
 Date: 2026-10-16. Status: proposed; not implemented or visually approved.
 Read the [main-page audit](PEBBLE_CREW_UX_AUDIT.md) first. Its UX-01–UX-16 findings
 are the evidence for this system. The [implementation plan](PEBBLE_CREW_UX_IMPLEMENTATION_PLAN.md)

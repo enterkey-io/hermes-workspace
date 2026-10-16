@@ -5,6 +5,9 @@
   "type": "module",
   "dependencies": {
     "@hermes-client/core": "0.0.1",
-    "@hermes-client/protocol": "0.0.1"
+    "@hermes-client/protocol": "0.0.1",
+    "cmdk": "1.1.1",
+    "cn": "0.5.0",
+    "radix-ui": "1.8.1"
   }
 }

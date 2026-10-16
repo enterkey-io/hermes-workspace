@@ -1,7 +1,9 @@
 import { BODY_PATHS, blendPose, nextPoseDelay, samplePose, seedFromId, easeGaze } from './engine';
 import type { Activity, Pose, Shape } from './engine';
+import { projectEyes } from './projection';
 
 const NS = 'http://www.w3.org/2000/svg';
+let clipSequence = 0;
 function element<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string> = {}) {
   const node = document.createElementNS(NS, tag);
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
@@ -26,11 +28,24 @@ export class AvatarView {
     'aria-hidden': 'true',
     focusable: 'false',
   });
-  private readonly body = element('g');
+  private readonly body = element('g', { 'data-avatar-part': 'body' });
   private readonly silhouette = element('path');
-  private readonly face = element('g', { fill: '#222329' });
-  private readonly left = element('rect', { x: '-4', y: '-9', width: '8', height: '18', rx: '4' });
-  private readonly right = element('rect', { x: '-4', y: '-9', width: '8', height: '18', rx: '4' });
+  private readonly face = element('g', { fill: '#222329', 'data-avatar-part': 'face' });
+  private readonly clippingShape = element('path');
+  private readonly left = element('rect', {
+    x: '-3.5',
+    y: '-8.5',
+    width: '7',
+    height: '17',
+    rx: '3.5',
+  });
+  private readonly right = element('rect', {
+    x: '-3.5',
+    y: '-8.5',
+    width: '7',
+    height: '17',
+    rx: '3.5',
+  });
   private readonly orbit = element('g', {
     fill: 'none',
     stroke: 'currentColor',
@@ -86,6 +101,13 @@ export class AvatarView {
         'stroke-linecap': 'round',
       }),
     );
+    const clipId = `pebble-face-${++clipSequence}`;
+    const clip = element('clipPath', { id: clipId });
+    clip.append(this.clippingShape);
+    const definitions = element('defs');
+    definitions.append(clip);
+    this.face.setAttribute('clip-path', `url(#${clipId})`);
+    this.svg.append(definitions);
     this.face.append(this.left, this.right);
     this.body.append(this.silhouette, this.face);
     this.attention.append(
@@ -112,6 +134,7 @@ export class AvatarView {
 
   setAppearance(shape: Shape, color: string) {
     this.silhouette.setAttribute('d', BODY_PATHS[shape]);
+    this.clippingShape.setAttribute('d', BODY_PATHS[shape]);
     this.silhouette.setAttribute('fill', color);
     this.svg.style.color = color;
     for (const dot of this.dots) dot.setAttribute('fill', color);
@@ -125,20 +148,38 @@ export class AvatarView {
 
   bindPointer(root: Element, scheduler: AvatarScheduler) {
     this.detachPointer();
+    let bounds: DOMRect | undefined;
+    let faceBounds: DOMRect | undefined;
+    const invalidateBounds = () => {
+      bounds = undefined;
+      faceBounds = undefined;
+    };
+    const observer = new ResizeObserver(invalidateBounds);
+    observer.observe(root);
     const move = (event: Event) => {
       const pointer = event as PointerEvent;
       if (pointer.pointerType && !['mouse', 'pen'].includes(pointer.pointerType)) return;
-      const box = this.svg.getBoundingClientRect();
+      const box = (bounds ??= root.getBoundingClientRect());
+      const face = (faceBounds ??= this.svg.getBoundingClientRect());
+      const centerX = face.left + face.width / 2,
+        centerY = face.top + face.height / 2;
+      const dx = pointer.clientX - centerX,
+        dy = pointer.clientY - centerY;
       this.pointer = {
         x: Math.max(
           -6,
-          Math.min(6, ((pointer.clientX - box.left - box.width / 2) / Math.max(48, box.width)) * 6),
+          Math.min(
+            6,
+            (dx / Math.max(face.width / 2, dx < 0 ? centerX - box.left : box.right - centerX, 1)) *
+              6,
+          ),
         ),
         y: Math.max(
           -5,
           Math.min(
             5,
-            ((pointer.clientY - box.top - box.height * 0.46) / Math.max(48, box.height)) * 6,
+            (dy / Math.max(face.height / 2, dy < 0 ? centerY - box.top : box.bottom - centerY, 1)) *
+              5,
           ),
         ),
       };
@@ -146,10 +187,12 @@ export class AvatarView {
     };
     const leave = () => {
       this.pointer = undefined;
+      bounds = undefined;
+      faceBounds = undefined;
       scheduler.wake(this);
     };
     const focus = () => {
-      this.pointer = { x: 3.4, y: -2.8 };
+      this.pointer = { x: 3.375, y: -2.727 };
       scheduler.wake(this);
     };
     root.addEventListener('pointerenter', move);
@@ -158,7 +201,10 @@ export class AvatarView {
     root.addEventListener('pointercancel', leave);
     root.addEventListener('focusin', focus);
     root.addEventListener('focusout', leave);
+    window.addEventListener('scroll', invalidateBounds, true);
     this.detachPointer = () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', invalidateBounds, true);
       root.removeEventListener('pointerenter', move);
       root.removeEventListener('pointermove', move);
       root.removeEventListener('pointerleave', leave);
@@ -194,6 +240,7 @@ export class AvatarView {
     this.lastClock = clock;
     this.lastPose = pose;
     this.svg.dataset.state = this.state;
+    this.svg.dataset.motion = reduced ? 'static' : 'animated';
     const fps = this.pointer ? 60 : crowded ? 15 : this.large ? 30 : 24;
     this.nextAt = reduced
       ? Infinity
@@ -201,21 +248,21 @@ export class AvatarView {
         (this.pointer || (progress < 1 && this.transitionPose)
           ? 1000 / fps
           : nextPoseDelay(this.state, clock - this.changedAt, this.seed, fps));
+    const projected = projectEyes((pose.gazeX / 6) * 32, (pose.gazeY / 5) * 22);
     update(
       this.body,
       'transform',
-      `translate(${fixed(pose.x)} ${fixed(pose.y)}) translate(50 50) rotate(${fixed(pose.rotation)}) scale(${fixed(pose.sx)} ${fixed(pose.sy)}) translate(-50 -50)`,
+      `translate(${fixed(pose.x + projected.bodyX)} ${fixed(pose.y + projected.bodyY)}) translate(50 50) rotate(${fixed(pose.rotation + projected.bodyRoll)}) scale(${fixed(pose.sx)} ${fixed(pose.sy)}) translate(-50 -50)`,
     );
-    update(this.face, 'transform', `translate(${fixed(pose.gazeX)} ${fixed(pose.gazeY)})`);
     update(
       this.left,
       'transform',
-      `translate(39 49) rotate(${fixed(pose.leftTilt)}) scale(1 ${fixed(pose.leftOpen)})`,
+      `translate(${fixed(projected.left.x)} ${fixed(projected.left.y)}) rotate(${fixed(pose.leftTilt + projected.left.tilt)}) scale(${fixed(projected.left.width)} ${fixed(pose.leftOpen * projected.left.height)})`,
     );
     update(
       this.right,
       'transform',
-      `translate(60 49) rotate(${fixed(pose.rightTilt)}) scale(1 ${fixed(pose.rightOpen)})`,
+      `translate(${fixed(projected.right.x)} ${fixed(projected.right.y)}) rotate(${fixed(pose.rightTilt + projected.right.tilt)}) scale(${fixed(projected.right.width)} ${fixed(pose.rightOpen * projected.right.height)})`,
     );
     update(this.orbit, 'transform', `rotate(${fixed(pose.orbit)} 50 51)`);
     update(this.orbit, 'opacity', String(pose.orbitOpacity));

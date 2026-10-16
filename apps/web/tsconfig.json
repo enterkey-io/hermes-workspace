@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@hermes-client/core": ["../../packages/core/src/index.ts"],
+      "@hermes-client/protocol": ["../../packages/hermes-client/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

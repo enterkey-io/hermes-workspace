@@ -1,5 +1,10 @@
 # Pebble Crew UX implementation plan
 
+**Superseded implementation record.** The owner rejected this candidate's UI.
+The current work is [UI_SYSTEM_RESET.md](UI_SYSTEM_RESET.md); actual production
+acceptance is tracked in [UI_RESET_REVIEW_CHECKLIST.md](UI_RESET_REVIEW_CHECKLIST.md).
+Completed implementation below must not be read as accepted user experience.
+
 Date: 2026-10-16. Status: implementation authorized and completed in the 0.6.0
 preview candidate, with the Computer Linux desktop gate retained. Verification
 is recorded in [the implementation report](compatibility/preview-0.6.0-local.json).

@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   root: 'apps/web',
+  plugins: [tailwindcss()],
   resolve: {
     alias: {
+      '@': new URL('./apps/web/src', import.meta.url).pathname,
       '@hermes-client/core': new URL('./packages/core/src/index.ts', import.meta.url).pathname,
       '@hermes-client/protocol': new URL('./packages/hermes-client/src/index.ts', import.meta.url)
         .pathname,
