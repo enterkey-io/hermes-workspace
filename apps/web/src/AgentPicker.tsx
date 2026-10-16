@@ -1,203 +1,133 @@
-import { Input } from './components/ui/input';
-import { Button } from './components/ui/button';
 import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronRight, Search } from 'lucide-react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
-
+import type { WorkspaceState } from './workspace';
+import { AgentAvatar } from './AgentAvatar';
+import { Input } from './components/ui/input';
+import { LoadingBar } from './components/ui/loading-bar';
 type Agent = {
   profile: string;
   name: string;
   description: string;
   managed: boolean;
   canonical: boolean;
+  hidden: boolean;
 };
-
 export function AgentPicker({
   client,
-  onDone,
-  onClose,
+  state,
   connected,
+  onChoose,
 }: {
   client: BotBridgeClient;
-  onDone: () => Promise<void>;
-  onClose: () => void;
+  state: WorkspaceState;
   connected: boolean;
+  onChoose: (profile: string) => void;
 }) {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [query, setQuery] = useState('');
-  const search = useRef<HTMLInputElement>(null);
-  const [loading, setLoading] = useState(true);
-  const [working, setWorking] = useState(false);
-  const [error, setError] = useState('');
-  const live = useRef(true);
+  const [agents, setAgents] = useState<Agent[]>([]),
+    [query, setQuery] = useState(''),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState('');
+  const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    live.current = true;
-    search.current?.focus();
-    return () => {
-      live.current = false;
-    };
-  }, []);
-
-  async function refresh() {
-    setLoading(true);
-    setError('');
-    setChosen([]);
-    try {
-      const result = (await client.invoke('agents.list', {})) as { agents?: unknown };
-      if (!Array.isArray(result?.agents) || result.agents.length > 10000)
-        throw new Error('Invalid roster');
-      const found = result.agents.map((value: unknown) => {
-        if (!value || typeof value !== 'object') throw new Error('Invalid agent');
-        const row = value as Record<string, unknown>;
-        if (typeof row.profile !== 'string' || typeof row.name !== 'string')
-          throw new Error('Invalid agent');
-        return {
-          profile: row.profile,
-          name: row.name,
-          description: typeof row.description === 'string' ? row.description : '',
-          managed: row.managed === true,
-          canonical: row.canonical === true,
-        };
+    let live = true;
+    input.current?.focus();
+    void client
+      .invoke('agents.list', {})
+      .then((value) => {
+        if (
+          !value ||
+          typeof value !== 'object' ||
+          !('agents' in value) ||
+          !Array.isArray(value.agents) ||
+          value.agents.length > 10000
+        )
+          throw new Error();
+        const rows = value.agents.map((row: unknown): Agent => {
+          if (
+            !row ||
+            typeof row !== 'object' ||
+            !('profile' in row) ||
+            typeof row.profile !== 'string' ||
+            !('name' in row) ||
+            typeof row.name !== 'string'
+          )
+            throw new Error();
+          return {
+            profile: row.profile,
+            name: row.name,
+            description:
+              'description' in row && typeof row.description === 'string' ? row.description : '',
+            managed: 'managed' in row && row.managed === true,
+            canonical: 'canonical' in row && row.canonical === true,
+            hidden: 'hidden' in row && row.hidden === true,
+          };
+        });
+        if (live) setAgents(rows);
+      })
+      .catch(() => {
+        if (live) setError('Agents could not be loaded. Try again.');
+      })
+      .finally(() => {
+        if (live) setLoading(false);
       });
-      if (live.current) setAgents(found);
-    } catch {
-      if (live.current)
-        setError('Could not load your Hermes agents. Check the connection and refresh.');
-    } finally {
-      if (live.current) setLoading(false);
-    }
-  }
-  useEffect(() => {
-    if (client.supportsExistingAgents) void refresh();
-    else setLoading(false);
+    return () => {
+      live = false;
+    };
   }, [client]);
-
-  async function add() {
-    if (working || loading || error || !connected || !chosen.length) return;
-    setWorking(true);
-    try {
-      for (const profile of chosen) {
-        if (!live.current) return;
-        await client.invoke('agent.enable', { profile, initialize_chat: true });
-      }
-      if (live.current) await onDone();
-    } catch {
-      if (live.current)
-        setError(
-          'Could not confirm every agent was added. Refresh this list to see what completed before trying again. No new profile or replacement personality is created.',
-        );
-    } finally {
-      if (live.current) setWorking(false);
-    }
-  }
-
-  const filter = query.trim().toLocaleLowerCase();
   const visible = agents.filter((agent) =>
-    `${agent.name} ${agent.profile} ${agent.description}`.toLocaleLowerCase().includes(filter),
+    `${agent.name} ${agent.profile}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
-
   return (
-    <section className="agent-picker" aria-labelledby="agent-picker-title">
-      <div className="agent-picker-heading">
-        <div>
-          <h2 id="agent-picker-title">Add existing pebbles</h2>
-        </div>
-        <Button variant="secondary" onClick={onClose} disabled={working}>
-          Close
-        </Button>
+    <section className="agent-picker" aria-label="Existing Hermes agents">
+      <div className="agent-search-field">
+        <Search aria-hidden="true" />
+        <Input
+          ref={input}
+          type="search"
+          aria-label="Search Hermes agents"
+          placeholder="Search agents…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </div>
-      <p className="field-hint">
-        Choose existing Hermes agents. Their personality and memory stay with them.
-      </p>
-      {!client.supportsExistingAgents ? (
-        <p role="status">
-          Your integration needs an update to add existing agents here. Your current bots can still
-          be used. <a href="/install">Agent update instructions</a>
+      <LoadingBar active={loading} label="Loading agents" />
+      {error && (
+        <p role="alert" className="error">
+          {error}
         </p>
-      ) : (
-        <>
-          {loading && <p role="status">Loading your Hermes agents…</p>}
-          {!loading && !agents.length && !error && (
-            <p>
-              No existing profiles were returned by this Hermes connection. Check which Hermes home
-              the integration uses. Setup will not create a placeholder agent.
-            </p>
-          )}
-          <label className="agent-search">
-            <span>Find a pebble</span>
-            <Input
-              ref={search}
-              type="search"
-              placeholder="Search pebbles…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <p className="agent-result-count" role="status">
-            {loading
-              ? 'Loading…'
-              : `${visible.length} of ${agents.length} agents${chosen.length ? ` · ${chosen.length} selected` : ''}`}
-          </p>
-          <div
-            className="agent-options"
-            role="region"
-            aria-label="Available Hermes agents"
-            tabIndex={0}
-          >
-            {!loading && !!agents.length && !visible.length && <p>No agents match your search.</p>}
-            {visible.map((agent) => {
-              const ready = agent.managed && agent.canonical;
-              return (
-                <label className="agent-option" key={agent.profile}>
-                  <input
-                    type="checkbox"
-                    checked={ready || chosen.includes(agent.profile)}
-                    disabled={ready || working || loading || !connected}
-                    onChange={(event) =>
-                      setChosen((old) =>
-                        event.target.checked
-                          ? [...old, agent.profile]
-                          : old.filter((profile) => profile !== agent.profile),
-                      )
-                    }
-                  />
-                  <span>
-                    <strong>{agent.name}</strong>
-                    <small>{agent.description || agent.profile}</small>
-                  </span>
-                  <small>
-                    {ready ? 'Added' : agent.canonical ? 'Existing Bot Chat' : 'Not added'}
-                  </small>
-                </label>
-              );
-            })}
-          </div>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="agent-picker-actions">
-            <Button
-              variant="secondary"
-              onClick={() => void refresh()}
-              disabled={working || loading || !connected}
-            >
-              Refresh pebbles
-            </Button>
-            <Button
-              variant="default"
-              className="primary"
-              onClick={() => void add()}
-              disabled={!chosen.length || working || loading || !!error || !connected}
-            >
-              {working
-                ? 'Adding selected agents…'
-                : `Add selected pebbles${chosen.length ? ` (${chosen.length})` : ''}`}
-            </Button>
-          </div>
-        </>
       )}
+      <div className="agent-options" role="region" aria-label="Available Hermes agents">
+        {visible.map((agent) => {
+          const added = agent.managed && agent.canonical && !agent.hidden,
+            bot = state.bots.find((b) => b.profile === agent.profile);
+          return (
+            <button
+              className="agent-choice"
+              key={agent.profile}
+              disabled={!connected || added}
+              onClick={() => onChoose(agent.profile)}
+            >
+              {bot && (
+                <AgentAvatar
+                  id={bot.id}
+                  profile={bot.profile}
+                  client={client}
+                  look={bot.appearance}
+                />
+              )}
+              <span>
+                <strong>{agent.name}</strong>
+                <small>@{bot?.handle ?? agent.profile}</small>
+              </span>
+              {added ? <Check aria-label="Added" /> : <ChevronRight aria-hidden="true" />}
+            </button>
+          );
+        })}
+        {!loading && !visible.length && (
+          <p className="empty-note">{query ? 'No matching agents.' : 'No agents available.'}</p>
+        )}
+      </div>
     </section>
   );
 }

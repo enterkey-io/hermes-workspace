@@ -1,3 +1,4 @@
+import { LoadingBar } from '../components/ui/loading-bar';
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { Search, MessageSquare, Users, FileText, CalendarClock } from 'lucide-react';
@@ -297,9 +298,8 @@ export function SearchOverlay({
         >
           <DialogTitle>{preview?.title}</DialogTitle>
           <DialogDescription className="sr-only">Saved on your Hermes</DialogDescription>
-          <div className="search-result-text" role={preview?.busy ? 'status' : undefined}>
-            {preview?.busy ? 'Loading…' : preview?.text}
-          </div>
+          <LoadingBar active={preview?.busy ?? false} label="Loading search result" />
+          <div className="search-result-text">{preview?.text}</div>
           <div className="form-actions">
             <Button variant="secondary" onClick={closePreview}>
               Close

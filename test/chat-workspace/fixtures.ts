@@ -73,7 +73,7 @@ export const history = Array.from({ length: 28 }, (_, i) => ({
         : 'Here is the latest update on the project. The source material is organized and ready to review. We can work through the remaining decisions together.',
 }));
 export async function installFixture(context: BrowserContext) {
-  await context.route('http://127.0.0.1:8093/', async (route) => {
+  await context.route(new RegExp('^http://127\\.0\\.0\\.1:(8093|8095)/$'), async (route) => {
     const response = await route.fetch();
     await route.fulfill({
       response,
@@ -85,6 +85,21 @@ export async function installFixture(context: BrowserContext) {
     });
   });
   let state = fixtureState();
+  state.bots.push({
+    ...structuredClone(state.bots[1]!),
+    id: 'existing-id',
+    profile: 'existing-example',
+    appearance: { kind: 'shape', shape: 'pebble', color: 'iris' },
+    name: 'Existing Example',
+    handle: 'existing-example',
+    managed: false,
+    enrolled: false,
+    canonical: false,
+    pinned: false,
+    pin_configured: true,
+    description: 'Existing personality',
+    role: { title: '', description: '', responsibilities: '', boundaries: '', expectedOutputs: '' },
+  });
   let organization: OrganizationState = {
     revision: 0,
     sections: [
@@ -100,6 +115,7 @@ export async function installFixture(context: BrowserContext) {
   };
   let prefs = { revision: 0, pin_order: ['identity-0', 'identity-1'] };
   let requests: Record<string, unknown>[] = [];
+  let loseCreationReply = false;
   let routines = [
     {
       job_id: 'routine-1',
@@ -122,6 +138,7 @@ export async function installFixture(context: BrowserContext) {
       session: string;
     }
   >();
+  const photos = new Map<string, string>();
   const leases = new Map<string, Set<string>>();
   const read = new Map<string, number>();
   let approvals: Record<string, unknown>[] = [];
@@ -321,16 +338,7 @@ export async function installFixture(context: BrowserContext) {
       };
     if (operation === 'agents.list')
       result = {
-        agents: [
-          ...state.bots,
-          {
-            profile: 'existing-example',
-            name: 'Existing example',
-            description: 'Existing personality',
-            managed: false,
-            canonical: false,
-          },
-        ],
+        agents: [...state.bots],
       };
     if (operation === 'agent.enable') {
       if (!state.bots.some((b) => b.profile === params.profile)) {
@@ -349,6 +357,30 @@ export async function installFixture(context: BrowserContext) {
       }
       result = { managed: true, canonical: true };
     }
+    if (operation === 'bots.appearance.get') result = { data: photos.get(params.profile) ?? null };
+    if (operation === 'bots.profile.update' || operation === 'agent.onboard') {
+      if (params.photo) photos.set(params.profile, params.photo);
+      const bot = state.bots.find((b) => b.profile === params.profile && b.id === params.id);
+      if (!bot || params.expected_revision !== state.revision) {
+        await route.fulfill({ status: 400, json: { code: 'STALE_REVISION' } });
+        return;
+      }
+      Object.assign(
+        bot,
+        {
+          name: params.name,
+          handle: params.handle,
+          appearance: params.appearance,
+          role: { ...bot.role, ...params.role },
+        },
+        operation === 'agent.onboard'
+          ? { managed: true, enrolled: true, canonical: true, hidden: false }
+          : {},
+      );
+      state.revision++;
+      result = { state: 'completed', profile: params.profile };
+    }
+    if (operation === 'agent.welcome') result = { state: 'accepted', submitted: true };
     if (operation === 'bots.update_handle') {
       state.bots.find((b) => b.profile === params.profile)!.handle = params.handle;
       state.revision++;
@@ -503,12 +535,32 @@ export async function installFixture(context: BrowserContext) {
         state.revision++;
       } else state.bots = state.bots.filter((b) => b.id !== spec.id);
       request.state = 'completed';
-      result = { state: 'completed' };
+      result = {
+        state: 'completed',
+        ...(request.action === 'agent.create'
+          ? {
+              result: {
+                profile: (request.spec as Record<string, unknown>).name,
+                id: 'created-' + String((request.spec as Record<string, unknown>).name),
+                created: true,
+              },
+            }
+          : {}),
+      };
+      Object.assign(request, result);
+      if (loseCreationReply && request.action === 'agent.create') {
+        loseCreationReply = false;
+        await route.abort('failed');
+        return;
+      }
     }
     if (operation === 'requests.deny') requests[0]!.state = 'denied';
     await route.fulfill({ json: { result } });
   });
   return {
+    loseNextCreationReply() {
+      loseCreationReply = true;
+    },
     setApprovals(value: Record<string, unknown>[]) {
       approvals = value;
     },

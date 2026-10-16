@@ -112,7 +112,7 @@ export function AgentAvatar({
     >
       {image && (
         <>
-          <img src={image} alt="" />
+          <img src={image} alt="" draggable={false} />
           {state !== 'ready' && state !== 'done' && (
             <span className="photo-status" aria-label={state}>
               ●
@@ -253,8 +253,8 @@ export function AvatarChooser({
           />
         </div>
       )}
-      {look.kind === 'shape' && (
-        <>
+      <>
+        <div className="shape-choices">
           <div className="avatar-shapes" role="group" aria-label="Avatar shape">
             {SHAPES.map((shape) => (
               <button
@@ -262,7 +262,7 @@ export function AvatarChooser({
                 type="button"
                 aria-label={shape}
                 aria-pressed={look.shape === shape}
-                onClick={() => choose({ ...look, shape })}
+                onClick={() => choose({ ...look, kind: 'shape', shape })}
               >
                 <svg viewBox="0 0 100 108" aria-hidden="true" focusable="false">
                   <path
@@ -284,14 +284,14 @@ export function AvatarChooser({
                 type="button"
                 aria-label={color.label}
                 aria-pressed={look.color === color.id}
-                onClick={() => choose({ ...look, color: color.id })}
+                onClick={() => choose({ ...look, kind: 'shape', color: color.id })}
               >
                 <span style={{ background: color.hex }} />
               </button>
             ))}
           </div>
-        </>
-      )}
+        </div>
+      </>
       {error && (
         <p className="error" role="alert">
           {error}

@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { X, MoreHorizontal } from 'lucide-react';
 import { IconButton } from '../components/ui/icon-button';
@@ -87,6 +88,7 @@ export function Tabs({
 }
 export type MenuItem = {
   label: string;
+  icon?: LucideIcon;
   action: () => void;
   disabled?: boolean;
   danger?: boolean;
@@ -118,6 +120,7 @@ function Items({ items }: { items: MenuItem[] }) {
         variant={item.danger ? 'destructive' : 'default'}
         onSelect={item.action}
       >
+        {item.icon && <item.icon aria-hidden="true" />}
         {item.label}
       </DropdownMenuItem>
     ),
@@ -129,14 +132,14 @@ export function Menu({
   items,
   className = '',
   disabled = false,
-  upward = false,
+  placement,
 }: {
   label: string;
   children?: ReactNode;
   items: MenuItem[];
   className?: string;
   disabled?: boolean;
-  upward?: boolean;
+  placement: 'row-actions' | 'toolbar' | 'composer' | 'account';
 }) {
   return (
     <span className={`menu-anchor ${className}`}>
@@ -148,8 +151,9 @@ export function Menu({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           aria-label={label}
-          align="end"
-          side={upward ? 'top' : 'bottom'}
+          align={placement === 'composer' || placement === 'account' ? 'start' : 'end'}
+          side={placement === 'composer' || placement === 'account' ? 'top' : 'bottom'}
+          data-placement={placement}
           className="border-0"
           collisionPadding={12}
         >

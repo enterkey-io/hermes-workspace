@@ -125,3 +125,31 @@ Final combined-package acceptance passed for the exact plugin archive digest in
 [the release evidence](compatibility/preview-0.7.0-local.json), including failed
 activation rollback, login/history preservation and isolated public HTTPS checks.
 Owner-host activation remains pending its installer.
+
+## 0.7.1 owner corrections
+
+The owner rejected 0.7.0 after installation. Passing its earlier review was not
+proof that the actual app matched the reference. The reference used a different
+CSS graph and separate Settings and profile forms.
+
+The main agent implemented these repairs inline:
+
+- Remove the duplicate reference screen implementation. Both entries load the
+  actual app, and one theme imports all production styles.
+- Move focus styling into the layered foundation. Keep UI accents neutral and
+  avatar colors separate.
+- Share profile controls across creation, existing-agent setup and editing.
+  Add native display-name persistence and per-agent hidden introductions.
+- Correct built-in section types, names, empty states and whole-row drag controls.
+- Correct menu placement, icons, connection status, chevron motion and file loading.
+- Preserve saved photo switching and expose shape/color choices in both modes.
+
+`node scripts/check-ui-contract.mjs ac4a881` fails on the actual preceding
+implementation. The current tree passes. The native owner CI job now exercises
+real login, profile/photo saves, existing-agent setup and native chat behavior.
+
+Local acceptance uses synthetic data and isolated Hermes homes. Browser checks
+and settled screenshots cover the actual app. Native probes verify enrollment,
+identity/SOUL preservation and a hidden introduction on both pinned source
+revisions. Installed package and remote CI results are recorded after packaging.
+No owner host was changed by these local checks.

@@ -87,11 +87,11 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   for (const path of await picker.locator('.avatar-shapes path').all())
     await expect(path).toHaveAttribute('fill', '#f4f3ef');
   await expect(picker.locator('.avatar-preview path[fill="#f4f3ef"]')).toHaveCount(1);
-  await page.screenshot({ path: 'test-results/agent-setup-desktop.png' });
+  await page.screenshot({ animations: 'disabled', path: 'test-results/agent-setup-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: 'Start chatting', exact: true })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'test-results/agent-setup-mobile.png' });
+  await page.screenshot({ animations: 'disabled', path: 'test-results/agent-setup-mobile.png' });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('button', { name: 'Start chatting', exact: true }).click();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled({ timeout: 30000 });
@@ -149,21 +149,21 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
     'aria-pressed',
     'true',
   );
-  await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
+  await page.getByRole('button', { name: 'Save profile', exact: true }).click();
   await expect(
     page
       .getByRole('navigation', { name: 'Pebbles', includeHidden: true })
       .locator('.agent-avatar img'),
   ).toHaveCount(1);
   await page.getByRole('button', { name: 'Animated', exact: true }).click();
-  await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
+  await page.getByRole('button', { name: 'Save profile', exact: true }).click();
   await expect(
     page
       .getByRole('navigation', { name: 'Pebbles', includeHidden: true })
       .locator('.agent-avatar img'),
   ).toHaveCount(0);
   await page.getByRole('button', { name: 'Photo', exact: true }).click();
-  await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
+  await page.getByRole('button', { name: 'Save profile', exact: true }).click();
   await expect(
     page
       .getByRole('navigation', { name: 'Pebbles', includeHidden: true })
@@ -213,7 +213,46 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await page.getByLabel('Password', { exact: true }).fill('synthetic-owner-password-456');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled({ timeout: 30000 });
+  await page.getByRole('button', { name: 'Actions for Alpha', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Alpha Stone');
+  await page.getByRole('button', { name: 'Save profile', exact: true }).click();
+  await expect(page.getByText('Profile saved.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close Edit Alpha Stone', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Alpha Stone .*Bot Chat$/ })).toBeVisible();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'New pebble', exact: true }).click();
+  await page.getByRole('button', { name: 'Add existing Hermes agent', exact: true }).click();
+  await page.getByRole('button', { name: /Gamma.*gamma/ }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Hazel');
+  await page.getByLabel('Handle', { exact: true }).fill('hazel');
+  await page.getByLabel('Title', { exact: true }).fill('Researcher');
+  await page.getByLabel('Description', { exact: true }).fill('Synthetic existing researcher');
+  await page.getByRole('button', { name: 'seed', exact: true }).click();
+  await page.getByRole('button', { name: 'Moss', exact: true }).click();
+  await page.screenshot({
+    animations: 'disabled',
+    path: 'test-results/native-existing-onboarding.png',
+  });
+  await page.getByRole('button', { name: 'Add pebble', exact: true }).click();
+  await expect(page.locator('.chat-title')).toContainText('Hazel');
+  await expect(page.getByRole('log')).toContainText('Native fixture reply', { timeout: 30000 });
+  await expect(page.getByRole('log').locator('.message.user')).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Hazel .*Bot Chat$/ })).toBeVisible();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'New pebble', exact: true }).click();
+  await page.getByRole('button', { name: 'Create new pebble', exact: true }).click();
+  await page.getByLabel('Name', { exact: true }).fill('Nova');
+  await page.getByLabel('Title', { exact: true }).fill('Analyst');
+  await page.getByLabel('Description', { exact: true }).fill('Synthetic new-agent flow');
+  await page.getByRole('button', { name: 'flint', exact: true }).click();
+  await page.getByRole('button', { name: 'Umber', exact: true }).click();
+  await page.getByRole('button', { name: 'Create pebble', exact: true }).click();
+  await expect(page.locator('.chat-title')).toContainText('Nova', { timeout: 30000 });
+  await expect(page.getByRole('log')).toContainText('Native fixture reply', { timeout: 30000 });
+  await expect(page.getByRole('log').locator('.message.user')).toHaveCount(0);
   expect(errors).toEqual([]);
   expect(sends).toBe(0);
-  await page.screenshot({ path: 'test-results/owner-workspace.png' });
+  await page.screenshot({ animations: 'disabled', path: 'test-results/owner-workspace.png' });
 });

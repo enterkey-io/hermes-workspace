@@ -50,7 +50,7 @@ test('shared design system: account settings, connections, requests, editor and 
   );
   await expect(page.getByRole('tab', { name: 'Teams', exact: true })).toHaveCount(0);
   await accessible(page);
-  await page.screenshot({ path: 'test-results/settings-account.png' });
+  await page.screenshot({ animations: 'disabled', path: 'test-results/settings-account.png' });
   await page.getByRole('tab', { name: 'Connections', exact: true }).click();
   await expect(page.getByText('No services connected to this pebble.')).toBeVisible();
   await accessible(page);
@@ -61,13 +61,13 @@ test('shared design system: account settings, connections, requests, editor and 
   await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Edit Mica' })).toBeVisible();
   await accessible(page);
-  await page.screenshot({ path: 'test-results/edit-pebble-profile.png' });
+  await page.screenshot({ animations: 'disabled', path: 'test-results/edit-pebble-profile.png' });
   await page.getByRole('tab', { name: 'Role', exact: true }).click();
   await page.getByLabel('Title', { exact: true }).fill('Executive coordinator');
   await page.getByRole('button', { name: 'Save role', exact: true }).click();
   await expect(page.getByText('Role saved.', { exact: true })).toBeVisible();
   await accessible(page);
-  await page.screenshot({ path: 'test-results/edit-pebble-role.png' });
+  await page.screenshot({ animations: 'disabled', path: 'test-results/edit-pebble-role.png' });
   await page.getByRole('tab', { name: 'Tools & skills', exact: true }).click();
   await expect(page.getByLabel('Browser', { exact: true })).toBeVisible();
   await accessible(page);
@@ -92,10 +92,10 @@ test('editor preserves drafts across events and unrelated saves, resolves confli
   fixture.state.revision++;
   await emit(page, 'workspace.changed');
   await expect(page.getByText('The saved handle changed while you were editing.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Save handle' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled();
   await page.getByRole('button', { name: 'Keep my edits' }).click();
-  await page.getByRole('button', { name: 'Save handle' }).click();
-  await expect(page.getByText('Handle saved.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByText('Profile saved.', { exact: true })).toBeVisible();
   await page.getByLabel('Handle', { exact: true }).fill('unsaved');
   await page.getByRole('button', { name: 'Close Edit Mica', exact: true }).click();
   let dialog = page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ });
@@ -108,7 +108,7 @@ test('editor preserves drafts across events and unrelated saves, resolves confli
     page.getByText('This pebble was removed or replaced.', { exact: false }),
   ).toBeVisible();
   await expect(page.getByLabel('Handle', { exact: true })).toHaveValue('unsaved');
-  await expect(page.getByRole('button', { name: 'Save handle' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled();
   await page.getByRole('button', { name: 'Close Edit Mica', exact: true }).click();
   dialog = page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ });
   await dialog.getByRole('button', { name: 'Discard changes' }).click();
@@ -140,19 +140,22 @@ test('sidebar creates and edits crews without changing relationships; fresh and 
   await page.getByRole('button', { name: 'Create new', exact: false }).click();
   await page.getByLabel('Name', { exact: true }).fill('Nova');
   await expect(page.getByLabel('Handle', { exact: true })).toHaveValue('nova');
-  await page.getByLabel('Instructions', { exact: true }).fill('You are a synthetic test pebble.');
-  await page.getByRole('button', { name: 'Review pebble' }).click();
-  await expect(page.getByRole('heading', { name: 'Create pebble', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Approve exact request' }).click();
+  await page.getByLabel('Title', { exact: true }).fill('Researcher');
+  await page.getByRole('button', { name: 'Create pebble', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Nova .*Bot Chat$/ })).toBeVisible();
   await newItem(page, 'New pebble');
   await page.getByRole('button', { name: 'Add existing', exact: false }).click();
   await expect(
-    page.getByRole('heading', { name: 'Add existing pebbles', exact: true }),
+    page.getByRole('heading', { name: 'Choose a Hermes agent', exact: true }),
   ).toBeVisible();
-  await page.getByLabel('Existing example', { exact: false }).check();
-  await page.getByRole('button', { name: 'Add selected pebbles (1)', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^Existing example .*Bot Chat$/ })).toBeVisible();
+  await page.getByRole('button', { name: /Existing Example.*existing-example/ }).click();
+  await expect(page.getByRole('form', { name: 'Configure existing agent' })).toBeVisible();
+  await page.getByLabel('Name', { exact: true }).fill('Hazel');
+  await page.getByLabel('Title', { exact: true }).fill('Analyst');
+  await page.getByRole('button', { name: 'seed', exact: true }).click();
+  await page.getByRole('button', { name: 'Moss', exact: true }).click();
+  await page.getByRole('button', { name: 'Add pebble', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Hazel .*Bot Chat$/ })).toBeVisible();
 });
 
 test('attachments are conversation bound, can be removed, send without text, and download in Files', async ({
@@ -261,7 +264,7 @@ test('small screens keep dialogs bounded, nested unsaved confirmation restores f
   await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('Draft crew');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await accessible(page);
-  await page.screenshot({ path: 'test-results/new-crew-mobile.png' });
+  await page.screenshot({ animations: 'disabled', path: 'test-results/new-crew-mobile.png' });
   await page.keyboard.press('Escape');
   await page
     .getByRole('dialog', { name: 'Unsaved changes' })
@@ -396,12 +399,12 @@ test('closing a new pebble preserves a creation draft until it is explicitly dis
   await newItem(page, 'New pebble');
   await page.getByRole('button', { name: 'Create new', exact: false }).click();
   await page.getByLabel('Name', { exact: true }).fill('Unsaved Nova');
-  await page.getByRole('button', { name: 'Close New pebble', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Create a pebble', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Unsaved Nova');
-  await page.getByRole('button', { name: 'Close New pebble', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Create a pebble', exact: true }).click();
   await dialog.getByRole('button', { name: 'Discard changes' }).click();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
 });

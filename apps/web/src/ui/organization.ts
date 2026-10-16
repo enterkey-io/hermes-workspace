@@ -15,6 +15,14 @@ export type OrganizationEditor =
   | { kind: 'new-crew' }
   | { kind: 'edit-crew'; id: string };
 
+export const SYSTEM_SECTIONS = { pebbles: 'Pebbles', crews: 'Crews' } as const;
+export function isSystemSection(id: string) {
+  return id === 'pebbles' || id === 'crews';
+}
+export function sectionAccepts(id: string, kind: RailItem['kind']) {
+  return id === 'crews' ? kind === 'crew' : id === 'pebbles' ? kind === 'pebble' : true;
+}
+
 function insertBefore<T>(items: T[], item: T, before: (value: T) => boolean) {
   const index = items.findIndex(before);
   const next = [...items];
@@ -30,7 +38,7 @@ export function placePebble(
 ): Organization {
   const exists =
     target.kind === 'section'
-      ? org.sections.some((s) => s.id === target.id)
+      ? org.sections.some((s) => s.id === target.id && sectionAccepts(s.id, 'pebble'))
       : org.crews.some((c) => c.id === target.id);
   if (!exists || beforeId === id) return org;
   return {
@@ -63,7 +71,12 @@ export function placeCrew(
   section: string,
   beforeId?: string,
 ): Organization {
-  if (!org.sections.some((s) => s.id === section) || beforeId === id) return org;
+  if (
+    !sectionAccepts(section, 'crew') ||
+    !org.sections.some((s) => s.id === section) ||
+    beforeId === id
+  )
+    return org;
   return {
     ...org,
     sections: org.sections.map((s) => {
@@ -261,23 +274,36 @@ export function removeCrew(org: Organization, id: string): Organization {
   if (!crew) return org;
   return {
     crews: org.crews.filter((c) => c.id !== id),
-    sections: org.sections.map((s, i) => ({
+    sections: org.sections.map((s) => ({
       ...s,
       items: [
         ...s.items.filter((item) => item.kind !== 'crew' || item.id !== id),
-        ...(i === 0 ? crew.members.map((member) => ({ kind: 'pebble' as const, id: member })) : []),
+        ...(s.id === org.sections.find((target) => sectionAccepts(target.id, 'pebble'))?.id
+          ? crew.members.map((member) => ({ kind: 'pebble' as const, id: member }))
+          : []),
       ],
     })),
   };
 }
 export function removeSection(org: Organization, id: string): Organization {
-  if (org.sections.length < 2) return org;
+  if (isSystemSection(id) || org.sections.length < 2) return org;
   const section = org.sections.find((s) => s.id === id);
   if (!section) return org;
   return {
     ...org,
     sections: org.sections
       .filter((s) => s.id !== id)
-      .map((s, i) => (i === 0 ? { ...s, items: [...s.items, ...section.items] } : s)),
+      .map((s) => ({
+        ...s,
+        items: [
+          ...s.items,
+          ...section.items.filter(
+            (item) =>
+              org.sections.find(
+                (target) => target.id !== id && sectionAccepts(target.id, item.kind),
+              )?.id === s.id,
+          ),
+        ],
+      })),
   };
 }

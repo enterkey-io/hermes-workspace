@@ -1,8 +1,4 @@
 /* Native screens share the same tokens, layout and Radix controls as the review. */
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-}
 button {
   -webkit-tap-highlight-color: transparent;
 }
@@ -122,7 +118,7 @@ button:disabled {
   margin: 18px 0 8px;
 }
 .pc-message .message-body a {
-  color: #b6b1ee;
+  color: #c7c7cc;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -686,55 +682,27 @@ button:disabled {
   overflow: auto;
   padding: 0 2px;
 }
-.agent-option {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 4px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: background-color var(--motion-hover);
-}
-.agent-option:hover {
-  background: var(--surface-hover);
-}
-.agent-option > input {
-  accent-color: var(--ring);
-}
-.agent-option strong {
-  font-size: 13px;
-  font-weight: 550;
-  display: block;
-}
-.agent-option small {
-  display: block;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  margin-top: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.agent-picker-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-shrink: 0;
-}
 .creation-choices {
   display: grid;
   gap: 12px;
 }
 .creation-choices button {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  height: auto;
-  padding: 18px;
-  gap: 6px;
-  white-space: normal;
+  flex-direction: row;
+  align-items: center;
+  height: 64px;
+  padding: 0 16px;
+  gap: 14px;
   text-align: left;
+  justify-content: flex-start;
 }
+.creation-choices button > span {
+  flex: 1;
+}
+.creation-choices button > svg:last-child {
+  color: var(--muted-foreground);
+}
+
 .creation-choices span {
   font-size: 12px;
   color: var(--muted-foreground);
@@ -824,12 +792,6 @@ button:disabled {
     max-width: calc(100vw - 24px);
     height: calc(100dvh - 32px);
   }
-  .agent-picker-actions {
-    flex-wrap: wrap;
-  }
-  .agent-picker-actions button {
-    flex: 1;
-  }
 }
 .owner-account h2 {
   font-size: 16px;
@@ -862,28 +824,6 @@ button:disabled {
 }
 .form-actions {
   margin-top: 0;
-}
-.entity-page .avatar-preview .agent-avatar {
-  width: 88px;
-  height: 96px;
-}
-.entity-page .appearance-picker {
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  justify-items: center;
-  column-gap: 24px;
-  row-gap: 16px;
-}
-.entity-page .avatar-preview {
-  grid-row: 1 / 4;
-  grid-column: 1;
-  align-self: start;
-}
-.entity-page .avatar-modes,
-.entity-page .avatar-shapes,
-.entity-page .avatar-colors,
-.entity-page .photo-upload {
-  grid-column: 2;
 }
 .search-status {
   padding: 24px;
@@ -1106,4 +1046,196 @@ button:disabled {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 20px;
+}
+
+/* Shared live profile forms: the same fields are used for setup, add and edit. */
+.new-pebble-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.new-pebble-header .page-header {
+  flex: 1;
+}
+.entity-page .profile-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.entity-page .ui-tab-panel:has(> .profile-form) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.profile-content {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 4px 3px 24px;
+}
+.profile-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 16px 0 0;
+  flex-shrink: 0;
+}
+.profile-footer .intro-choice {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.pebble-profile-fields {
+  display: grid;
+  grid-template-columns: 244px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.profile-identity-fields {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.profile-identity-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.pebble-profile-fields .appearance-picker {
+  grid-column: 1;
+  grid-row: 1;
+  gap: 16px;
+}
+.shape-choices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.agent-search-field {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.agent-search-field > svg {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 12px;
+  color: var(--muted-foreground);
+}
+.agent-search-field input {
+  padding-left: 38px;
+}
+.agent-picker {
+  gap: 4px;
+}
+.agent-options {
+  padding: 8px 0;
+}
+.agent-choice {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  transition: background-color var(--motion-hover);
+}
+.agent-choice:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+.agent-choice > span:not(.agent-avatar) {
+  flex: 1;
+  min-width: 0;
+}
+.agent-choice strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.agent-choice small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.agent-choice > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+.agent-choice:disabled {
+  opacity: 0.5;
+}
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.connection-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9d916c;
+}
+.connection-status[data-online='true'] i {
+  background: #85b89a;
+}
+.loading-track {
+  height: 2px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.loading-bar {
+  position: absolute;
+  width: 34%;
+  height: 100%;
+  background: var(--muted-foreground);
+  animation: loading-travel 1.2s ease-in-out infinite;
+}
+@keyframes loading-travel {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar {
+    animation: none;
+    opacity: 0.6;
+    width: 100%;
+  }
+}
+@media (max-width: 600px) {
+  .pebble-profile-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .profile-identity-fields {
+    width: 100%;
+  }
+  .pebble-profile-fields .appearance-picker {
+    align-self: center;
+  }
+  .profile-footer {
+    flex-wrap: wrap;
+  }
 }

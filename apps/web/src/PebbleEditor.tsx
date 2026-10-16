@@ -1,10 +1,11 @@
+import { LoadingBar } from './components/ui/loading-bar';
 import { Textarea } from './components/ui/textarea';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import type { WorkspaceState, WorkspaceBot, Appearance, Role } from './workspace';
-import { AvatarChooser } from './AgentAvatar';
+import { PebbleProfileFields, RoleBasics } from './ui/pebble-profile-fields';
 import { PageHeader, FormSection, Notice, Tabs } from './ui/primitives';
 import { Drawer } from './chat/Drawer';
 import { safeError } from '@hermes-client/core';
@@ -27,6 +28,7 @@ export function PebbleEditor({
   retired?: boolean;
 }) {
   const [tab, setTab] = useState('identity');
+  const [name, setName] = useState(bot.name);
   const [handle, setHandle] = useState(bot.handle),
     [look, setLook] = useState<Appearance>(bot.appearance);
   const [role, setRole] = useState<Role>(bot.role),
@@ -49,6 +51,7 @@ export function PebbleEditor({
   useEffect(() => {
     const old = baseline.current;
     const changed: Record<string, boolean> = {};
+    if (old.name !== bot.name && name !== old.name && name !== bot.name) changed.profile = true;
     if (old.handle !== bot.handle && handle !== old.handle && handle !== bot.handle)
       changed.handle = true;
     if (
@@ -62,6 +65,7 @@ export function PebbleEditor({
       incoming = JSON.stringify([bot.role, bot.manager ?? '', bot.team ?? '']);
     if (before !== incoming && current !== before && current !== incoming) changed.role = true;
     if (Object.keys(changed).length) setConflicts((value) => ({ ...value, ...changed }));
+    setName((v) => (v === old.name ? bot.name : v));
     setHandle((v) => (v === old.handle ? bot.handle : v));
     setLook((v) => (JSON.stringify(v) === JSON.stringify(old.appearance) ? bot.appearance : v));
     setRole((v) => (JSON.stringify(v) === JSON.stringify(old.role) ? bot.role : v));
@@ -96,6 +100,7 @@ export function PebbleEditor({
     };
   }, [client, bot.profile]);
   const dirty =
+    name !== bot.name ||
     handle !== bot.handle ||
     JSON.stringify(look) !== JSON.stringify(bot.appearance) ||
     !!photo ||
@@ -126,11 +131,11 @@ export function PebbleEditor({
         );
         return;
       }
-      if (section === 'appearance') setPhoto('');
+      if (section === 'appearance' || section === 'profile') setPhoto('');
       setConflicts((old) => ({ ...old, [section]: false }));
       if (section === 'tools') originalTools.current = JSON.stringify([skills, toolsets]);
       setNotice(
-        `${section === 'tools' ? 'Tools and skills' : section === 'role' ? 'Role' : section === 'handle' ? 'Handle' : section === 'lead' ? 'Main Pebble' : section === 'model' ? 'Model' : 'Avatar'} saved.`,
+        `${section === 'tools' ? 'Tools and skills' : section === 'role' ? 'Role' : section === 'handle' ? 'Handle' : section === 'lead' ? 'Main Pebble' : section === 'model' ? 'Model' : section === 'profile' ? 'Profile' : 'Avatar'} saved.`,
       );
     } catch (e) {
       setError(safeError(e).message);
@@ -177,6 +182,12 @@ export function PebbleEditor({
                 <Button
                   variant="secondary"
                   onClick={() => {
+                    if (section === 'profile') {
+                      setName(bot.name);
+                      setHandle(bot.handle);
+                      setLook(bot.appearance);
+                      setPhoto('');
+                    }
                     if (section === 'handle') setHandle(bot.handle);
                     if (section === 'appearance') {
                       setLook(bot.appearance);
@@ -202,73 +213,60 @@ export function PebbleEditor({
             </Notice>
           ))}
         {tab === 'identity' && (
-          <>
-            <FormSection title="Handle">
-              <form
-                className="handle-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void save('bots.update_handle', { handle }, 'handle');
+          <form
+            className="profile-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save(
+                'bots.profile.update',
+                {
+                  id: bot.id,
+                  name,
+                  handle,
+                  appearance: look,
+                  role: { title: role.title, description: role.description },
+                  photo: look.kind === 'photo' ? photo || null : null,
+                },
+                'profile',
+              );
+            }}
+          >
+            <div className="profile-content">
+              <PebbleProfileFields
+                value={{ name, handle, appearance: look, photo }}
+                onChange={(patch) => {
+                  if (patch.name !== undefined) setName(patch.name);
+                  if (patch.handle !== undefined) setHandle(patch.handle);
+                  if (patch.appearance) setLook(patch.appearance);
+                  if (patch.photo !== undefined) setPhoto(patch.photo);
                 }}
+                client={client}
+                profile={bot.profile}
+                onAvatarBusy={setPhotoBusy}
+                revision={state.revision}
               >
-                <label>
-                  Handle
-                  <span className="handle-input">
-                    <span aria-hidden>@</span>
-                    <Input
-                      aria-label="Handle"
-                      required
-                      minLength={2}
-                      maxLength={32}
-                      pattern="[a-z][a-z0-9_-]{1,31}"
-                      autoCapitalize="none"
-                      value={handle}
-                      onChange={(e) => setHandle(e.target.value)}
-                    />
-                  </span>
-                </label>
-                <div className="form-actions">
-                  <Button
-                    variant="secondary"
-                    disabled={!!busy || !!conflicts.handle || handle === bot.handle}
-                  >
-                    Save handle
-                  </Button>
-                </div>
-              </form>
-            </FormSection>
-            <FormSection title="Avatar">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void save(
-                    'bots.appearance.update',
-                    { appearance: look, photo: look.kind === 'photo' ? photo || null : null },
-                    'appearance',
-                  );
-                }}
-              >
-                <AvatarChooser
-                  look={look}
-                  onChange={setLook}
-                  photo={photo}
-                  onPhoto={setPhoto}
-                  client={client}
-                  profile={bot.profile}
-                  onBusyChange={setPhotoBusy}
-                  revision={state.revision}
+                <RoleBasics
+                  title={role.title}
+                  description={role.description}
+                  onChange={(change) => setRole((old) => ({ ...old, ...change }))}
                 />
-                <div className="form-actions">
-                  <Button
-                    variant="secondary"
-                    disabled={!!busy || !!conflicts.appearance || photoBusy}
-                  >
-                    Save avatar
-                  </Button>
-                </div>
-              </form>
-            </FormSection>
-          </>
+              </PebbleProfileFields>
+            </div>
+            <footer className="profile-footer">
+              <Button
+                disabled={
+                  !!busy ||
+                  !!conflicts.profile ||
+                  !!conflicts.appearance ||
+                  !!conflicts.handle ||
+                  !!conflicts.role ||
+                  photoBusy
+                }
+              >
+                Save profile
+              </Button>
+            </footer>
+          </form>
         )}
         {tab === 'role' && (
           <FormSection title="Role & reporting">
@@ -369,11 +367,11 @@ export function PebbleEditor({
         {tab === 'tools' && (
           <FormSection title="Tools & skills">
             {!capabilities ? (
-              <Notice>
-                {toolsLoading
-                  ? 'Loading tools and skills…'
-                  : 'Tools could not be loaded. Reopen this editor to try again.'}
-              </Notice>
+              toolsLoading ? (
+                <LoadingBar active label="Loading tools and skills" />
+              ) : (
+                <Notice error>Tools could not be loaded. Reopen this editor to try again.</Notice>
+              )
             ) : (
               <form
                 onSubmit={(e) => {

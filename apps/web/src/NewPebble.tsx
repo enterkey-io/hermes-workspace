@@ -1,14 +1,26 @@
-import { Textarea } from './components/ui/textarea';
-import { Input } from './components/ui/input';
-import { Button } from './components/ui/button';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { ArrowLeft, ChevronRight, UserPlus, Users } from 'lucide-react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { safeError } from '@hermes-client/core';
+import { workspaceState } from './workspace';
 import type { WorkspaceState } from './workspace';
 import { AgentPicker } from './AgentPicker';
-import { PageHeader, FormSection, Notice } from './ui/primitives';
+import { ExistingPebbleSetup } from './ExistingPebbleSetup';
+import { PebbleProfileFields, RoleBasics } from './ui/pebble-profile-fields';
+import type { ProfileDraft } from './ui/pebble-profile-fields';
+import { PageHeader, Notice } from './ui/primitives';
+import { Button } from './components/ui/button';
+import { IconButton } from './components/ui/icon-button';
+import { Textarea } from './components/ui/textarea';
+import { LoadingBar } from './components/ui/loading-bar';
+import { Drawer } from './chat/Drawer';
 import { RequestReview } from './chat/RequestReview';
 type Row = Record<string, unknown>;
+type Step =
+  | { kind: 'choose' }
+  | { kind: 'existing' }
+  | { kind: 'configure'; profile: string }
+  | { kind: 'create' };
 export function NewPebble({
   client,
   state,
@@ -21,29 +33,47 @@ export function NewPebble({
   state: WorkspaceState;
   connected: boolean;
   onClose: () => void;
-  onDone: (profile?: string) => Promise<void>;
+  onDone: (profile?: string, introduce?: boolean) => Promise<void>;
   onDirtyChange: (dirty: boolean) => void;
 }) {
-  const [mode, setMode] = useState('choose'),
-    [name, setName] = useState(''),
-    [handle, setHandle] = useState(''),
-    [description, setDescription] = useState(''),
-    [soul, setSoul] = useState('');
-  const [handleTouched, setHandleTouched] = useState(false);
-  const [model, setModel] = useState<NonNullable<WorkspaceState['model_grant']>>(),
-    [error, setError] = useState(''),
+  const [childDirty, setChildDirty] = useState(false);
+  const [backConfirm, setBackConfirm] = useState(false);
+  const [createdIdentity, setCreatedIdentity] = useState<{ profile: string; id: string }>();
+  const reportChildDirty = useCallback(
+    (dirty: boolean) => {
+      setChildDirty(dirty);
+      onDirtyChange(dirty);
+    },
+    [onDirtyChange],
+  );
+  const [step, setStep] = useState<Step>({ kind: 'choose' });
+  const [value, setValue] = useState<ProfileDraft>({
+    name: '',
+    handle: '',
+    appearance: { kind: 'shape', shape: 'pebble', color: 'iris' },
+    photo: '',
+  });
+  const [role, setRole] = useState({ title: '', description: '' }),
+    [soul, setSoul] = useState(''),
+    [handleTouched, setHandleTouched] = useState(false),
+    [introduce, setIntroduce] = useState(true),
+    [avatarBusy, setAvatarBusy] = useState(false);
+  const [model, setModel] = useState<WorkspaceState['model_grant']>(),
+    [loading, setLoading] = useState(false),
     [busy, setBusy] = useState(false),
-    [loading, setLoading] = useState(true),
+    [error, setError] = useState(''),
     [request, setRequest] = useState<Row>();
   useEffect(() => {
+    if (step.kind !== 'create') return;
     let live = true;
+    setLoading(true);
     void client
       .invoke('models.describe', {})
       .then((v) => {
-        if (live) setModel(v as NonNullable<WorkspaceState['model_grant']>);
+        if (live) setModel(v as WorkspaceState['model_grant']);
       })
       .catch(() => {
-        if (live) setError('Model information could not be loaded.');
+        if (live) setError('Model settings could not be loaded.');
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -51,208 +81,302 @@ export function NewPebble({
     return () => {
       live = false;
     };
-  }, [client]);
+  }, [client, step.kind]);
+  const createDirty = !!(
+    value.name ||
+    value.handle ||
+    value.photo ||
+    soul ||
+    role.title ||
+    role.description ||
+    value.appearance.shape !== 'pebble' ||
+    value.appearance.color !== 'iris'
+  );
   useEffect(() => {
-    onDirtyChange(mode === 'create' && !request && !!(name || description || soul));
+    if (step.kind !== 'configure') onDirtyChange(step.kind === 'create' && !request && createDirty);
     return () => onDirtyChange(false);
-  }, [mode, name, description, soul, request, onDirtyChange]);
-  if (mode === 'existing')
-    return (
-      <div className="entity-page">
-        <Button
-          variant="ghost"
-          className="text-button back-button"
-          onClick={() => setMode('choose')}
-        >
-          ← New pebble
-        </Button>
-        <AgentPicker
-          client={client}
-          connected={connected}
-          onClose={onClose}
-          onDone={() => onDone()}
-        />
-      </div>
-    );
-  async function propose() {
+  }, [step.kind, createDirty, request, onDirtyChange]);
+  function patch(change: Partial<ProfileDraft>) {
+    setValue((old) => ({
+      ...old,
+      ...change,
+      ...(change.name !== undefined && !handleTouched
+        ? {
+            handle: change.name
+              .toLowerCase()
+              .replace(/[^a-z0-9_-]+/g, '-')
+              .replace(/^-+|-+$/g, '')
+              .slice(0, 32),
+          }
+        : {}),
+    }));
+    if (change.handle !== undefined) setHandleTouched(true);
+  }
+  async function finishProfile(target: { profile: string; id: string }) {
+    const next = workspaceState(await client.invoke('workspace.describe', {}));
+    if (
+      !next.bots.some(
+        (b) => b.profile === target.profile && b.id === target.id && b.available !== false,
+      )
+    )
+      throw new Error('The created profile is unavailable.');
+    setCreatedIdentity(target);
+    await client.invoke('agent.onboard', {
+      profile: target.profile,
+      id: target.id,
+      name: value.name,
+      handle: value.handle,
+      appearance: value.appearance,
+      photo: value.appearance.kind === 'photo' ? value.photo || null : null,
+      role,
+      expected_revision: next.revision,
+    });
+    await onDone(target.profile, introduce);
+  }
+  function creationIdentity(completed: Row) {
+    const receipt = completed.result as Row | undefined;
+    if (
+      !receipt ||
+      typeof receipt.id !== 'string' ||
+      receipt.profile !== value.handle.replace(/_/g, '-')
+    )
+      throw new Error('The creation result could not be verified.');
+    return { profile: receipt.profile as string, id: receipt.id };
+  }
+  async function checkRequest(decision?: boolean) {
+    if (busy || !request) return;
     setBusy(true);
     setError('');
     try {
-      const spec = {
-        name: handle,
-        display_name: name,
-        soul:
-          soul.trim() ||
-          `Your name is ${name}. Follow the owner's instructions and coordinate through your available tools.`,
-        role: description,
-        model_source: 'default',
-        model_fingerprint: model!.fingerprint,
-        skills: [],
-        toolsets: ['workspace', 'skills'],
-        manager: state.orchestrator,
-        team: null,
-        expected_revision: state.revision,
-      };
-      const result = (await client.invoke('agent.propose', {
-        action: 'agent.create',
-        spec,
-      })) as Row;
-      const data = (await client.invoke('requests.list', {})) as { requests: Row[] };
-      const found = data.requests.find((r) => r.id === result.request_id);
-      if (!found) throw new Error('Request could not be confirmed.');
-      setRequest(found);
+      const list = (await client.invoke('requests.list', {})) as { requests: Row[] };
+      let saved = list.requests.find(
+        (r) => r.id === request.id && r.fingerprint === request.fingerprint,
+      );
+      if (!saved) throw new Error('The creation request is unavailable.');
+      if (saved.state === 'pending' && decision !== undefined) {
+        const result = (await client.invoke(decision ? 'requests.approve' : 'requests.deny', {
+          id: saved.id,
+          fingerprint: saved.fingerprint,
+        })) as Row;
+        saved = { ...saved, ...result };
+      }
+      setRequest(saved);
+      if (saved.state === 'completed') await finishProfile(creationIdentity(saved));
     } catch (e) {
       setError(safeError(e).message);
     } finally {
       setBusy(false);
     }
   }
-  async function decide(approve: boolean) {
-    if (!request || busy) return;
+  async function create() {
+    if (busy || (!createdIdentity && (!model?.supported || request))) return;
     setBusy(true);
     setError('');
+    const nativeName = value.handle.replace(/_/g, '-');
     try {
-      const result = (await client.invoke(approve ? 'requests.approve' : 'requests.deny', {
-        id: request.id,
-        fingerprint: request.fingerprint,
-      })) as Row;
-      setRequest({ ...request, ...result });
-      if (result.state === 'completed') await onDone(handle);
-      else if (result.state === 'denied') {
-        setRequest(undefined);
-      } else
-        setError(
-          'Creation was not fully confirmed. The request is saved in Settings → Requests; check there before creating again.',
-        );
+      let target = createdIdentity;
+      if (!target) {
+        if (!model?.supported) return;
+        const latest = workspaceState(await client.invoke('workspace.describe', {}));
+        const spec = {
+          name: nativeName,
+          display_name: value.name,
+          soul:
+            soul.trim() ||
+            `Your name is ${value.name}. Follow the owner's instructions and coordinate through your available tools.`,
+          role: role.description,
+          model_source: 'default',
+          model_fingerprint: model.fingerprint,
+          skills: [],
+          toolsets: ['workspace', 'skills'],
+          manager: latest.orchestrator,
+          team: null,
+          expected_revision: latest.revision,
+        };
+        const proposed = (await client.invoke('agent.propose', {
+          action: 'agent.create',
+          spec,
+        })) as Row;
+        const list = (await client.invoke('requests.list', {})) as { requests: Row[] };
+        const exact = list.requests.find((r) => r.id === proposed.request_id);
+        if (!exact || exact.action !== 'agent.create' || typeof exact.fingerprint !== 'string')
+          throw new Error('The creation request changed.');
+        setRequest(exact);
+        const approved = (await client.invoke('requests.approve', {
+          id: exact.id,
+          fingerprint: exact.fingerprint,
+        })) as Row;
+        setRequest({ ...exact, ...approved });
+        if (approved.state !== 'completed')
+          throw new Error('Creation needs review before another attempt.');
+        target = creationIdentity(approved);
+        setCreatedIdentity(target);
+      }
+      await finishProfile(target);
     } catch (e) {
-      setError(`${safeError(e).message} Check Requests before trying creation again.`);
+      setError(safeError(e).message);
     } finally {
       setBusy(false);
     }
   }
+  const title =
+    step.kind === 'choose'
+      ? 'New pebble'
+      : step.kind === 'existing'
+        ? 'Choose a Hermes agent'
+        : step.kind === 'configure'
+          ? 'Add your agent'
+          : 'Create a pebble';
   return (
-    <section className="entity-page" aria-label="New pebble">
-      <PageHeader title="New pebble" onClose={onClose} />
-      {error && <Notice error>{error}</Notice>}
-      {mode === 'choose' ? (
+    <section className="entity-page new-pebble" aria-label="New pebble">
+      <div className="new-pebble-header">
+        {step.kind !== 'choose' && (
+          <IconButton
+            label="Back"
+            icon={ArrowLeft}
+            disabled={busy}
+            onClick={() => {
+              if (
+                (step.kind === 'create' && createDirty && !request) ||
+                (step.kind === 'configure' && childDirty)
+              ) {
+                setBackConfirm(true);
+                return;
+              }
+              setStep({ kind: step.kind === 'configure' ? 'existing' : 'choose' });
+            }}
+          />
+        )}
+        <PageHeader title={title} onClose={onClose} />
+      </div>
+      {step.kind === 'choose' ? (
         <div className="creation-choices">
-          <Button variant="secondary" onClick={() => setMode('existing')}>
-            <strong>Add existing</strong>
-            <span>Bring in one of your Hermes agents.</span>
+          <Button variant="ghost" onClick={() => setStep({ kind: 'existing' })}>
+            <Users />
+            <span>Add existing Hermes agent</span>
+            <ChevronRight />
           </Button>
-          <Button variant="secondary" onClick={() => setMode('create')}>
-            <strong>Create new</strong>
-            <span>Start a fresh pebble with its own personality.</span>
+          <Button variant="ghost" onClick={() => setStep({ kind: 'create' })}>
+            <UserPlus />
+            <span>Create new pebble</span>
+            <ChevronRight />
           </Button>
         </div>
+      ) : step.kind === 'existing' ? (
+        <AgentPicker
+          client={client}
+          state={state}
+          connected={connected}
+          onChoose={(profile) => setStep({ kind: 'configure', profile })}
+        />
+      ) : step.kind === 'configure' ? (
+        <ExistingPebbleSetup
+          key={step.profile}
+          client={client}
+          profile={step.profile}
+          onDone={onDone}
+          onDirtyChange={reportChildDirty}
+        />
       ) : (
-        <>
-          <Button
-            variant="ghost"
-            className="text-button back-button"
-            disabled={busy}
-            onClick={() => setMode('choose')}
-          >
-            ← Choose another option
-          </Button>
-          {request ? (
-            <RequestReview
-              request={request}
-              busy={busy}
-              onDecision={(a) => void decide(a)}
-              onInspect={() => void onDone()}
-            />
-          ) : (
-            <FormSection title="Create a pebble">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void propose();
-                }}
-              >
-                <label>
-                  Name
-                  <Input
-                    required
-                    maxLength={80}
-                    autoComplete="off"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      if (!handleTouched)
-                        setHandle(
-                          e.target.value
-                            .toLowerCase()
-                            .replace(/[^a-z0-9-]/g, '-')
-                            .replace(/^-+/, ''),
-                        );
-                    }}
+        <form
+          className="profile-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void create();
+          }}
+          aria-busy={busy}
+        >
+          <LoadingBar active={loading || busy} label="Creating pebble" />
+          <div className="profile-content" inert={busy}>
+            {error && <Notice error>{error}</Notice>}
+            {request && !createdIdentity && !busy ? (
+              <div>
+                <RequestReview
+                  request={request}
+                  busy={busy}
+                  onDecision={(approve) => void checkRequest(approve)}
+                  onInspect={() => void checkRequest()}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void checkRequest()}
+                >
+                  Check status
+                </Button>
+              </div>
+            ) : (
+              <>
+                <PebbleProfileFields value={value} onChange={patch} onAvatarBusy={setAvatarBusy}>
+                  <RoleBasics
+                    {...role}
+                    onChange={(change) => setRole((old) => ({ ...old, ...change }))}
                   />
-                </label>
-                <label>
-                  Handle
-                  <span className="handle-input">
-                    <span aria-hidden>@</span>
-                    <Input
-                      aria-label="Handle"
-                      required
-                      pattern="[a-z][a-z0-9-]{1,39}"
-                      minLength={2}
-                      maxLength={32}
-                      autoCapitalize="none"
-                      value={handle}
-                      onChange={(e) => {
-                        setHandleTouched(true);
-                        setHandle(e.target.value);
-                      }}
-                    />
-                  </span>
-                </label>
-                <label>
-                  Description
-                  <Textarea
-                    rows={2}
-                    maxLength={1000}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Instructions
-                  <Textarea
-                    rows={4}
-                    maxLength={12000}
-                    placeholder="How should this pebble work?"
-                    value={soul}
-                    onChange={(e) => setSoul(e.target.value)}
-                  />
-                </label>
-                {loading ? (
-                  <Notice>Checking model access…</Notice>
-                ) : model?.supported ? (
-                  <p className="field-hint">
-                    Uses {model.provider} · {model.model}. Starts with team-management tools; add
-                    other tools after creation.
+                </PebbleProfileFields>
+                <details className="form-disclosure">
+                  <summary>Model and personality</summary>
+                  <p>
+                    {model?.supported
+                      ? `${model.provider} · ${model.model}`
+                      : 'Configure your model in Hermes to create a new pebble.'}
                   </p>
-                ) : (
-                  <Notice>
-                    This model needs setup in Hermes before a new pebble can use it. You can add an
-                    existing agent instead.
-                  </Notice>
-                )}
-                <div className="form-actions">
-                  <Button
-                    variant="default"
-                    className="primary"
-                    disabled={busy || !connected || loading || !model?.supported}
-                  >
-                    {busy ? 'Preparing…' : 'Review pebble'}
-                  </Button>
-                </div>
-              </form>
-            </FormSection>
+                  <label>
+                    Personality
+                    <Textarea
+                      rows={4}
+                      maxLength={12000}
+                      value={soul}
+                      onChange={(e) => setSoul(e.target.value)}
+                    />
+                  </label>
+                </details>
+              </>
+            )}
+          </div>
+          {(!request || createdIdentity) && (
+            <footer className="profile-footer">
+              <label className="intro-choice">
+                <input
+                  type="checkbox"
+                  checked={introduce}
+                  onChange={(e) => setIntroduce(e.target.checked)}
+                />
+                Introduce them in chat
+              </label>
+              <Button
+                disabled={
+                  busy ||
+                  loading ||
+                  !connected ||
+                  (!createdIdentity && !model?.supported) ||
+                  avatarBusy
+                }
+              >
+                {createdIdentity ? 'Finish setup' : 'Create pebble'}
+              </Button>
+            </footer>
           )}
-        </>
+        </form>
+      )}
+      {backConfirm && (
+        <Drawer title="Unsaved changes" variant="dialog" onClose={() => setBackConfirm(false)}>
+          <h2>Discard unsaved changes?</h2>
+          <div className="form-actions">
+            <Button variant="secondary" onClick={() => setBackConfirm(false)}>
+              Keep editing
+            </Button>
+            <Button
+              onClick={() => {
+                setBackConfirm(false);
+                onDirtyChange(false);
+                setStep({ kind: step.kind === 'configure' ? 'existing' : 'choose' });
+              }}
+            >
+              Discard changes
+            </Button>
+          </div>
+        </Drawer>
       )}
     </section>
   );

@@ -24,8 +24,9 @@ import { Icon } from './chat/Icon';
 import { Drawer } from './chat/Drawer';
 import { RequestReview } from './chat/RequestReview';
 import { DetailsDock } from './ui/DetailsDock';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, File, Image } from 'lucide-react';
 import { Menu } from './ui/primitives';
+import { LoadingBar } from './components/ui/loading-bar';
 import { organizationState } from './ui/organization';
 import type { Organization, OrganizationState } from './ui/organization';
 import type { SetStateAction } from 'react';
@@ -1485,7 +1486,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     />
   );
   const settingsContent = workspace ? (
-    <Suspense fallback={<p role="status">Loading Settings…</p>}>
+    <Suspense fallback={<LoadingBar active label="Loading Settings" />}>
       <WorkspaceSettings
         key={`${settingsTab}:${editProfile ?? ''}`}
         onDirtyChange={onDirtyChange}
@@ -1683,7 +1684,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                   </div>
                 )}
                 {selection && !messages.length && !stream && !running && (
-                  <p className="empty-chat">Say hello to {title}.</p>
+                  <span className="empty-chat" aria-hidden="true" />
                 )}
                 {removedDraft && (
                   <section className="recovered-draft">
@@ -1789,11 +1790,12 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                         />
                         <Menu
                           label="Add attachment"
-                          upward
+                          placement="composer"
                           disabled={busy || blocked || uploads.files.length >= 5}
                           items={[
                             {
                               label: 'File',
+                              icon: File,
                               action: () => {
                                 if (attachmentInput.current) {
                                   attachmentInput.current.accept = '';
@@ -1803,6 +1805,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                             },
                             {
                               label: 'Photo',
+                              icon: Image,
                               action: () => {
                                 if (attachmentInput.current) {
                                   attachmentInput.current.accept =
@@ -1915,20 +1918,34 @@ export function App({ owner }: { owner?: OwnerConnection }) {
           }}
           onClose={() => setPickingAgents(false)}
         >
-          <Suspense fallback={<p role="status">Loading…</p>}>
+          <Suspense fallback={<LoadingBar active label="Loading pebble setup" />}>
             <NewPebble
               client={client}
               state={workspace!}
               onDirtyChange={onDirtyChange}
               connected={streamState === 'live'}
               onClose={() => navigate(() => setPickingAgents(false))}
-              onDone={async (profile) => {
+              onDone={async (profile, introduce) => {
                 await loadRoster(client, true);
                 if (current.current === client) {
                   setPickingAgents(false);
                   if (profile) {
                     const bot = workspaceRef.current?.bots.find((b) => b.profile === profile);
-                    if (bot) await open(bot);
+                    if (bot) {
+                      await open(bot);
+                      if (introduce) {
+                        try {
+                          await client.invoke('agent.welcome', {
+                            profile: bot.profile,
+                            id: bot.id,
+                          });
+                        } catch {
+                          setError(
+                            'Your agent’s introduction could not be confirmed. Check this chat before requesting another.',
+                          );
+                        }
+                      }
+                    }
                   }
                 }
               }}

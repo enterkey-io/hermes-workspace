@@ -119,10 +119,16 @@ export function RequestReview({
             )}
           </label>
           <div className="choice-row">
-            <Button variant="secondary" disabled={busy} onClick={() => onDecision(false)}>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => onDecision(false)}
+            >
               Deny
             </Button>
             <Button
+              type="button"
               variant="secondary"
               className={deleting ? 'danger' : ''}
               disabled={busy || (deleting && confirmation !== spec.profile)}
@@ -134,7 +140,7 @@ export function RequestReview({
         </>
       )}
       {deleting && ['executing', 'uncertain', 'partial'].includes(String(r.state)) && (
-        <Button variant="secondary" disabled={busy} onClick={onInspect}>
+        <Button type="button" variant="secondary" disabled={busy} onClick={onInspect}>
           Check outcome
         </Button>
       )}

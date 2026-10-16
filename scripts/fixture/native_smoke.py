@@ -219,8 +219,18 @@ async def exercise(root, home, port, *, seed_only=False):
             return await actual_call(method,params)
         gateway.call=counted_call
         before_attachment = Model.turns
+        while not queue.empty():
+            queue.get_nowait()
         result = await files.submit(ops, 'fixture-owner', {'session_id': sid, 'text': 'nativeattachment: read the attached file', 'attachments': [uploaded['id']], 'request_id': 'native-file-send'})
         assert result['state'] == 'accepted'
+        # Acceptance queues a turn; an immediate idle snapshot can precede its start.
+        # Wait for this session's completion event before checking the tool's result.
+        async with asyncio.timeout(60):
+            while True:
+                event = await queue.get()
+                if event.get('type') == 'message.complete' and event.get('session_id') == sid:
+                    assert event.get('payload', {}).get('status') != 'error', event
+                    break
         await idle()
         assert Model.turns > before_attachment and Model.saw_attachment, 'Actual native tool did not read the uploaded file'
         before_retry = native_prompt_submits
@@ -293,6 +303,46 @@ async def exercise(root, home, port, *, seed_only=False):
         created = await gateway.call('profiles.create', {'name': 'delete-probe', 'description': 'Synthetic lifecycle check', 'soul': 'Synthetic disposable persona', 'no_alias': True, 'no_skills': True, 'clone_channels': False, 'mirror_credentials': False})
         assert created.get('ok') is True
         await ops.enable_existing('delete-probe')
+        # Gamma is an existing configured persona, not a newly created profile.
+        # Enrollment must preserve its model config as well as its personality.
+        soul = home / 'profiles/gamma/SOUL.md'
+        original_soul = soul.read_bytes()
+        original_config = (home / 'profiles/gamma/config.yaml').read_bytes()
+        before = await service.invoke('workspace.describe', {})
+        existing = next(b for b in before['bots'] if b['profile'] == 'gamma')
+        assert existing['appearance'] == {'kind': 'shape', 'shape': 'pebble', 'color': 'iris'}
+        result = await service.invoke('agent.onboard', {'profile': existing['profile'], 'id': existing['id'],
+            'name': 'Hazel', 'handle': 'hazel', 'appearance': {'kind': 'shape', 'shape': 'seed', 'color': 'moss'},
+            'photo': None, 'role': {'title': 'Researcher', 'description': 'Investigates useful questions'},
+            'expected_revision': before['revision']})
+        assert result['state'] == 'completed'
+        assert soul.read_bytes() == original_soul
+        import yaml
+        saved_config = yaml.safe_load((home / 'profiles/gamma/config.yaml').read_text())
+        initial_config = yaml.safe_load(original_config)
+        for key in ('model', 'providers', 'toolsets', 'approvals'):
+            assert saved_config[key] == initial_config[key], key
+        assert all(saved_config['agent'][key] == value for key, value in initial_config['agent'].items())
+        after = await service.invoke('workspace.describe', {})
+        added = next(b for b in after['bots'] if b['profile'] == existing['profile'])
+        assert added['name'] == 'Hazel' and added['id'] == existing['id'] and added['canonical']
+        assert added['appearance']['color'] == 'moss' and added['role']['title'] == 'Researcher'
+        opened_intro = await ops.invoke('bot.open', {'profile': existing['profile']})
+        while not queue.empty():
+            queue.get_nowait()
+        intro = await service.invoke('agent.welcome', {'profile': existing['profile'], 'id': existing['id']})
+        assert intro['submitted'] is True, intro
+        async with asyncio.timeout(60):
+            while True:
+                event = await queue.get()
+                if event.get('type') == 'message.complete' and event.get('session_id') == opened_intro['session_id']:
+                    assert event.get('payload', {}).get('status') != 'error', event
+                    break
+        intro_history = await ops.invoke('chat.history', {'session_id': opened_intro['session_id']})
+        assert any(m.get('role') == 'assistant' and m.get('text') == 'Native fixture reply' for m in intro_history['messages']), intro_history
+        assert all(m.get('role') != 'user' or m.get('display_kind') == 'hidden' for m in intro_history['messages']), intro_history
+        again = await service.invoke('agent.welcome', {'profile': existing['profile'], 'id': existing['id']})
+        assert again['submitted'] is False
         snapshot = await service.invoke('workspace.snapshot', {})
         org = await service.invoke('organization.get', {})
         members = [b['id'] for b in snapshot['workspace']['bots'] if b['profile'] in {'alpha', 'beta'}]
@@ -300,7 +350,7 @@ async def exercise(root, home, port, *, seed_only=False):
         sections = [{**section, 'items': [item for item in section['items'] if item['kind'] != 'pebble' or item['id'] not in members]} for section in org['sections']]
         crews = [{**crew, 'members': [i for i in crew['members'] if i not in members]} for crew in org['crews']]
         crews.append({'id': 'native-review-crew', 'name': 'Native review crew', 'purpose': '', 'collapsed': False, 'members': members})
-        sections[0]['items'].append({'kind': 'crew', 'id': 'native-review-crew'})
+        next(s for s in sections if s['id'] == 'crews')['items'].append({'kind': 'crew', 'id': 'native-review-crew'})
         saved = await service.invoke('organization.save', {'organization': {'sections': sections, 'crews': crews}, 'expected_revision': org['revision']})
         target = {'id': 'native-review-crew', 'expected_revision': saved['revision'], 'confirm_new': False}
         crew_chat = await service.invoke('organization.chat', target)
@@ -336,7 +386,7 @@ async def exercise(root, home, port, *, seed_only=False):
         current = await service.invoke('workspace.describe', {})
         assert next(b for b in current['bots'] if b['profile'] == 'delete-probe')['id'] != bot['id']
         store.db.close()
-        print(json.dumps({"native_bot_mode": "pass", "canonical_continuity": "pass",
+        print(json.dumps({"native_owner_onboarding_identity_and_hidden_intro": "pass", "native_bot_mode": "pass", "canonical_continuity": "pass",
             "native_attachment_tool_read": "pass", "native_image_history": "pass", "attachment_download_restart": "pass", "attachment_receipt_no_replay": "pass", "typed_room_creation": "pass", "persistent_native_crew_chat": "pass",
             "native_message_agent_injection": "pass", "owner_scoped_routines": "pass",
             "native_teammate_delivery": "pass", "native_room_driver_execution": "pass",

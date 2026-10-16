@@ -44,6 +44,66 @@ class WorkspaceTests(unittest.IsolatedAsyncioTestCase):
         self.store.db.close()
         self.directory.cleanup()
 
+
+    async def test_owner_profile_save_keeps_identity_personality_and_unknown_metadata(self):
+        state = self.store.read()
+        original_id = state['bots']['default']['id']
+        role = state['bots']['default']['role']
+        role['boundaries'] = 'Do not change my existing responsibilities'
+        self.store.save(state, state['revision'])
+        state = self.store.read()
+        await self.service.invoke('bots.profile.update', {
+            'profile': 'default', 'id': original_id, 'name': 'aurora McKay',
+            'handle': 'aurora-new', 'appearance': {'kind': 'shape', 'shape': 'cairn', 'color': 'moss'},
+            'photo': None, 'role': {'title': 'Chief of staff', 'description': 'Coordinates my crew'},
+            'expected_revision': state['revision']})
+        current = await self.service.invoke('workspace.describe', {})
+        bot = next(b for b in current['bots'] if b['profile'] == 'default')
+        self.assertEqual(bot['name'], 'aurora McKay')
+        self.assertEqual(bot['id'], original_id)
+        self.assertEqual(bot['role']['boundaries'], role['boundaries'])
+        self.assertEqual(bot['handle'], 'aurora-new')
+        meta = self.native.profiles[0]['ui_meta']['hermes-bots']
+        self.assertEqual(meta['foreign'], {'keep': 1})
+        writes = [params for method, params in self.native.calls if method == 'profiles.configure']
+        self.assertTrue(all(set(p) <= {'name', 'ui_meta', 'ui_meta_expected_revisions'} for p in writes))
+        self.assertFalse(any(method == 'prompt.submit' for method, _ in self.native.calls))
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('bots.profile.update', {
+                'profile': 'default', 'id': 'replaced', 'name': 'wrong', 'handle': 'aurora',
+                'appearance': bot['appearance'], 'photo': None, 'role': {'title': '', 'description': ''},
+                'expected_revision': current['revision']})
+
+    async def test_intro_is_owner_requested_once_and_never_replayed_after_unknown_result(self):
+        from unittest.mock import AsyncMock
+        from bot_web.native import NativeError
+        self.service.ops.greet = AsyncMock(side_effect=NativeError('Lost reply'))
+        state = self.store.read()
+        identity = state['bots']['default']['id']
+        result = await self.service.invoke('agent.welcome', {'profile': 'default', 'id': identity})
+        self.assertEqual(result, {'state': 'uncertain', 'submitted': False})
+        result = await self.service.invoke('agent.welcome', {'profile': 'default', 'id': identity})
+        self.assertFalse(result['submitted'])
+        self.service.ops.greet.assert_awaited_once()
+        prompt = self.service.ops.greet.call_args.args[1]
+        self.assertIn('@aurora', prompt)
+        self.assertIn('existing voice and personality', prompt)
+
+    async def test_stock_native_photo_does_not_override_animated_default_or_saved_choice(self):
+        self.native.profiles[1]['has_avatar'] = True
+        state = self.store.read()
+        state['bots']['amy']['appearance'] = {'kind': 'photo', 'shape': 'pebble', 'color': 'citron'}
+        self.store.save(state, state['revision'])
+        current = await self.service.invoke('workspace.describe', {})
+        amy = next(b for b in current['bots'] if b['profile'] == 'amy')
+        self.assertEqual(amy['appearance'], {'kind': 'shape', 'shape': 'pebble', 'color': 'iris'})
+        self.native.profiles[1]['ui_meta']['hermes-bots']['workspaceAppearance'] = {'kind': 'photo', 'shape': 'seed', 'color': 'umber'}
+        state = self.store.read()
+        state['bots']['amy']['appearance'] = {'kind': 'photo', 'shape': 'seed', 'color': 'umber'}
+        self.store.save(state, state['revision'])
+        current = await self.service.invoke('workspace.describe', {})
+        self.assertEqual(next(b for b in current['bots'] if b['profile'] == 'amy')['appearance']['kind'], 'photo')
+
     async def test_durable_identity_and_metadata_merge_preserve_unknown_native_fields(self):
         state = self.store.read()
         self.assertEqual(self.native.profiles[0]['ui_meta']['hermes-bots']['foreign'], {'keep': 1})

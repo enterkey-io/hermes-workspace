@@ -41,7 +41,7 @@ class OrganizationTests(PresentationTests):
     async def test_native_crew_chat_is_reused_and_never_mutates_existing_members(self):
         org = await self.service.invoke('organization.get', {})
         ids = [b['id'] for b in self.store.read()['bots'].values()]
-        changed = {'sections': [{**org['sections'][0], 'items': [{'kind': 'crew', 'id': 'crew-a'}]}],
+        changed = {'sections': [{**s, 'items': [{'kind': 'crew', 'id': 'crew-a'}] if s['id'] == 'crews' else []} for s in org['sections']],
                    'crews': [{'id': 'crew-a', 'name': 'Research', 'purpose': '', 'collapsed': False, 'members': ids}]}
         saved = await self.service.invoke('organization.save', {'organization': changed, 'expected_revision': 0})
         rooms, creates = {}, []
@@ -64,3 +64,27 @@ class OrganizationTests(PresentationTests):
         self.assertEqual(len(creates), 1)
         self.assertEqual(len(first['room']['members']), 2)
         self.assertFalse(any(m == 'prompt.submit' for m, _ in self.native.calls))
+
+    async def test_builtin_sections_reject_wrong_item_types_renames_and_removal(self):
+        org = await self.service.invoke('organization.get', {})
+        for action in ['wrong-kind', 'rename', 'remove']:
+            changed = deepcopy({'sections': org['sections'], 'crews': org['crews']})
+            pebbles = next(s for s in changed['sections'] if s['id'] == 'pebbles')
+            crews = next(s for s in changed['sections'] if s['id'] == 'crews')
+            if action == 'wrong-kind': crews['items'].append(pebbles['items'].pop())
+            elif action == 'rename': crews['name'] = 'Random'
+            else: changed['sections'].remove(crews)
+            with self.assertRaises(InvalidOperation):
+                await self.service.invoke('organization.save', {'organization': changed, 'expected_revision': org['revision']})
+
+    async def test_legacy_misplaced_items_and_builtin_labels_are_repaired_without_losing_ids(self):
+        org = await self.service.invoke('organization.get', {})
+        original = deepcopy(org)
+        org['sections'][1]['name'] = 'Previously renamed'
+        org['sections'][1]['items'].append(org['sections'][0]['items'].pop())
+        import json
+        self.store.db.execute("INSERT OR REPLACE INTO presentation VALUES('organization',?)", (json.dumps(org),))
+        repaired = await self.service.invoke('organization.get', {})
+        self.assertEqual(repaired['sections'][1]['name'], 'Crews')
+        self.assertEqual({i['id'] for i in repaired['sections'][0]['items']}, {i['id'] for i in original['sections'][0]['items']})
+        self.assertEqual(repaired['sections'][1]['items'], [])

@@ -169,3 +169,16 @@ real native private ticket bridge and RFB filter against a synthetic framebuffer
 It verifies wrong-origin rejection, replay rejection, watcher input blocking,
 human input and clean-close hand-back. It does not launch Linux Xvnc or certify
 its packages/runtime on a Mac. Never run disposable fixtures against personal state.
+
+## Review the installed UI
+
+`npm run check:ui` enforces one app entry, one theme and shared profile forms.
+`npm run test:ui-review` builds the real app at the review entry and runs the owner
+UI checks with synthetic network responses. It no longer tests separate mockup
+screens. Production browser tests use `playwright.chat.config.ts`.
+
+`npm run test:owner-browser` exercises the owner app and real Hermes bridge in a
+disposable home. The `native-owner` CI job installs the pinned public Hermes
+source and runs this flow. It uses a deterministic local model and no owner keys.
+Read the captured settled screenshots as well as the test results. Passing checks
+do not establish owner visual acceptance.

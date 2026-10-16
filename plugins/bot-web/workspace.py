@@ -113,7 +113,7 @@ def normalize_photo(data):
 
 
 class WorkspaceService:
-    METHODS = {'organization.get', 'organization.save', 'organization.chat', 'crews.save', 'workspace.snapshot', 'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose', 'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
+    METHODS = {'bots.profile.update', 'agent.onboard', 'agent.welcome', 'organization.get', 'organization.save', 'organization.chat', 'crews.save', 'workspace.snapshot', 'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose', 'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
         'bots.update_handle', 'bots.appearance.get', 'bots.appearance.update', 'roles.update', 'teams.save',
         'models.describe', 'agent.model', 'agent.create', 'agent.update', 'agent.attach', 'requests.reconcile', 'requests.list', 'requests.approve', 'requests.deny',
         'connections.add', 'connections.permissions', 'connections.set_key', 'connections.list', 'connections.test', 'services.catalog', 'agent.capabilities'}
@@ -153,7 +153,7 @@ class WorkspaceService:
                     restored_id = None
                 state['bots'][name] = {'id': restored_id or str(uuid.uuid4()), 'profile': name, 'handle': handle,
                     'role': {'title': '', 'description': '', 'responsibilities': '', 'boundaries': '', 'expectedOutputs': ''},
-                    'enrolled': isinstance(row.get('ui_meta', {}).get('hermes-bots'), dict), 'manager': state['orchestrator'], 'team': None, 'appearance': {'kind': 'photo' if row.get('has_avatar') else 'shape', 'shape': 'pebble', 'color': 'iris'}}
+                    'enrolled': isinstance(row.get('ui_meta', {}).get('hermes-bots'), dict), 'manager': state['orchestrator'], 'team': None, 'appearance': {'kind': 'shape', 'shape': 'pebble', 'color': 'iris'}}
                 # Preserve native avatar data. Workspace shape contract is deliberately versioned.
                 if isinstance(meta.get('workspaceAppearance'), dict):
                     try:
@@ -162,6 +162,9 @@ class WorkspaceService:
                         pass
                 changed = True
             meta = row.get('ui_meta', {}).get('hermes-bots') or {}
+            if not isinstance(meta.get('workspaceAppearance'), dict) and state['bots'][name]['appearance'].get('kind') == 'photo':
+                state['bots'][name]['appearance'] = {'kind': 'shape', 'shape': 'pebble', 'color': 'iris'}
+                changed = True
             if 'sectionId' in meta:
                 section_id, section_name = meta.get('sectionId'), meta.get('sectionName')
                 if section_id is None:
@@ -245,6 +248,9 @@ class WorkspaceService:
         self._snapshot = None
         snapshot, profiles = await self.sync(include_model=operation in {'workspace.describe', 'workspace.detect_primary', 'models.describe', 'agent.model', 'agent.create'})
         state = self.store.read()
+        if operation in {'bots.profile.update', 'agent.onboard', 'agent.welcome'}:
+            from .identity import invoke
+            return await invoke(self, operation, params, state, profiles)
         if operation.startswith('organization.'):
             from .organization import invoke
             return await invoke(self, operation, params, state)
@@ -365,25 +371,10 @@ class WorkspaceService:
             return (await self.sync())[0]
         if operation == 'workspace.welcome':
             fields(params, ['profile'])
-            profile = identifier(params['profile'])
-            if not state['initialized'] or profile != state['orchestrator']:
+            if not state['initialized'] or params['profile'] != state['orchestrator']:
                 raise InvalidOperation('Primary workspace agent required')
-            if state.get('welcome'):
-                return {'state': state['welcome'], 'submitted': False}
-            state['welcome'] = 'submitting'
-            self.store.save(state, state['revision'])
-            # At-most-once submission: a crash/lost acknowledgement never retries a prompt.
-            opened = await self.ops.invoke('bot.open', {'profile': profile})
-            prompt = 'I have just set up my private workspace. Please introduce yourself in your own voice, preserving your existing SOUL and personality. Read your current workspace context and bot-web:manage-team skill. Tell me your public handle and that you are my Main Pebble. Explain only the verified features available here and invite me to give you our first task. Do not create or change any other agents or connections.'
-            try:
-                await self.ops.invoke('chat.send', {'session_id': opened['session_id'], 'text': prompt})
-                status = 'accepted'
-            except NativeError:
-                status = 'uncertain'
-            state = self.store.read()
-            state['welcome'] = status
-            self.store.save(state, state['revision'])
-            return {'state': status, 'submitted': status == 'accepted'}
+            from .identity import welcome
+            return await welcome(self, state, params['profile'])
         if operation == 'agent.enable':
             fields(params, ['profile', 'initialize_chat'])
             if params['initialize_chat'] is not True:
@@ -439,7 +430,7 @@ class WorkspaceService:
             state = self.store.read()
             state['bots'][name].update(enrolled=True, manager=params['manager'], team=params['team'], role={'title': '', 'description': role, 'responsibilities': '', 'boundaries': '', 'expectedOutputs': ''})
             self.store.save(state, state['revision'])
-            return {'state': 'completed' if granted.get('configured') is True and attached.get('applied', {}).get('toolsets') is True and attached.get('applied', {}).get('skills') is True else 'partial', 'profile': name, 'created': result.get('ok') is True, 'provider': 'configured' if granted.get('configured') else 'authorization_required', 'runtime': 'unverified', 'canonical': True}
+            return {'state': 'completed' if granted.get('configured') is True and attached.get('applied', {}).get('toolsets') is True and attached.get('applied', {}).get('skills') is True else 'partial', 'profile': name, 'id': state['bots'][name]['id'], 'created': result.get('ok') is True, 'provider': 'configured' if granted.get('configured') else 'authorization_required', 'runtime': 'unverified', 'canonical': True}
         if operation == 'connections.add':
             fields(params, ['profile', 'recipe', 'name', 'expected_revision'])
             if params['expected_revision'] != state['revision']:

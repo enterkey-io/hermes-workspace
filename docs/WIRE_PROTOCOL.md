@@ -141,3 +141,29 @@ into the current paginated transcript.
 
 The complete 0.7 app and integration are released together. All records retain the
 existing v1 framing, Origin/authentication and owner isolation requirements.
+
+## 0.7.1 profile setup and introductions
+
+`bots.profile.update` and `agent.onboard` require `profile`, its incarnation-bound
+`id`, `expected_revision`, `name`, `handle`, `appearance`, `photo`, and `role`.
+`role` contains `title` and `description`. Advanced role fields remain intact.
+`photo` is null or a supported raster data URL that the bridge decodes and
+reencodes. The existing native profile is never cloned or renamed.
+
+`agent.onboard` also enables the integration through Hermes's plugin controls and
+initializes the existing profile's canonical Bot Chat. It does not submit a model
+prompt. The browser then opens that chat and, unless the owner opted out, calls
+`agent.welcome` with `profile` and `id`.
+
+`agent.welcome` submits one native hidden user seed. The visible response is the
+agent's own reply. Its per-incarnation status is durable: `submitting`, `accepted`
+or `uncertain`. Later requests do not replay the prompt, including after a lost
+response. `workspace.welcome` retains the primary-agent entry point.
+
+Built-in organization IDs `pebbles` and `crews` have fixed names and item types.
+Custom sections accept either type. Reconciliation repairs older misplaced items
+without deleting profiles, crews or memberships. Empty built-in headings are a
+browser presentation rule.
+
+Event framing remains one JSON object per LF-terminated line. This release does
+not change the stream framing or heartbeat interval.

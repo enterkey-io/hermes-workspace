@@ -11,26 +11,26 @@
   --card-foreground: #eeeeef;
   --popover: #222225;
   --popover-foreground: #eeeeef;
-  --primary: #e9e8f3;
-  --primary-foreground: #1a1920;
+  --primary: #ececeb;
+  --primary-foreground: #1b1b1d;
   --secondary: #27272b;
   --secondary-foreground: #c7c6cd;
   --muted: #202023;
   --muted-foreground: #a4a3ad;
-  --accent: #2a292f;
-  --accent-foreground: #f3f2f7;
+  --accent: #2a2a2d;
+  --accent-foreground: #f3f3f4;
   --destructive: #f39d9d;
   --border: #34333c;
   --input: #484650;
-  --ring: #b6a8f4;
+  --ring: #b7b7bc;
   --radius: 0.625rem;
   --rail: #151517;
-  --surface-selected: #2b2a2f;
-  --surface-hover: #222125;
-  --surface-raised: #29272e;
+  --surface-selected: #2b2b2e;
+  --surface-hover: #222225;
+  --surface-raised: #29292c;
   --details: #111113;
   --bubble: #202022;
-  --bubble-owner: #343338;
+  --bubble-owner: #343436;
   --motion-hover: 120ms;
   --motion-overlay: 160ms;
   --motion-panel: 240ms;
@@ -101,6 +101,10 @@
   }
   button:disabled {
     cursor: default;
+  }
+  :focus-visible:not([data-slot]) {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
   }
   input,
   textarea {

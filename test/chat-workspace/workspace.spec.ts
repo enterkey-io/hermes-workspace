@@ -60,8 +60,8 @@ test('populated production workspace: layout, drafts, scroll, crew authors and r
     'aria-checked',
     'false',
   );
-  await page.getByLabel('Actions for Mica').click();
-  await page.getByRole('menuitem', { name: 'Move earlier', exact: true }).click();
+  await page.getByRole('button', { name: /^Mica .*Bot Chat$/ }).focus();
+  await page.keyboard.press('Alt+ArrowUp');
   await expect(page.locator('.pinned-tile strong')).toHaveText(['Mica', 'Arlo']);
   fixture.setApprovals([{ request_id: 'exact-approval', command: 'Review synthetic operation' }]);
   await emit(page, 'approval.request');
@@ -115,7 +115,7 @@ test('live changes reconcile two browsers, protect the selected draft and never 
     timeout: 6500,
   });
   await page.getByRole('button', { name: 'Your account' }).click();
-  await page.getByRole('menuitemcheckbox', { name: 'Show hidden', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Show hidden pebbles', exact: true }).click();
   await page.getByLabel('Actions for Mica').click();
   await page.getByRole('menuitem', { name: 'Unhide', exact: true }).click();
   await page.getByRole('button', { name: /^Mica .*Bot Chat$/ }).click();

@@ -2,6 +2,7 @@ import { Button } from '../components/ui/button';
 import { useEffect, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { Notice } from '../ui/primitives';
+import { LoadingBar } from '../components/ui/loading-bar';
 export type SharedFile = {
   id: string;
   name: string;
@@ -82,6 +83,7 @@ export function FilesPanel({
   }
   return (
     <div className="files-panel">
+      <LoadingBar active={loading} label="Loading files" />
       {error && (
         <Notice error>
           {error}
@@ -90,9 +92,7 @@ export function FilesPanel({
           </Button>
         </Notice>
       )}
-      {loading ? (
-        <Notice>Loading files…</Notice>
-      ) : !files.length ? (
+      {!loading && !files.length ? (
         <p className="empty-note">No files shared here yet.</p>
       ) : (
         <ul className="file-list">

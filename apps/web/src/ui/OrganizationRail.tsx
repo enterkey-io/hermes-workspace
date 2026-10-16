@@ -1,16 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Dispatch, DragEvent, ReactNode, SetStateAction } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  GripVertical,
-  MoreHorizontal,
-  Pin,
-  SlidersHorizontal,
-  Users,
-} from 'lucide-react';
+import { ChevronDown, MoreHorizontal, Pin, SlidersHorizontal, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -36,9 +27,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   removeCrew,
+  isSystemSection,
+  sectionAccepts,
   removeSection,
   nudgeItem,
-  canNudgeItem,
   nudgeSection,
   placeCrew,
   placePebble,
@@ -80,15 +72,17 @@ function PlacementMenu({
         <DropdownMenuSubTrigger>Move to section</DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
           <DropdownMenuRadioGroup value={value?.kind === 'section' ? value.id : ''}>
-            {org.sections.map((section) => (
-              <DropdownMenuRadioItem
-                key={section.id}
-                value={section.id}
-                onSelect={() => onMove({ kind: 'section', id: section.id })}
-              >
-                {section.name}
-              </DropdownMenuRadioItem>
-            ))}
+            {org.sections
+              .filter((section) => sectionAccepts(section.id, 'pebble'))
+              .map((section) => (
+                <DropdownMenuRadioItem
+                  key={section.id}
+                  value={section.id}
+                  onSelect={() => onMove({ kind: 'section', id: section.id })}
+                >
+                  {section.name}
+                </DropdownMenuRadioItem>
+              ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
@@ -118,10 +112,8 @@ export function PebbleActions({
   onEdit,
   org,
   onChange,
-  pinnedIds = [],
 }: {
   pebble: RailPebble;
-  pinnedIds?: readonly string[];
   onPin: () => void;
   onEdit: () => void;
   org: Organization;
@@ -153,32 +145,6 @@ export function PebbleActions({
           value={placementOf(org, pebble.id)}
           onMove={(target) => onChange((current) => placePebble(current, pebble.id, target))}
         />
-        {!pebble.pinned && (
-          <DropdownMenuItem
-            disabled={!canNudgeItem(org, { kind: 'pebble', id: pebble.id }, -1, pinnedIds)}
-            onSelect={() =>
-              onChange((current) =>
-                nudgeItem(current, { kind: 'pebble', id: pebble.id }, -1, pinnedIds),
-              )
-            }
-          >
-            <ArrowUp />
-            Move up
-          </DropdownMenuItem>
-        )}
-        {!pebble.pinned && (
-          <DropdownMenuItem
-            disabled={!canNudgeItem(org, { kind: 'pebble', id: pebble.id }, 1, pinnedIds)}
-            onSelect={() =>
-              onChange((current) =>
-                nudgeItem(current, { kind: 'pebble', id: pebble.id }, 1, pinnedIds),
-              )
-            }
-          >
-            <ArrowDown />
-            Move down
-          </DropdownMenuItem>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -225,17 +191,26 @@ export function OrganizationRail({
       pebbles.map((p) => p.id),
     );
     if (!item) return;
-    onChange((current) =>
-      item.kind === 'section'
-        ? target.kind === 'section'
-          ? reorderSection(current, item.id, target.id)
-          : current
-        : item.kind === 'pebble'
-          ? placePebble(current, item.id, target, beforeId)
-          : target.kind === 'section'
-            ? placeCrew(current, item.id, target.id, beforeId)
-            : current,
-    );
+    if (
+      item.kind === 'pebble' &&
+      pinnedIds.includes(item.id) &&
+      (target.kind !== 'section' || sectionAccepts(target.id, 'pebble'))
+    )
+      onPin(item.id);
+    onChange((current) => {
+      if (item.kind === 'section')
+        return target.kind === 'section' ? reorderSection(current, item.id, target.id) : current;
+      if (item.kind === 'pebble') return placePebble(current, item.id, target, beforeId);
+      const section =
+        target.kind === 'section'
+          ? current.sections.find((s) => s.id === target.id)
+          : current.sections.find((s) =>
+              s.items.some((row) => row.kind === 'crew' && row.id === target.id),
+            );
+      return section
+        ? placeCrew(current, item.id, section.id, target.kind === 'crew' ? target.id : beforeId)
+        : current;
+    });
   }
   function targetEvents(target: Placement, beforeId?: string) {
     const key = `${target.kind}:${target.id}:${beforeId ?? ''}`;
@@ -254,7 +229,21 @@ export function OrganizationRail({
     if (!pebble || pebble.pinned) return null;
     return (
       <motion.div
-        layout
+        layout="position"
+        layoutId={`pebble-${id}`}
+        onKeyDown={(event) => {
+          if (event.altKey && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+            event.preventDefault();
+            onChange((current) =>
+              nudgeItem(
+                current,
+                { kind: 'pebble', id },
+                event.key === 'ArrowUp' ? -1 : 1,
+                pinnedIds,
+              ),
+            );
+          }
+        }}
         transition={move}
         key={id}
         className={`pc-row pebble-row ${activeId === id ? 'is-selected' : ''}`}
@@ -286,7 +275,6 @@ export function OrganizationRail({
         ) : (
           <PebbleActions
             pebble={pebble}
-            pinnedIds={pinnedIds}
             onPin={() => onPin(id)}
             onEdit={() => onEditPebble(id)}
             org={org}
@@ -305,6 +293,7 @@ export function OrganizationRail({
           className={`pc-row pc-crew-row ${activeId === id ? 'is-selected' : ''}`}
           draggable
           onDragStart={(event) => drag(event, { kind: 'crew', id })}
+          onDragEnd={() => setOver('')}
           {...targetEvents({ kind: 'crew', id })}
         >
           <button
@@ -355,36 +344,20 @@ export function OrganizationRail({
                 <DropdownMenuSubTrigger>Move to section</DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   <DropdownMenuRadioGroup value={sectionId}>
-                    {org.sections.map((section) => (
-                      <DropdownMenuRadioItem
-                        key={section.id}
-                        value={section.id}
-                        onSelect={() => onChange((current) => placeCrew(current, id, section.id))}
-                      >
-                        {section.name}
-                      </DropdownMenuRadioItem>
-                    ))}
+                    {org.sections
+                      .filter((section) => sectionAccepts(section.id, 'crew'))
+                      .map((section) => (
+                        <DropdownMenuRadioItem
+                          key={section.id}
+                          value={section.id}
+                          onSelect={() => onChange((current) => placeCrew(current, id, section.id))}
+                        >
+                          {section.name}
+                        </DropdownMenuRadioItem>
+                      ))}
                   </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
-              <DropdownMenuItem
-                disabled={!canNudgeItem(org, { kind: 'crew', id }, -1, pinnedIds)}
-                onSelect={() =>
-                  onChange((current) => nudgeItem(current, { kind: 'crew', id }, -1, pinnedIds))
-                }
-              >
-                <ArrowUp />
-                Move up
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!canNudgeItem(org, { kind: 'crew', id }, 1, pinnedIds)}
-                onSelect={() =>
-                  onChange((current) => nudgeItem(current, { kind: 'crew', id }, 1, pinnedIds))
-                }
-              >
-                <ArrowDown />
-                Move down
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -401,9 +374,6 @@ export function OrganizationRail({
               {...targetEvents({ kind: 'crew', id })}
             >
               {crew.members.map((member) => row(member, { kind: 'crew', id }))}
-              {!crew.members.length && (
-                <p className="pc-section-empty">Move a pebble here from its menu.</p>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -412,97 +382,96 @@ export function OrganizationRail({
   }
   return (
     <>
-      {org.sections.map((section, index) => (
-        <motion.section
-          layout
-          transition={move}
-          key={section.id}
-          className="pc-list"
-          aria-label={section.name}
-          {...targetEvents({ kind: 'section', id: section.id })}
-        >
-          <div className="pc-section-header">
-            <button
-              className="pc-section-toggle"
-              aria-expanded={!section.collapsed}
-              onClick={() =>
-                onChange((current) => ({
-                  ...current,
-                  sections: current.sections.map((s) =>
-                    s.id === section.id ? { ...s, collapsed: !s.collapsed } : s,
-                  ),
-                }))
-              }
-            >
-              <ChevronDown data-collapsed={section.collapsed} />
-              <span>{section.name}</span>
-            </button>
-            <span
-              className="pc-section-grip"
-              aria-hidden="true"
-              title="Drag section"
+      {org.sections
+        .filter(
+          (section) =>
+            !isSystemSection(section.id) ||
+            section.items.some((item) =>
+              item.kind === 'crew'
+                ? org.crews.some((c) => c.id === item.id)
+                : pebbles.some((p) => p.id === item.id && !p.pinned),
+            ),
+        )
+        .map((section) => (
+          <motion.section
+            layout
+            transition={move}
+            key={section.id}
+            className="pc-list"
+            aria-label={section.name}
+            {...targetEvents({ kind: 'section', id: section.id })}
+          >
+            <div
+              className="pc-section-header"
               draggable
               onDragStart={(event) => drag(event, { kind: 'section', id: section.id })}
+              onDragEnd={() => setOver('')}
+              onKeyDown={(event) => {
+                if (event.altKey && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+                  event.preventDefault();
+                  onChange((current) =>
+                    nudgeSection(current, section.id, event.key === 'ArrowUp' ? -1 : 1),
+                  );
+                }
+              }}
             >
-              <GripVertical />
-            </span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="quiet"
-                  size="icon-sm"
-                  className="pc-overflow"
-                  aria-label={`Actions for ${section.name} section`}
-                >
-                  <MoreHorizontal />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onSelect={() => onEditOrganization({ kind: 'edit-section', id: section.id })}
-                >
-                  Rename section
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={index === 0}
-                  onSelect={() => onChange((current) => nudgeSection(current, section.id, -1))}
-                >
-                  <ArrowUp />
-                  Move up
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={index === org.sections.length - 1}
-                  onSelect={() => onChange((current) => nudgeSection(current, section.id, 1))}
-                >
-                  <ArrowDown />
-                  Move down
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <AnimatePresence initial={false}>
-            {!section.collapsed && (
-              <motion.div
-                initial={{ height: 0 }}
-                animate={{ height: 'auto' }}
-                exit={{ height: 0 }}
-                transition={move}
-                style={{ overflow: 'hidden' }}
-                className="pc-section-items"
+              <button
+                className="pc-section-toggle"
+                aria-expanded={!section.collapsed}
+                onClick={() =>
+                  onChange((current) => ({
+                    ...current,
+                    sections: current.sections.map((s) =>
+                      s.id === section.id ? { ...s, collapsed: !s.collapsed } : s,
+                    ),
+                  }))
+                }
               >
-                {section.items.map((item) =>
-                  item.kind === 'pebble'
-                    ? row(item.id, { kind: 'section', id: section.id })
-                    : crewRow(item.id, section.id),
-                )}
-                {!section.items.length && (
-                  <p className="pc-section-empty">Move pebbles or crews here.</p>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.section>
-      ))}
+                <ChevronDown data-collapsed={section.collapsed} />
+                <span>{section.name}</span>
+              </button>
+              {!isSystemSection(section.id) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="quiet"
+                      size="icon-sm"
+                      className="pc-overflow"
+                      aria-label={`Actions for ${section.name} section`}
+                    >
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onSelect={() => onEditOrganization({ kind: 'edit-section', id: section.id })}
+                    >
+                      Rename section
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+            <AnimatePresence initial={false}>
+              {!section.collapsed && (
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: 'auto' }}
+                  exit={{ height: 0 }}
+                  transition={move}
+                  style={{ overflow: 'hidden' }}
+                  className="pc-section-items"
+                >
+                  {section.items.map((item) =>
+                    item.kind === 'pebble'
+                      ? row(item.id, { kind: 'section', id: section.id })
+                      : crewRow(item.id, section.id),
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.section>
+        ))}
     </>
   );
 }
@@ -573,10 +542,8 @@ export function OrganizationDialog({
               ...current.crews,
               { id, name: name.trim(), purpose, collapsed: false, members: [] },
             ],
-            sections: current.sections.map((s, i) =>
-              i === current.sections.length - 1
-                ? { ...s, items: [...s.items, { kind: 'crew', id }] }
-                : s,
+            sections: current.sections.map((s) =>
+              s.id === 'crews' ? { ...s, items: [...s.items, { kind: 'crew', id }] } : s,
             ),
           };
         case 'edit-crew':
@@ -658,19 +625,21 @@ export function OrganizationDialog({
                 Remove crew
               </Button>
             )}
-            {editor?.kind === 'edit-section' && org.sections.length > 1 && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="danger-text mr-auto"
-                onClick={() => {
-                  onChange((current) => removeSection(current, editor.id));
-                  onClose();
-                }}
-              >
-                Remove section
-              </Button>
-            )}
+            {editor?.kind === 'edit-section' &&
+              !isSystemSection(editor.id) &&
+              org.sections.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="danger-text mr-auto"
+                  onClick={() => {
+                    onChange((current) => removeSection(current, editor.id));
+                    onClose();
+                  }}
+                >
+                  Remove section
+                </Button>
+              )}
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>

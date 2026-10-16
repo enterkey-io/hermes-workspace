@@ -81,7 +81,7 @@ for directory in ("apps", "packages", "plugins", "scripts", "test", "docs", ".gi
                 and path.suffix in {".ts", ".tsx", ".css", ".html", ".md", ".json", ".mjs", ".py", ".yml", ".yaml", ".txt", ".sql", ".jsonc", ".example"}
                 and not path.name.startswith(".env") and path.name not in {"auth.json", "credentials.json", "config.yaml"}):
             source.append((path, str(path.relative_to(root))))
-for name in ("README.md", "PROGRESS.md", "IMPLEMENTATION_PLAN.md", "WEB_APP_PLAN.md", "LICENSE", "release.json",
+for name in ("AGENTS.md", "README.md", "PROGRESS.md", "IMPLEMENTATION_PLAN.md", "WEB_APP_PLAN.md", "LICENSE", "release.json",
              "package.json", "package-lock.json", "tsconfig.json", "eslint.config.mjs", "vitest.config.ts",
              "playwright.config.ts", "playwright.ui-review.config.ts", "vite.ui-lab.config.ts", "playwright.chat.config.ts", "playwright.avatar.config.ts", "playwright.owner.config.ts", "vite.client.config.ts", "vite.web.config.ts", ".nvmrc", ".gitignore",
              ".prettierrc.json", ".prettierignore"):

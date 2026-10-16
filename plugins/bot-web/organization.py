@@ -27,6 +27,21 @@ def read(service, state):
 def reconcile(saved, state):
     saved = deepcopy(saved)
     live = {b['id'] for b in state['bots'].values() if b.get('available') and b.get('enrolled')}
+    defaults = {'pebbles': 'Pebbles', 'crews': 'Crews'}
+    for identity, label in defaults.items():
+        section = next((s for s in saved['sections'] if s['id'] == identity), None)
+        if section is None:
+            saved['sections'].append({'id': identity, 'name': label, 'collapsed': False, 'items': []})
+        else:
+            section['name'] = label
+    misplaced = []
+    for section in saved['sections']:
+        wrong = [i for i in section['items'] if (section['id'] == 'crews' and i['kind'] == 'pebble') or (section['id'] == 'pebbles' and i['kind'] == 'crew')]
+        section['items'] = [i for i in section['items'] if i not in wrong]
+        misplaced.extend(wrong)
+    for item in misplaced:
+        target = 'crews' if item['kind'] == 'crew' else 'pebbles'
+        next(s for s in saved['sections'] if s['id'] == target)['items'].append(item)
     assigned = set()
     for c in saved['crews']:
         c['members'] = [i for i in c['members'] if i in live]
@@ -34,7 +49,7 @@ def reconcile(saved, state):
     for s in saved['sections']:
         s['items'] = [i for i in s['items'] if i['kind'] == 'crew' or i['id'] in live]
         assigned.update(i['id'] for i in s['items'] if i['kind'] == 'pebble')
-    saved['sections'][0]['items'] += [{'kind': 'pebble', 'id': i} for i in sorted(live-assigned)]
+    next(s for s in saved['sections'] if s['id'] == 'pebbles')['items'] += [{'kind': 'pebble', 'id': i} for i in sorted(live-assigned)]
     return saved
 
 
@@ -69,12 +84,16 @@ def validate(value, state):
         section_ids.add(s['id'])
         for item in s['items']:
             fields(item, ['kind', 'id'])
+            if (s['id'] == 'crews' and item['kind'] != 'crew') or (s['id'] == 'pebbles' and item['kind'] != 'pebble'):
+                raise InvalidOperation('Crews contains crews; Pebbles contains pebbles')
             if item['kind'] == 'pebble':
                 member(item['id'])
             elif item['kind'] == 'crew' and isinstance(item['id'], str) and item['id'] in crew_ids and item['id'] not in placed:
                 placed.add(item['id'])
             else:
                 raise InvalidOperation('Invalid crew placement')
+    if not {'pebbles', 'crews'} <= section_ids or any(s['name'] != {'pebbles':'Pebbles','crews':'Crews'}[s['id']] for s in sections if s['id'] in {'pebbles','crews'}):
+        raise InvalidOperation('Built-in sections keep their names and purpose')
     if placed != crew_ids or seen != live:
         raise InvalidOperation('Every pebble and crew needs one sidebar placement')
     return deepcopy(value)

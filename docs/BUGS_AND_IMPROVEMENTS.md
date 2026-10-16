@@ -4,12 +4,44 @@ Track owner reports here through implementation, verification and release. A
 published fix is separate from updating and verifying the owner's installation.
 New reports receive a stable ID; later work updates the existing entry.
 
+## Owner corrections after 0.7.0
+
+The owner rejected the 0.7.0 experience. Its earlier review did not establish
+visual acceptance. The reference and installed screens had different compositions
+and CSS entry graphs. The review entry now imports the actual app entry, and
+`check:ui` rejects the old arrangement. It also rejects the historical global
+purple focus rule and duplicated profile forms. This check was run against
+`ac4a881` and failed on those actual mistakes.
+
+| ID     | Report                                              | Repair and acceptance                                                                                                                                                                                                         |
+| ------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-039 | Empty Pebbles and Crews headings                    | Omit empty built-in sections. Retain custom sections as drop targets. Browser checks cover a single pinned pebble.                                                                                                            |
+| PC-040 | Handles, reorder menus and incorrect section types  | Drag whole rows, tiles and section headers. Reserve Crews for crews and Pebbles for pebbles in both domains. Built-in names are fixed. Existing misplaced entries migrate to the correct section without deleting identities. |
+| PC-041 | Composer menu opens over navigation                 | Open above the + trigger, aligned toward the conversation. Browser checks measure placement.                                                                                                                                  |
+| PC-042 | Uneven account menu and missing icons               | Shared menu rows use consistent padding and Lucide icons.                                                                                                                                                                     |
+| PC-043 | Expanded header arrow jumps                         | Only the closed details control nudges its right-facing chevron. The expanded down-facing chevron stays still.                                                                                                                |
+| PC-044 | Files flashes loading text                          | Delayed two-pixel loading bar, fixed space and reduced-motion state.                                                                                                                                                          |
+| PC-045 | Missing connected dot                               | Restore a muted green dot with the connection label.                                                                                                                                                                          |
+| PC-046 | Search spacing and purple focus                     | Inset search field, neutral selection/focus tokens and no product-level global focus override.                                                                                                                                |
+| PC-047 | New and existing pebble setup skips profile choices | Shared name, handle, avatar, title and description form. Compact searchable agent picker opens individual setup. Owner creation uses the exact visible proposal once.                                                         |
+| PC-048 | Added pebble does not introduce itself              | Default checked introduction uses native `prompt.submit` with a hidden seed in the canonical Bot Chat. Durable per-incarnation status prevents replay after reconnect or an uncertain outcome.                                |
+| PC-049 | Imported stock photo and disappearing choices       | New profiles default to animated Iris. Explicit saved photos remain. Shape and color choices stay visible in both modes. Refresh saved photo data after profile saves.                                                        |
+| PC-050 | Cannot rename a pebble                              | Save the display name through native metadata with identity and revision checks. Keep the native profile, SOUL and personality intact.                                                                                        |
+
+PC-051 remains open: a fresh custom-provider profile on the older 0.21.0 source
+returned `Unknown provider` after the existing model-grant adapter ran. Existing
+agent enrollment and introductions pass on that source. Fresh creation and its
+introduction are verified on 0.21.7; the older grant path needs separate repair.
+
+Verification and release status belong in [UI_RESET_WORKLOG.md](UI_RESET_WORKLOG.md).
+The owner's installed host and visual acceptance remain separate from local tests.
+
 ## UI foundation reset — latest 16 October reports
 
 ### 0.7 production implementation
 
-The approved reference now shares its component/layout foundation with the actual
-Hermes-backed app. The independent production review and its limits are recorded
+Historical claim from the 0.7.0 release: the reference shared a foundation with
+the app. The later owner report showed that this did not establish matching screens. The independent production review and its limits are recorded
 in [UI_RESET_REVIEW_CHECKLIST.md](UI_RESET_REVIEW_CHECKLIST.md). A release is separate
 from upgrading the owner's remote host and receiving owner acceptance.
 

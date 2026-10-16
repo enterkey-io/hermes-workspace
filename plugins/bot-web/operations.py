@@ -46,8 +46,11 @@ class BotOperations:
         meta = row.get("ui_meta", {}).get("hermes-bots")
         managed = isinstance(meta, dict)
         meta = meta if managed else {}
+        title = meta.get('title') or row.get('display_name') or row['name']
+        if not meta.get('workspaceNameConfigured') and title == row['name']:
+            title = title.replace('-', ' ').replace('_', ' ').title()
         return {"profile": row["name"],
-                "name": (meta or {}).get("title") or row.get("display_name") or row["name"],
+                "name": title,
                 "description": (meta or {}).get("description") or row.get("description") or "",
                 "managed": managed,
                 "canonical": bool((row.get("canonical_session") or {}).get("id")),
@@ -56,6 +59,14 @@ class BotOperations:
                 "preview": str((row.get('canonical_session') or {}).get('preview') or '')[:500],
                 "cursor": max(0, int((row.get('canonical_session') or {}).get('live_message_count', (row.get('canonical_session') or {}).get('message_count')) or 0)),
                 "conversation_id": str((row.get('canonical_session') or {}).get('resolved_id') or (row.get('canonical_session') or {}).get('id') or ''), **row.get('_presentation_clock', {})}
+
+    async def greet(self, profile, text):
+        opened = await self.invoke('bot.open', {'profile': profile})
+        sid = opened['session_id']
+        if await self.stamp(profile) != self.session_incarnations.get(sid):
+            raise InvalidOperation('This profile changed before its introduction')
+        return await self.gateway.call('prompt.submit', {'session_id': sid, 'text': text,
+            'display_kind': 'hidden', 'title_preview': 'Introduction in Pebble Crew'})
 
     async def enable_existing(self, profile):
         identifier(profile)
@@ -77,7 +88,7 @@ class BotOperations:
                 if type(revision) is not int or revision < 0:
                     raise NativeError("Invalid profile metadata revision")
                 result = await self.gateway.call("profiles.configure", {"name": profile,
-                    "ui_meta": {"hermes-bots": {"title": row.get("display_name") or profile}},
+                    "ui_meta": {"hermes-bots": {"title": row.get("display_name") or profile.replace("-", " ").replace("_", " ").title()}},
                     "ui_meta_expected_revisions": {"hermes-bots": revision}})
                 if result.get("applied", {}).get("ui_meta") is not True:
                     raise InvalidOperation("Profile metadata changed; refresh before trying again")

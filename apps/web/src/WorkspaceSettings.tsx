@@ -1,3 +1,4 @@
+import { LoadingBar } from './components/ui/loading-bar';
 import { Button } from './components/ui/button';
 import { safeError } from '@hermes-client/core';
 import { useEffect, useRef, useState } from 'react';
@@ -177,7 +178,7 @@ export function WorkspaceSettings({
           </Notice>
         )}
         {notice && <Notice>{notice}</Notice>}
-        {loading && <Notice>Loading…</Notice>}
+        <LoadingBar active={loading} label="Loading Settings" />
         {tab === 'account' && owner && <OwnerAccount />}
         {tab === 'requests' && !loading && (
           <>

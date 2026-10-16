@@ -24,3 +24,38 @@ jobs:
       - run: python3 -m venv /tmp/bot-web-test-env
       - run: /tmp/bot-web-test-env/bin/pip install -r test/plugin/requirements.txt
       - run: /tmp/bot-web-test-env/bin/python -m unittest discover -s test/plugin -p 'test_*.py'
+  native-owner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HERMES_NATIVE_ROOT: ${{ github.workspace }}/native-hermes
+      HERMES_NATIVE_PYTHON: ${{ runner.temp }}/hermes-ui-env/bin/python
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: enterkey-io/hermes-agent
+          ref: af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a
+          path: native-hermes
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14'
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: |
+          python -m venv "$RUNNER_TEMP/hermes-ui-env"
+          "$RUNNER_TEMP/hermes-ui-env/bin/pip" install uv -e './native-hermes[web]' -r test/plugin/requirements.txt
+          echo "$RUNNER_TEMP/hermes-ui-env/bin" >> "$GITHUB_PATH"
+      - run: npm run test:owner-browser
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: native-owner-ui-failure
+          path: test-results/owner
+          retention-days: 7

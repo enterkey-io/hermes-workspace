@@ -1,14 +1,24 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { LayoutGroup, motion, useReducedMotion } from 'motion/react';
-import { Search, Plus, X, CircleUserRound, MoreHorizontal } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  X,
+  CircleUserRound,
+  MoreHorizontal,
+  Settings2,
+  Eye,
+  EyeOff,
+  LogOut,
+} from 'lucide-react';
 import { AgentAvatar } from '../AgentAvatar';
 import { Menu } from '../ui/primitives';
 import type { MenuItem } from '../ui/primitives';
 import { IconButton } from '../components/ui/icon-button';
 import { Badge } from '../components/ui/badge';
 import { OrganizationRail, OrganizationDialog } from '../ui/OrganizationRail';
-import { placePebble, placementOf, nudgeItem, canNudgeItem } from '../ui/organization';
+import { placePebble, placementOf, sectionAccepts, readRailDrag } from '../ui/organization';
 import type { Organization, OrganizationEditor } from '../ui/organization';
 import type { WorkspaceState, WorkspaceBot } from '../workspace';
 import type { BotBridgeClient } from '@hermes-client/protocol';
@@ -186,7 +196,7 @@ export function Rail({
     ) : null;
   };
   const pinIds = pins.map((b) => identity(b)!.id);
-  const controls = (bot: ChatBot, index?: number) => {
+  const controls = (bot: ChatBot) => {
     const b = identity(bot);
     if (!b) return null;
     const current = placementOf(organization, b.id);
@@ -200,12 +210,14 @@ export function Rail({
       {
         label: 'Move to section',
         action: () => {},
-        items: organization.sections.map((s) => ({
-          label: s.name,
-          checked: current?.kind === 'section' && current.id === s.id,
-          action: () =>
-            onOrganization((org) => placePebble(org, b.id, { kind: 'section', id: s.id })),
-        })),
+        items: organization.sections
+          .filter((s) => sectionAccepts(s.id, 'pebble'))
+          .map((s) => ({
+            label: s.name,
+            checked: current?.kind === 'section' && current.id === s.id,
+            action: () =>
+              onOrganization((org) => placePebble(org, b.id, { kind: 'section', id: s.id })),
+          })),
       },
       {
         label: 'Move to crew',
@@ -222,29 +234,15 @@ export function Rail({
         disabled: !online,
       },
     ];
-    if (!pinned(bot))
-      for (const direction of [-1, 1] as const)
-        items.push({
-          label: direction === -1 ? 'Move up' : 'Move down',
-          disabled: !canNudgeItem(organization, { kind: 'pebble', id: b.id }, direction, pinIds),
-          action: () =>
-            onOrganization((org) =>
-              nudgeItem(org, { kind: 'pebble', id: b.id }, direction, pinIds),
-            ),
-        });
-    if (index != null && index > 0)
-      items.push({
-        label: 'Move earlier',
-        action: () => {
-          const ids = [...pinIds];
-          [ids[index - 1], ids[index]] = [ids[index]!, ids[index - 1]!];
-          onOrder(ids);
-        },
-      });
     if (b.profile !== 'default' && workspace?.orchestrator !== b.profile)
       items.push({ label: 'Delete…', action: () => onDelete(b), danger: true, disabled: !online });
     return (
-      <Menu className="pc-overflow" label={`Actions for ${bot.name}`} items={items}>
+      <Menu
+        placement="row-actions"
+        className="pc-overflow"
+        label={`Actions for ${bot.name}`}
+        items={items}
+      >
         <MoreHorizontal />
       </Menu>
     );
@@ -256,6 +254,7 @@ export function Rail({
         <IconButton label="Search Pebble Crew" icon={Search} onClick={onSearch} />
         <Menu
           label="New"
+          placement="toolbar"
           disabled={!online}
           items={[
             { label: 'New pebble', action: onAdd },
@@ -272,14 +271,55 @@ export function Rail({
           <nav aria-label="Pebbles">
             {!!pins.length && (
               <div className="pc-pins pinned-pebbles">
-                {pins.map((b, i) => (
+                {pins.map((b) => (
                   <motion.div
                     layout="position"
+                    layoutId={`pebble-${identity(b)!.id}`}
+                    draggable
+                    onDragStartCapture={(event) => {
+                      event.dataTransfer.setData(
+                        'application/x-pebble-crew-rail',
+                        JSON.stringify({ kind: 'pebble', id: identity(b)!.id }),
+                      );
+                      event.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(event) => {
+                      if (event.dataTransfer.types.includes('application/x-pebble-crew-rail'))
+                        event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const item = readRailDrag(
+                        event.dataTransfer.getData('application/x-pebble-crew-rail'),
+                        organization,
+                        all.flatMap((bot) => identity(bot)?.id ?? []),
+                      );
+                      if (item?.kind !== 'pebble') return;
+                      const bot = byId(item.id);
+                      if (!bot) return;
+                      if (!pinned(bot)) onPin(identity(bot)!, true);
+                      const ids = pinIds.filter((id) => id !== item.id),
+                        position = ids.indexOf(identity(b)!.id);
+                      ids.splice(position < 0 ? ids.length : position, 0, item.id);
+                      onOrder(ids);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.altKey && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+                        event.preventDefault();
+                        const ids = [...pinIds],
+                          index = ids.indexOf(identity(b)!.id),
+                          next = index + (event.key === 'ArrowUp' ? -1 : 1);
+                        if (next >= 0 && next < ids.length) {
+                          [ids[index], ids[next]] = [ids[next]!, ids[index]!];
+                          onOrder(ids);
+                        }
+                      }
+                    }}
                     transition={{ duration: reduced ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
                     className={`pc-pin pinned-tile ${selected === b.profile ? 'is-selected' : ''}`}
                     key={identity(b)?.id ?? b.profile}
                   >
-                    <div className="pc-pin-actions">{controls(b, i)}</div>
+                    <div className="pc-pin-actions">{controls(b)}</div>
                     <button
                       className="pc-pin-open"
                       aria-label={`${b.name} ${identity(b)?.role.title ?? ''} Bot Chat`}
@@ -406,16 +446,23 @@ export function Rail({
       <footer className="pc-rail-footer">
         <Menu
           label="Your account"
-          upward
+          placement="account"
           items={[
-            { label: 'Settings', action: onSettings },
-            { label: 'Show hidden', checked: hidden, action: () => setHidden(!hidden) },
-            { label: owner ? 'Sign out' : 'Disconnect', action: onLogout },
+            { label: 'Settings', icon: Settings2, action: onSettings },
+            {
+              label: hidden ? 'Hide hidden pebbles' : 'Show hidden pebbles',
+              icon: hidden ? Eye : EyeOff,
+              action: () => setHidden(!hidden),
+            },
+            { label: owner ? 'Sign out' : 'Disconnect', icon: LogOut, action: onLogout },
           ]}
         >
           <CircleUserRound />
         </Menu>
-        <span>{online ? 'Hermes connected' : 'Reconnecting…'}</span>
+        <span className="connection-status" data-online={online}>
+          <i aria-hidden="true" />
+          {online ? 'Hermes connected' : 'Reconnecting…'}
+        </span>
       </footer>
       <OrganizationDialog
         editor={editor}

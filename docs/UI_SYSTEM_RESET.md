@@ -19,7 +19,7 @@ Delivery states must remain separate:
 | Implemented | Production consumers use the new components/state owners; old competing paths removed         | Visual/interaction acceptance                                           |
 | Verified    | Independent finished-build review with viewport/state evidence plus relevant automated checks | Untested installations or unsupported native capabilities               |
 
-An excluded `ui-lab.html` reference is useful proof of component composition. It must not silently replace the real-app vertical slice in stage2 or count toward implemented migration. Update these states as evidence arrives, not as components are merely installed.
+Since 0.7.1, `ui-lab.html` imports the installed app entry. Separate reference screens were removed after they diverged from the product. Review and acceptance must exercise the actual routes and theme.
 
 The architect/how/why grounding workflow was performed inline as requested: no further agents. The reference image was inspected locally, never uploaded. It supplies evidence for density, three clear regions, quiet surfaces and compact controls, not permission to copy its private content or every detail. Repository design documents are historical intent. Statements such as “completed” in them do not establish that the user experience passed review. This review did not access a private owner instance. Runtime observations, when available, belong in the companion checklist with build identity and evidence paths.
 
