@@ -84,7 +84,7 @@ shadcn/Radix components, CSS/Tailwind and Motion are **web DOM implementations**
 
 ## Geometry and composition
 
-Desktop at ≥1280px: 304px rail / minmax(480px,1fr) conversation / 0–320px details. ≥1700 rail may be336 and details352 only through shell tokens; transcript content max840, assistant bubble max720, user bubble max min(560px,85%). At768–1279: 280px rail, conversation fills remainder; details is a320px modal side sheet. Below768: conversation fills width; rail and details are modal sheets, width min(360px,100vw−24px). At narrow phone widths the Add existing dialog fills available viewport with 12px inset. Shell height100dvh and min-height0 at every nested flex/grid scroll boundary.
+At ≥1400px: 304px rail / flexible conversation / 0–320px docked details. At1024–1399: 280px rail / flexible conversation / 0–288px docked details. At768–1023: navigation moves to a left sheet, while conversation and288px details remain adjacent. **Details never becomes a modal overlay.** Below768: the details region expands to the viewport width and the conversation contracts to0; it is an integrated details view with a Close action, not a modal focus trap. Preserve the open preference across conversation changes. On phone the contracted main region is inert; closing restores focus to the title after the layout commit. The sole header toggle is the pebble/crew name and title, with an understated directional chevron; no duplicate settings button. Shell height100dvh and min-height0 at every nested flex/grid scroll boundary.
 
 Header64px fixed; rail toolbar64px fixed; footer56px minimum plus safe area. Transcript and rail list scroll independently. Composer stays in the conversation layout below transcript, never a viewport-wide fixed overlay. Conversation gutters24px desktop,16px tablet,12px phone; composer follows same content max width. Search opening cannot change any rail/header rectangle.
 
@@ -95,6 +95,39 @@ Pinned tiles:112px wide, at least128px high; top action strip32px, avatar region
 Settings: normal main-page content, max760px,24px side padding. Header “Settings”; Account / Connections / Requests use underline tabs. Section headings precede flat field stacks with24px between sections; no bordered card wrapping every form. Fields max520px; service rows full width, icon/name/brief status/action on one line when possible. Pebble selector appears once above connection content. Save is an explicit primary variant; never inferred from last-child. A destructive subsection has a single separator and explicit consequence, not repeated warnings. Existing dirty drafts, scope selection and pending requests survive roster refresh.
 
 Add existing: Dialog title “Add existing pebbles”, one short supporting line only if needed. Desktop width560px, max-height min(680px,85dvh), header/search/footer fixed, results the sole scroll region. Search height40. Result row64px: checkbox18 + avatar36 + name/secondary text, disabled “Added” state distinct from selection. Footer shows selected count and Cancel / Add N pebbles; preserve selections across filtering. Loading/empty/error occupy the list region, not a replacement screen. Partial enrollment retains per-profile outcomes and offers refresh before repeat; no new native profile is created by this flow.
+
+## Owner refinement: organization, editor and activity
+
+These requirements supersede the earlier modal-tablet details and row-width
+pointer-gain proposals. They are implemented in the isolated reference; real
+native routes remain a separate migration.
+
+- Sections are owner-created rail organization: create from +, rename, collapse,
+  reorder and move pebbles/crews through menus or desktop drag. Provide keyboard
+  menu equivalents to every drag operation. Store order/collapse separately
+  from profile identity and chat history.
+- Clicking a Crew opens its conversation. Crew settings belongs in its
+  three-dot menu. In production, bind the Crew to a native group-conversation
+  identity; preserve the distinction between organization metadata and native
+  room membership/permissions. Do not simulate a crew by broadcasting individual
+  prompts. Changes to actual native membership must show their real outcome.
+- Pebbles can be reordered or moved between sections and Crews. The reference
+  models one rail placement per unpinned pebble; pins retain their underlying
+  placement. Before native migration, define how rail placement and actual
+  conversation membership map, so rearranging a section cannot silently grant
+  access or erase native participation/history.
+- Editor height is fixed within the viewport (desktop600px maximum); header,
+  tabs and footer stay stationary. The selected tab body owns scrolling.
+- Shared popup sources explicitly use dark surface, no border and no default
+  outline; the prior layer override lost to Tailwind's border utility. Retain
+  focus indication on selectable items. Use thin, muted, transparent-track
+  scrollbars throughout; keep them operable and honor forced colors.
+- Activity occupies one stable line with plain Thinking or Working text and a
+  slow recurring text shimmer. No dots, icon cluster or per-tool empty bubbles.
+  Reduced motion uses static text. One polite live region announces state
+  changes, not animation frames. In native routes derive these states from
+  actual run events; keep pending tool/approval details available separately.
+- Keep the product title unchanged while runtime portability is investigated.
 
 ## Element / variant / state inventory
 
@@ -136,7 +169,7 @@ Install `motion`; root `MotionConfig reducedMotion="user"`. This supplies a shar
 
 ### Desktop details: one physical width
 
-`ConversationShell` owns a single Motion value `detailsWidth`, target0 or320 (352 only at wide breakpoint). Layout is grid columns `railWidth minmax(0,1fr) detailsWidth`; the details child has fixed320px width inside an overflow-clipped reserved column, positioned at that column's x0 with **no additional translation**. For viewport widthV and reserved widthW, column left isV−W, already equal to the main right edge. Animate width over240ms from the current interpolated value. Keep the child mounted until width reaches0; no timeout separate from animation completion. Opening during close reverses from current width. A focused descendant is moved to the toggle before it becomes inert; the closing panel is inert while still visibly exiting. Main/header/composer geometry uses the same grid, never an independent width animation. Do not scale text with generic `layout` on the whole conversation.
+`ConversationShell` owns a single Motion value `detailsWidth`, target0 or the responsive panel width (288/320px; full viewport below768px). Layout is grid columns `railWidth minmax(0,1fr) detailsWidth`; the details child has fixed320px width inside an overflow-clipped reserved column, positioned at that column's x0 with **no additional translation**. For viewport widthV and reserved widthW, column left isV−W, already equal to the main right edge. Animate width over240ms from the current interpolated value. Keep the child mounted until width reaches0; no timeout separate from animation completion. Opening during close reverses from current width. A focused descendant is moved to the toggle before it becomes inert; the closing panel is inert while still visibly exiting. Main/header/composer geometry uses the same grid, never an independent width animation. Do not scale text with generic `layout` on the whole conversation.
 
 Accepted implementation correction during prototype review: the initial sketch added child translation `panelWidth−detailsWidth`, which double-counted movement and hid the child during part of entry. The parent implementer identified the error; the architect accepted the correction above. Framewise invariant: `panel.left === main.right`, `main.right + reservedWidth === viewportWidth`, child width constant320 and opacity1. This replaces the initial formula; do not retain both alternatives.
 
@@ -164,7 +197,7 @@ Streaming occupies one stable response slot keyed by run identity; deltas append
 
 Keep the shared `AvatarScheduler`, shape paths and owner-provided colors/photos. Replace flat `gazeX/gazeY` face translation with a pure `projectFace({yaw,pitch,blink,expression})` result. This is stylized2.5D projection of the existing pebble, not a new face design or WebGL dependency.
 
-Interaction root is the hovered/focused row, tile or explicit avatar preview. Cache that root's and the avatar's rectangles on entry and ResizeObserver/scroll invalidation. Avatar center is the directional origin, but normalize each side to the available interaction extent: `dx=pointerX-avatarCenterX`; `rangeX=dx<0 ? max(avatarWidth/2,avatarCenterX-root.left) : max(avatarWidth/2,root.right-avatarCenterX)`; `u=clamp(dx/rangeX,-1,1)`. Derive `v` analogously using top/bottom and avatar centerY. This avoids both a one-sided saturation caused by using only avatar width and a false leftward look when pointer is centered over a left-aligned avatar. Desired yaw `θ=32°*u`, pitch `φ=22°*v`; sign convention: positive yaw looks screen-right, positive pitch looks down. Both ends of the interaction surface must reach the specified extremes. At rest use yaw+18°, pitch−12° so the character clearly faces slightly up/right rather than the viewer. Low amplitude idle variations ≤2° around that pose; no regular sweeping. The initial+12°/−8° proposal read too front-facing in the independent1440px live prototype review; the stronger rest pose subsequently read clearly turned in the independent live review at 56px and 88px. Other sizes, all shapes and extrema still require their own visual gate.
+Interaction root is the hovered/focused row, tile or explicit avatar preview. Cache the avatar rectangle on entry and invalidate through ResizeObserver/scroll. Equal distances from the avatar center must give equal turns: `u=clamp(dx/max(12,avatarWidth/2),-1,1)` and `v=clamp(dy/max(12,avatarHeight/2),-1,1)`. Root edges gate attention but do not set the gain. The earlier normalization against each side's remaining row width made rightward motion weak on left-aligned avatars; this is superseded. Desired yaw is32°*u and pitch22°*v; positive yaw looks screen-right, positive pitch looks down. Saturate symmetrically at the limits. Rest is yaw+18°, pitch−12°, with small idle variation. Verify symmetry using equal face-relative pointer offsets, not only the distant row edges.
 
 In100×108 SVG coordinates, center(50,49), face plane z=24, eyes at x=−10.5/+10.5,y=0, focal distance180. Rotate a point by yaw: `x1=x*cosθ+z*sinθ`, `z1=−x*sinθ+z*cosθ`; pitch: `y2=y*cosφ+z1*sinφ`, `z2=−y*sinφ+z1*cosφ`; project `s=180/(180−z2)`, `screen=(50+x1*s,49+y2*s)`. Positive yaw makes the left eye nearer using this convention; derive near/far from z2 instead of assigning by screen side. Clamp face center to the shape's safe region, not each eye independently; keep projected eye gap≥8 SVG units and both eyes inside the body silhouette at extrema.
 

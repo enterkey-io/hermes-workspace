@@ -1,10 +1,22 @@
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'node:path';
+import { copyFile } from 'node:fs/promises';
 
 export default defineConfig({
   root: 'apps/web',
-  plugins: [tailwindcss()],
+  plugins: [
+    tailwindcss(),
+    {
+      name: 'reference-index',
+      async writeBundle() {
+        await copyFile(
+          resolve('artifacts/ui-reset/build/ui-lab.html'),
+          resolve('artifacts/ui-reset/build/index.html'),
+        );
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': resolve('apps/web/src'),

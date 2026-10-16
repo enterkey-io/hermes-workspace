@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { SetStateAction } from 'react';
 import { MotionConfig, motion, useReducedMotion, useMotionValue, animate } from 'motion/react';
 import {
   ArrowDown,
@@ -6,14 +7,13 @@ import {
   Check,
   CheckCheck,
   Copy,
+  ChevronRight,
   File,
   FileText,
   Folder,
   Image,
   LogOut,
   Menu,
-  MoreHorizontal,
-  Pin,
   Plus,
   Search,
   SlidersHorizontal,
@@ -65,6 +65,9 @@ import { AgentAvatar } from '../AgentAvatar';
 import { COLORS, SHAPES } from '../avatar-lab/engine';
 import { previewPhoto } from '../avatar-lab/photo';
 import type { Appearance } from '../workspace';
+import { OrganizationRail, PebbleActions, OrganizationDialog } from './OrganizationRail';
+import { initialOrganization, placePebble } from './organization';
+import type { Crew, OrganizationEditor } from './organization';
 
 type Pebble = {
   id: string;
@@ -88,7 +91,7 @@ type Overlay =
   | { kind: 'existing' }
   | { kind: 'edit'; pebble: Pebble }
   | { kind: 'create' }
-  | { kind: 'crew' };
+  | { kind: 'organize'; editor: OrganizationEditor };
 const seedPebbles: Pebble[] = [
   ['Arlo', 'Chief of staff', 'The brief is ready for your review.', 'pebble', 'iris'],
   ['Mica', 'Executive assistant', 'Your afternoon is clear.', 'beacon', 'sky'],
@@ -155,40 +158,6 @@ function Face({ pebble, large = false }: { pebble: Pebble; large?: boolean }) {
     />
   );
 }
-function PebbleActions({
-  pebble,
-  onPin,
-  onEdit,
-}: {
-  pebble: Pebble;
-  onPin: () => void;
-  onEdit: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="quiet"
-          size="icon-sm"
-          className="review-overflow"
-          aria-label={`Actions for ${pebble.name}`}
-        >
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6}>
-        <DropdownMenuItem onSelect={onPin}>
-          <Pin />
-          {pebble.pinned ? 'Unpin' : 'Pin'}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={onEdit}>
-          <SlidersHorizontal />
-          Edit pebble
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 function useWideScreen(query: string) {
   const [wide, setWide] = useState(() => matchMedia(query).matches);
   useEffect(() => {
@@ -203,21 +172,45 @@ function useWideScreen(query: string) {
 export function UiReview() {
   const [pebbles, setPebbles] = useState(seedPebbles);
   const [selected, setSelected] = useState(seedPebbles[0]!);
+  const [organization, setOrganization] = useState(initialOrganization);
+  const [crewId, setCrewId] = useState<string | null>(null);
+  const selectedCrew = organization.crews.find((crew) => crew.id === crewId);
+  const conversationKey = selectedCrew ? `crew:${selectedCrew.id}` : `pebble:${selected.id}`;
+  const [histories, setHistories] = useState<Record<string, ReviewMessage[]>>({
+    'pebble:sample-0': sampleMessages,
+  });
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [overlay, setOverlay] = useState<Overlay>({ kind: 'none' });
   const [page, setPage] = useState<'chat' | 'settings'>('chat');
   const searchReturn = useRef<HTMLElement | null>(null);
-  const [desktopDetails, setDesktopDetails] = useState(true);
-  const [compactDetails, setCompactDetails] = useState(false);
+  const [details, setDetails] = useState(() => matchMedia('(min-width: 768px)').matches);
   const [navigation, setNavigation] = useState(false);
-  const [messages, setMessages] = useState(sampleMessages);
-  const [draft, setDraft] = useState('');
-  const [working, setWorking] = useState(false);
+  const messages = histories[conversationKey] ?? [];
+  const draft = drafts[conversationKey] ?? '';
+  const setDraft = (value: string) =>
+    setDrafts((items) => ({ ...items, [conversationKey]: value }));
+  const [activity, setActivity] = useState<Record<string, 'thinking' | 'working'>>({});
+  const working = activity[conversationKey];
   const [latest, setLatest] = useState(false);
-  const [attachments, setAttachments] = useState<string[]>([]);
-  const wide = useWideScreen('(min-width: 1280px)');
+  const [chatAttachments, setChatAttachments] = useState<Record<string, string[]>>({});
+  const attachments = chatAttachments[conversationKey] ?? [];
+  function setAttachments(value: SetStateAction<string[]>) {
+    setChatAttachments((items) => ({
+      ...items,
+      [conversationKey]: typeof value === 'function' ? value(items[conversationKey] ?? []) : value,
+    }));
+  }
   const mobile = !useWideScreen('(min-width: 768px)');
-  const details = wide ? desktopDetails : compactDetails;
-  const detailsWidth = useMotionValue(wide && desktopDetails ? 320 : 0);
+  const compactNavigation = !useWideScreen('(min-width: 1024px)');
+  const roomy = useWideScreen('(min-width: 1400px)');
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const resize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+  const panelWidth = mobile ? windowWidth : roomy ? 320 : 288;
+  const detailsWidth = useMotionValue(details ? panelWidth : 0);
   const reduced = useReducedMotion();
   const viewport = useRef<HTMLDivElement>(null);
   const imageInput = useRef<HTMLInputElement>(null),
@@ -273,49 +266,70 @@ export function UiReview() {
   }
   function showDetails(next: boolean) {
     capture();
-    if (!next && wide) toggle.current?.focus();
-    if (wide) setDesktopDetails(next);
-    else setCompactDetails(next);
+    if (!next) requestAnimationFrame(() => toggle.current?.focus({ preventScroll: true }));
+    setDetails(next);
+    if (next && mobile)
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLElement>('#conversation-details h2')
+          ?.focus({ preventScroll: true }),
+      );
   }
   function openPebble(pebble: Pebble) {
     setPage('chat');
     setSelected(pebble);
+    setCrewId(null);
     setNavigation(false);
     following.current = true;
   }
   function pin(pebble: Pebble) {
     setPebbles((items) => items.map((p) => (p.id === pebble.id ? { ...p, pinned: !p.pinned } : p)));
   }
+  function openCrew(id: string) {
+    setPage('chat');
+    setCrewId(id);
+    setNavigation(false);
+    following.current = true;
+  }
   function send() {
     if ((!draft.trim() && !attachments.length) || working) return;
+    const key = conversationKey;
     following.current = true;
-    setMessages((items) => [
-      ...items,
-      {
-        id: crypto.randomUUID(),
-        role: 'user',
-        text: [draft.trim(), ...attachments.map((name) => `📎 ${name}`)].filter(Boolean).join('\n'),
-        at: Date.now(),
-        fresh: true,
-      },
-    ]);
+    const message: ReviewMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      text: [draft.trim(), ...attachments.map((name) => `📎 ${name}`)].filter(Boolean).join('\n'),
+      at: Date.now(),
+      fresh: true,
+    };
+    setHistories((items) => ({ ...items, [key]: [...(items[key] ?? []), message] }));
     setDraft('');
     setAttachments([]);
-    setWorking(true);
+    setActivity((items) => ({ ...items, [key]: 'thinking' }));
+    timers.current.push(
+      setTimeout(() => setActivity((items) => ({ ...items, [key]: 'working' })), 2600),
+    );
     timers.current.push(
       setTimeout(() => {
-        setWorking(false);
-        setMessages((items) => [
+        setActivity((items) => {
+          const next = { ...items };
+          delete next[key];
+          return next;
+        });
+        setHistories((items) => ({
           ...items,
-          {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            text: 'This is the interaction preview. Your message stays local to this page; no Hermes request was sent.',
-            at: Date.now(),
-            fresh: true,
-          },
-        ]);
-      }, 1800),
+          [key]: [
+            ...(items[key] ?? []),
+            {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              text: 'This is the interaction preview. Your message stays local to this page; no Hermes request was sent.',
+              at: Date.now(),
+              fresh: true,
+            },
+          ],
+        }));
+      }, 6500),
     );
   }
   const rail = (
@@ -338,9 +352,17 @@ export function UiReview() {
               <Plus />
               Create pebble
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setOverlay({ kind: 'crew' })}>
+            <DropdownMenuItem
+              onSelect={() => setOverlay({ kind: 'organize', editor: { kind: 'new-crew' } })}
+            >
               <Users />
               New crew
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => setOverlay({ kind: 'organize', editor: { kind: 'new-section' } })}
+            >
+              <Folder />
+              New section
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -357,7 +379,7 @@ export function UiReview() {
               <motion.div
                 layout
                 key={pebble.id}
-                className={`review-pin pinned-tile ${selected.id === pebble.id ? 'is-selected' : ''}`}
+                className={`review-pin pinned-tile ${!selectedCrew && selected.id === pebble.id ? 'is-selected' : ''}`}
                 transition={{ duration: reduced ? 0 : 0.22, ease: easing }}
               >
                 <div className="review-pin-actions">
@@ -365,6 +387,8 @@ export function UiReview() {
                     pebble={pebble}
                     onPin={() => pin(pebble)}
                     onEdit={() => setOverlay({ kind: 'edit', pebble })}
+                    org={organization}
+                    onChange={setOrganization}
                   />
                 </div>
                 <button
@@ -379,54 +403,30 @@ export function UiReview() {
               </motion.div>
             ))}
         </motion.div>
-        <section className="review-list" aria-label="Personal">
-          <h2>Personal</h2>
-          <motion.div layout>
-            {pebbles
-              .filter((p) => !p.pinned)
-              .map((pebble) => (
-                <motion.div
-                  layout
-                  key={pebble.id}
-                  className={`review-row pebble-row ${selected.id === pebble.id ? 'is-selected' : ''}`}
-                  transition={{ duration: reduced ? 0 : 0.22, ease: easing }}
-                >
-                  <button
-                    className="review-row-open"
-                    onClick={() => openPebble(pebble)}
-                    aria-label={`Open ${pebble.name}`}
-                  >
-                    <Face pebble={pebble} />
-                    <span className="review-row-copy">
-                      <span>
-                        <strong>{pebble.name}</strong>
-                        <Badge variant="secondary">{pebble.title}</Badge>
-                      </span>
-                      <small>{pebble.preview}</small>
-                    </span>
-                  </button>
-                  <PebbleActions
-                    pebble={pebble}
-                    onPin={() => pin(pebble)}
-                    onEdit={() => setOverlay({ kind: 'edit', pebble })}
-                  />
-                </motion.div>
-              ))}
-          </motion.div>
-        </section>
-        <section className="review-list">
-          <h2>Crews</h2>
-          <button className="review-crew" onClick={() => setOverlay({ kind: 'crew' })}>
-            <span className="review-crew-faces">
-              <Face pebble={pebbles[2]!} />
-              <Face pebble={pebbles[3]!} />
-            </span>
-            <span>
-              <strong>Studio</strong>
-              <small>4 pebbles</small>
-            </span>
-          </button>
-        </section>
+        <OrganizationRail
+          org={organization}
+          onChange={setOrganization}
+          pebbles={pebbles}
+          activeId={selectedCrew?.id ?? selected.id}
+          face={(id) => {
+            const p = pebbles.find((item) => item.id === id);
+            return p ? <Face pebble={p} /> : null;
+          }}
+          onOpenPebble={(id) => {
+            const p = pebbles.find((item) => item.id === id);
+            if (p) openPebble(p);
+          }}
+          onOpenCrew={openCrew}
+          onEditPebble={(id) => {
+            const p = pebbles.find((item) => item.id === id);
+            if (p) setOverlay({ kind: 'edit', pebble: p });
+          }}
+          onEditOrganization={(editor) => setOverlay({ kind: 'organize', editor })}
+          onPin={(id) => {
+            const p = pebbles.find((item) => item.id === id);
+            if (p) pin(p);
+          }}
+        />
       </div>
       <footer className="review-rail-footer">
         <DropdownMenu>
@@ -445,7 +445,6 @@ export function UiReview() {
               onSelect={() => {
                 setPage('settings');
                 setNavigation(false);
-                setCompactDetails(false);
               }}
             >
               <SlidersHorizontal />
@@ -466,11 +465,7 @@ export function UiReview() {
     </aside>
   );
   useEffect(() => {
-    if (!wide) {
-      detailsWidth.set(0);
-      return;
-    }
-    const controls = animate(detailsWidth, details && page === 'chat' ? 320 : 0, {
+    const controls = animate(detailsWidth, details && page === 'chat' ? panelWidth : 0, {
       duration: reduced ? 0 : 0.24,
       ease: easing,
       onUpdate: () => requestAnimationFrame(preserve),
@@ -480,8 +475,18 @@ export function UiReview() {
       },
     });
     return () => controls.stop();
-  }, [wide, details, page, reduced, detailsWidth]);
-  const inspector = (
+  }, [panelWidth, details, page, reduced, detailsWidth]);
+  const inspector = selectedCrew ? (
+    <CrewDetails
+      crew={selectedCrew}
+      members={pebbles.filter((p) => selectedCrew.members.includes(p.id))}
+      onClose={() => showDetails(false)}
+      onEdit={() =>
+        setOverlay({ kind: 'organize', editor: { kind: 'edit-crew', id: selectedCrew.id } })
+      }
+      onOpen={openPebble}
+    />
+  ) : (
     <Details
       pebble={selected}
       onClose={() => showDetails(false)}
@@ -492,8 +497,8 @@ export function UiReview() {
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={350}>
         <div className="review-shell">
-          {!mobile && rail}
-          <main className="review-main">
+          {!compactNavigation && rail}
+          <main className="review-main" inert={mobile && details && page === 'chat'}>
             {page === 'settings' ? (
               <SettingsPanel
                 onClose={() => {
@@ -506,30 +511,36 @@ export function UiReview() {
             ) : (
               <>
                 <header className="review-chat-header">
-                  {mobile && (
+                  {compactNavigation && (
                     <IconAction
                       label="Open navigation"
                       icon={Menu}
                       onClick={() => setNavigation(true)}
                     />
                   )}
-                  <button className="review-chat-identity" onClick={() => showDetails(!details)}>
-                    <Face pebble={selected} />
-                    <span>
-                      <strong>{selected.name}</strong>
-                      <small>{selected.title}</small>
-                    </span>
-                  </button>
-                  <Button
+                  <button
                     ref={toggle}
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={details ? 'Hide details' : 'Show details'}
+                    className="review-chat-identity"
+                    aria-label={`${selectedCrew?.name ?? selected.name} details`}
                     aria-expanded={details}
+                    aria-controls="conversation-details"
                     onClick={() => showDetails(!details)}
                   >
-                    <SlidersHorizontal />
-                  </Button>
+                    {selectedCrew ? (
+                      <span className="review-header-crew">
+                        <Users />
+                      </span>
+                    ) : (
+                      <Face pebble={selected} />
+                    )}
+                    <span>
+                      <strong>{selectedCrew?.name ?? selected.name}</strong>
+                      <small>
+                        {selectedCrew ? `${selectedCrew.members.length} pebbles` : selected.title}
+                      </small>
+                    </span>
+                    <ChevronRight className="review-details-chevron" data-open={details} />
+                  </button>
                 </header>
                 <div
                   className="review-transcript"
@@ -548,12 +559,23 @@ export function UiReview() {
                     {messages.map((message) => (
                       <Message key={message.id} message={message} />
                     ))}
-                    {working && (
-                      <div className="review-working" role="status">
-                        <span /> <span /> <span />
-                        <span className="sr-only">Working</span>
+                    {!messages.length && !working && (
+                      <div className="review-empty-chat">
+                        <h1>{selectedCrew?.name ?? selected.name}</h1>
+                        <p>
+                          {selectedCrew
+                            ? 'Start a conversation with this crew.'
+                            : 'Start a conversation.'}
+                        </p>
                       </div>
                     )}
+                    <div className="review-activity-lane" role="status" aria-atomic="true">
+                      {working && (
+                        <span className="review-activity" data-activity={working}>
+                          {working === 'thinking' ? 'Thinking' : 'Working'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {latest && (
@@ -650,7 +672,7 @@ export function UiReview() {
                       <Textarea
                         aria-label="Message"
                         value={draft}
-                        placeholder={`Message ${selected.name}`}
+                        placeholder={`Message ${selectedCrew?.name ?? selected.name}`}
                         rows={1}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={(e) => {
@@ -665,7 +687,7 @@ export function UiReview() {
                         size="icon"
                         className="rounded-full"
                         aria-label="Send message"
-                        disabled={working || (!draft.trim() && !attachments.length)}
+                        disabled={!!working || (!draft.trim() && !attachments.length)}
                       >
                         <ArrowUp />
                       </Button>
@@ -675,53 +697,28 @@ export function UiReview() {
               </>
             )}
           </main>
-          {wide && (
-            <motion.div
-              className="review-details-slot"
-              initial={false}
-              style={{ width: detailsWidth }}
-              onUpdate={preserve}
-              onAnimationComplete={() => {
-                preserve();
-                anchor.current = null;
+          <motion.div
+            id="conversation-details"
+            className="review-details-slot"
+            initial={false}
+            style={{ width: detailsWidth }}
+            onUpdate={preserve}
+          >
+            <div
+              className="review-details-fixed"
+              style={{ width: panelWidth }}
+              inert={!details || page === 'settings'}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && !event.defaultPrevented && overlay.kind === 'none') {
+                  event.preventDefault();
+                  showDetails(false);
+                }
               }}
             >
-              <div className="review-details-fixed" inert={!details || page === 'settings'}>
-                {inspector}
-              </div>
-            </motion.div>
-          )}
-          {!wide && (
-            <Sheet
-              open={details && overlay.kind === 'none'}
-              onOpenChange={(open) => showDetails(open)}
-            >
-              <SheetContent
-                side="right"
-                className="review-details-sheet"
-                showCloseButton={false}
-                onOpenAutoFocus={(event) => {
-                  event.preventDefault();
-                  document
-                    .querySelector<HTMLElement>(
-                      '.review-details-sheet [role="tab"][aria-selected="true"]',
-                    )
-                    ?.focus();
-                }}
-                onCloseAutoFocus={(event) => {
-                  event.preventDefault();
-                  if (overlay.kind === 'none') toggle.current?.focus();
-                }}
-              >
-                <SheetTitle className="sr-only">{selected.name} details</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Profile, routines and shared files.
-                </SheetDescription>
-                {inspector}
-              </SheetContent>
-            </Sheet>
-          )}
-          {mobile && (
+              {inspector}
+            </div>
+          </motion.div>
+          {compactNavigation && (
             <Sheet open={navigation && overlay.kind === 'none'} onOpenChange={setNavigation}>
               <SheetContent
                 side="left"
@@ -757,7 +754,17 @@ export function UiReview() {
             open={overlay.kind === 'existing'}
             onClose={() => setOverlay({ kind: 'none' })}
             onAdd={(items) => {
-              setPebbles((old) => [...old, ...items]);
+              setPebbles((old) => [
+                ...old,
+                ...items.filter((item) => !old.some((p) => p.id === item.id)),
+              ]);
+              setOrganization((current) =>
+                items.reduce(
+                  (org, item) =>
+                    placePebble(org, item.id, { kind: 'section', id: org.sections[0]!.id }),
+                  current,
+                ),
+              );
               setOverlay({ kind: 'none' });
             }}
           />
@@ -771,7 +778,7 @@ export function UiReview() {
             }}
           />
           <Dialog
-            open={overlay.kind === 'create' || overlay.kind === 'crew'}
+            open={overlay.kind === 'create'}
             onOpenChange={(open) => {
               if (!open) setOverlay({ kind: 'none' });
             }}
@@ -783,18 +790,15 @@ export function UiReview() {
               }}
             >
               <DialogHeader>
-                <DialogTitle>{overlay.kind === 'crew' ? 'New crew' : 'Create pebble'}</DialogTitle>
+                <DialogTitle>Create pebble</DialogTitle>
                 <DialogDescription>
                   This screen demonstrates the shared form controls. It does not create a Hermes
                   profile.
                 </DialogDescription>
               </DialogHeader>
               <Label htmlFor="create-name">Name</Label>
-              <Input
-                id="create-name"
-                placeholder={overlay.kind === 'crew' ? 'Crew name' : 'Pebble name'}
-              />
-              <Label htmlFor="create-role">{overlay.kind === 'crew' ? 'Purpose' : 'Role'}</Label>
+              <Input id="create-name" placeholder="Pebble name" />
+              <Label htmlFor="create-role">Role</Label>
               <Textarea id="create-role" rows={3} />
               <div className="review-form-footer">
                 <Button variant="ghost" onClick={() => setOverlay({ kind: 'none' })}>
@@ -804,6 +808,12 @@ export function UiReview() {
               </div>
             </DialogContent>
           </Dialog>
+          <OrganizationDialog
+            editor={overlay.kind === 'organize' ? overlay.editor : null}
+            org={organization}
+            onChange={setOrganization}
+            onClose={() => setOverlay({ kind: 'none' })}
+          />
         </div>
       </TooltipProvider>
     </MotionConfig>
@@ -866,7 +876,7 @@ function Details({
       </header>
       <div className="review-details-identity">
         <Face pebble={pebble} large />
-        <h2>{pebble.name}</h2>
+        <h2 tabIndex={-1}>{pebble.name}</h2>
         <p>{pebble.title}</p>
         <small>@{pebble.name.toLowerCase()}</small>
         <Button variant="ghost" size="sm" onClick={onEdit}>
@@ -906,6 +916,68 @@ function Details({
           <p className="review-muted text-xs">
             Sample file · downloads are unavailable in this preview.
           </p>
+        </TabsContent>
+      </Tabs>
+    </aside>
+  );
+}
+
+function CrewDetails({
+  crew,
+  members,
+  onClose,
+  onEdit,
+  onOpen,
+}: {
+  crew: Crew;
+  members: Pebble[];
+  onClose: () => void;
+  onEdit: () => void;
+  onOpen: (pebble: Pebble) => void;
+}) {
+  return (
+    <aside className="review-details details-panel" aria-label={`${crew.name} details`}>
+      <header>
+        <IconAction label="Close details" icon={X} onClick={onClose} />
+      </header>
+      <div className="review-details-identity">
+        <span className="review-crew-faces review-crew-faces-large">
+          {members.slice(0, 2).map((member) => (
+            <span key={member.id}>
+              <Face pebble={member} />
+            </span>
+          ))}
+          {!members.length && <Users />}
+        </span>
+        <h2 tabIndex={-1}>{crew.name}</h2>
+        <p>{crew.purpose}</p>
+        <Button variant="ghost" size="sm" onClick={onEdit}>
+          Crew settings
+        </Button>
+      </div>
+      <Tabs defaultValue="pebbles">
+        <TabsList variant="line">
+          <TabsTrigger value="pebbles">Pebbles</TabsTrigger>
+          <TabsTrigger value="files">Files</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pebbles">
+          <div className="review-crew-roster">
+            {members.map((member) => (
+              <button key={member.id} onClick={() => onOpen(member)}>
+                <Face pebble={member} />
+                <span>
+                  <strong>{member.name}</strong>
+                  <small>{member.title}</small>
+                </span>
+              </button>
+            ))}
+            {!members.length && (
+              <p className="review-muted">Move pebbles into this crew from their three-dot menu.</p>
+            )}
+          </div>
+        </TabsContent>
+        <TabsContent value="files">
+          <p className="review-muted">Files shared in this crew will appear here.</p>
         </TabsContent>
       </Tabs>
     </aside>

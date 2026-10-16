@@ -19,8 +19,8 @@ Do not mark a box from source or automated test output alone when it requires a 
 ## Fixture and viewport matrix
 
 - [ ] 1920×1080 and1440×900 desktop: rail/main/details, long text, two pins, Main Pebble badge,12+ rows, two Crews and distinct Group chat.
-- [ ] 1280×800 boundary and1279×800: details changes correctly between reserved desktop column and modal sheet.
-- [ ] 1024×768 and768×1024 tablet: menu collisions, sheet focus, lists and composer.
+- [ ] 1400/1399 and1024/1023 boundaries: details remains docked; only navigation changes to a sheet below1024.
+- [ ] 1024×768 and768×1024 tablet: docked details/main geometry, non-modal chat use, menu collisions and composer.
 - [ ] 390×844 and320×568 phone: keyboard/visualViewport resize, long editor, safe area,44px targets and no horizontal page overflow.
 - [ ] 200% browser zoom; keyboard-only; reduced motion; forced colors; touch emulation.
 - [ ] Normal,3s and10s network acknowledgement; disconnected stream, upload failure, partial enrollment, native rejection and uncertain mutation outcome.
@@ -102,3 +102,16 @@ Verdict: no new blocking visual defect for the foundation reference in this atla
 Global owner-local historical/file-content search requires the Phase2 capability and permission gate and remains required work for completion. Accurately disclosed loaded-data coverage is acceptable only as a staged milestone/prototype. Real native installation, Computer desktop startup or owner data behavior cannot be inferred from a synthetic UI fixture.
 
 Approval requires every reported issue to have an observed result or a plainly stated unresolved boundary. A design canvas, static prototype, screenshot collection or passing test suite alone cannot establish that the product is finished.
+
+## Later owner refinements
+
+The owner accepted the general reference direction and requested an integrated
+right panel at tablet sizes, stationary editor frame, one header title toggle,
+Crew chats and section organization. The earlier compact modal-sheet acceptance
+above is historical and superseded by the latest geometry contract. These
+refinements are verified by the implementer with a built reference and targeted
+browser tests; no new independent review or production migration is implied.
+
+Activity must have an observed Thinking → Working → reply progression, one
+shimmering text label, no dots, stable metadata/layout and a static reduced-motion
+equivalent. Verify the native event mapping separately during production work.

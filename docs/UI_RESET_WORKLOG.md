@@ -58,3 +58,26 @@ excluded from Git and contains no owner conversations or credentials.
 The optional external design-canvas upload was blocked by automatic approval
 review. No source was uploaded; the reference and evidence remain local. This
 does not block the local design review or its production migration plan.
+
+## Follow-up reference refinement
+
+The owner found the general direction better and specified persistent integrated
+details, a stationary editor, one header toggle, Crew chats, custom sections,
+balanced avatar attention, dark menus, quieter scrollbars and minimal activity.
+The reference now includes these. Sections/Crews and their move/reorder operations
+have a separate typed model and component. New local Crew conversations keep
+their own messages and drafts. Native group-chat binding, permissions, durable
+organization state and activity event mapping remain production work.
+
+Keep the title unchanged. No source is to be exported to Superdesign; the owner
+explicitly chose the local workflow. High-level other-runtime feasibility is a
+separate step after publishing this reference update.
+
+Follow-up verification: full check/build passed; the latest unit run passed86 tests after adding the pinned-row ordering regression. The revised
+reference suite passed15 cases; a further focused draft/attachment conversation
+scope check passed after scoping those values by conversation (16 cases total).
+The existing chat suite passed14 and avatar lab passed6. Local visual inspection
+covered docked1200px layout, stationary Profile/Role editor, dark account menu,
+Thinking/Working labels, full-width phone details and phone return to chat.
+The shared activity line was observed during its real CSS shimmer, including
+static reduced motion; this verifies the reference, not native run-event mapping.

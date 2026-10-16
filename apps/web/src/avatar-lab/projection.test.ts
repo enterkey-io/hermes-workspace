@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { projectEyes } from './projection';
+import { projectEyes, pointerGaze } from './projection';
 
 describe('projected avatar gaze', () => {
+  it('responds equally to equal left/right/up/down pointer distances independent of row width', () => {
+    for (const width of [32, 44, 56, 88, 104]) {
+      const a = pointerGaze(-width / 2, -width / 2, width, width),
+        b = pointerGaze(width / 2, width / 2, width, width);
+      expect(a.x).toBe(-b.x);
+      expect(a.y).toBe(-b.y);
+      expect(b).toEqual({ x: 6, y: 5 });
+      expect(pointerGaze(width / 4, 0, width, width).x).toBe(
+        -pointerGaze(-width / 4, 0, width, width).x,
+      );
+    }
+  });
   it('turns both ways and makes the near eye longer than the far eye', () => {
     const left = projectEyes(-32, 0),
       right = projectEyes(32, 0);

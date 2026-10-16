@@ -1,3 +1,11 @@
+/** Equal pointer distances from the face produce equal turns in either direction. */
+export function pointerGaze(dx: number, dy: number, width: number, height: number) {
+  return {
+    x: Math.max(-6, Math.min(6, (dx / Math.max(12, width / 2)) * 6)),
+    y: Math.max(-5, Math.min(5, (dy / Math.max(12, height / 2)) * 5)),
+  };
+}
+
 export function projectEyes(yawDegrees: number, pitchDegrees: number) {
   const boundedYaw = Math.max(-32, Math.min(32, yawDegrees));
   const boundedPitch = Math.max(-22, Math.min(22, pitchDegrees));

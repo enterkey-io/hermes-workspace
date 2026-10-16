@@ -6,6 +6,23 @@ New reports receive a stable ID; later work updates the existing entry.
 
 ## UI foundation reset — latest 16 October reports
 
+### Follow-up reference refinements
+
+These are working in the isolated reference, not released native app fixes.
+
+| ID     | Owner requirement                                                                | Reference result                                                                                                                                                 |
+| ------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-031 | Details belongs to the interface and can stay open; one title toggle.            | Docked desktop/tablet panel, integrated phone details view, no duplicate header settings button.                                                                 |
+| PC-032 | Edit pebble must not jump between Profile, Role and Tools.                       | Stable frame/header/footer; tab body owns scrolling.                                                                                                             |
+| PC-033 | Clicking a Crew opens its chat; settings belongs in its menu.                    | Separate local Crew conversation history/draft, settings in three-dot menu. Native Crew/room binding still open.                                                 |
+| PC-034 | Custom collapsible sections and rearrangement within/between sections and Crews. | + New section, rename/collapse/reorder, move menus and desktop drag; typed identity-preserving local organization. Native membership/persistence migration open. |
+| PC-035 | Account/attachment menu has white edge; scrollbars too prominent.                | Shared popup source explicitly borderless; muted thin scrollbars and transparent tracks.                                                                         |
+| PC-036 | Thinking/Working must be minimal and well checked.                               | One quiet shimmering text label, no dots; observed state progression and fixed status lane, reduced-motion equivalent. Native event mapping remains open.        |
+
+PC-024's latest pointer asymmetry is corrected in the shared renderer: gain uses
+equal face-relative distances, independent of the remaining row width. Unit and
+browser checks exercise both directions.
+
 The owner rejected the 0.6.0 interface across its main routes. Reopen the visual
 and interaction acceptance for PC-009, PC-010, PC-012–PC-015, PC-019, PC-021,
 PC-022's composer interaction and PC-024. Their historical implementation notes

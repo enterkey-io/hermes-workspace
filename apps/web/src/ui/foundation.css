@@ -35,6 +35,8 @@
   --motion-overlay: 160ms;
   --motion-panel: 240ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --scrollbar-thumb: #3b3a43;
+  --scrollbar-thumb-hover: #575561;
 }
 
 @theme inline {
@@ -65,6 +67,27 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 8px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
   body {
     @apply bg-background text-foreground;

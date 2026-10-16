@@ -1,6 +1,6 @@
 import { BODY_PATHS, blendPose, nextPoseDelay, samplePose, seedFromId, easeGaze } from './engine';
 import type { Activity, Pose, Shape } from './engine';
-import { projectEyes } from './projection';
+import { projectEyes, pointerGaze } from './projection';
 
 const NS = 'http://www.w3.org/2000/svg';
 let clipSequence = 0;
@@ -148,10 +148,8 @@ export class AvatarView {
 
   bindPointer(root: Element, scheduler: AvatarScheduler) {
     this.detachPointer();
-    let bounds: DOMRect | undefined;
     let faceBounds: DOMRect | undefined;
     const invalidateBounds = () => {
-      bounds = undefined;
       faceBounds = undefined;
     };
     const observer = new ResizeObserver(invalidateBounds);
@@ -159,35 +157,16 @@ export class AvatarView {
     const move = (event: Event) => {
       const pointer = event as PointerEvent;
       if (pointer.pointerType && !['mouse', 'pen'].includes(pointer.pointerType)) return;
-      const box = (bounds ??= root.getBoundingClientRect());
       const face = (faceBounds ??= this.svg.getBoundingClientRect());
       const centerX = face.left + face.width / 2,
         centerY = face.top + face.height / 2;
       const dx = pointer.clientX - centerX,
         dy = pointer.clientY - centerY;
-      this.pointer = {
-        x: Math.max(
-          -6,
-          Math.min(
-            6,
-            (dx / Math.max(face.width / 2, dx < 0 ? centerX - box.left : box.right - centerX, 1)) *
-              6,
-          ),
-        ),
-        y: Math.max(
-          -5,
-          Math.min(
-            5,
-            (dy / Math.max(face.height / 2, dy < 0 ? centerY - box.top : box.bottom - centerY, 1)) *
-              5,
-          ),
-        ),
-      };
+      this.pointer = pointerGaze(dx, dy, face.width, face.height);
       scheduler.wake(this);
     };
     const leave = () => {
       this.pointer = undefined;
-      bounds = undefined;
       faceBounds = undefined;
       scheduler.wake(this);
     };
