@@ -18,7 +18,7 @@ system or implemented backlog labels as acceptance of the current experience.
       state workarounds; do not layer overrides onto that sketch.
 - [x] Independent review: exercise the completed build after implementation,
       including slow responses, failures, keyboard use and multiple viewports.
-- [ ] Release: publish only after that review's findings are resolved and checked.
+- [x] Release: publish only after that review's findings are resolved and checked.
 
 The owner requested a fresh **gpt-6-astra / high** reviewer. That reviewer owns
 `UI_SYSTEM_RESET.md` and `UI_RESET_REVIEW_CHECKLIST.md`; the implementation is
@@ -120,3 +120,8 @@ Evidence is synthetic and owner-local. Full Linux desktop startup, physical mobi
 keyboards, broader assistive technology and all-device/avatar performance remain
 unverified. Publishing does not activate the owner's remote plugin: the installer
 must use the matching guide, preserve all private state and verify the same URL.
+
+Final combined-package acceptance passed for the exact plugin archive digest in
+[the release evidence](compatibility/preview-0.7.0-local.json), including failed
+activation rollback, login/history preservation and isolated public HTTPS checks.
+Owner-host activation remains pending its installer.
