@@ -44,6 +44,18 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
     await route.continue();
   });
   await page.goto('/');
+  for (const [path, type] of [
+    ['/manifest.webmanifest', 'application/manifest+json'],
+    ['/icons/pebble-180.png', 'image/png'],
+    ['/icons/pebble-192.png', 'image/png'],
+    ['/icons/pebble-512.png', 'image/png'],
+    ['/service-worker.js', 'javascript'],
+    ['/offline.html', 'text/html'],
+  ]) {
+    const asset = await page.request.get(path!);
+    expect(asset.ok()).toBe(true);
+    expect(asset.headers()['content-type']).toContain(type!);
+  }
   await expect(page.getByRole('heading', { name: 'Create your login' })).toBeVisible();
   await page.getByLabel('Private setup code').fill(proof);
   await page.getByLabel('Username', { exact: true }).fill('owner');

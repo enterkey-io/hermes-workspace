@@ -195,6 +195,20 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   const setupLink = (await readFile(join(state, 'setup-link.txt'), 'utf8')).trim();
   await page.goto(setupLink);
+  const pwaAssets = [
+    '/manifest.webmanifest',
+    '/service-worker.js',
+    '/offline.html',
+    '/offline.css',
+    '/icons/pebble-180.png',
+    '/icons/pebble-192.png',
+    '/icons/pebble-512.png',
+  ];
+  for (const path of pwaAssets) {
+    const asset = await page.request.get(new URL(path, origin).href);
+    expect(asset.ok()).toBe(true);
+  }
+  checks.packaged_pwa_assets_available = true;
   await expect(page.getByRole('heading', { name: 'Create your login' })).toBeVisible();
   await page.screenshot({ path: 'artifacts/plugin-login.png' });
   checks.setup_link_fragment_removed = new URL(page.url()).hash === '';

@@ -10,6 +10,7 @@ export function Transcript({
   stream,
   running,
   activity,
+  reply,
   children,
   authorName,
   onDownloadFile,
@@ -20,16 +21,20 @@ export function Transcript({
   stream: string;
   running: boolean;
   activity: string;
+  reply: { renderKey: string; timestamp: string };
   children?: ReactNode;
   authorName: (name: string) => string;
   onDownloadFile: (file: { id: string; name: string }) => void;
 }) {
   const reduced = useReducedMotion();
+  const displayed = stream
+    ? [...messages, { ...reply, id: reply.renderKey, role: 'assistant', text: stream }]
+    : messages;
   let previous = '';
   return (
     <div className="pc-messages">
       {children}
-      {projectTimeline(messages).map((item, i) => {
+      {projectTimeline(displayed).map((item, i) => {
         if (item.kind === 'activity')
           return (
             <details className="activity-group" key={item.id}>
@@ -50,6 +55,7 @@ export function Transcript({
             </details>
           );
         const m = item.message;
+        const live = m.id === reply.renderKey;
         const date = messageDate(m.timestamp);
         const group =
           date?.toLocaleDateString(undefined, {
@@ -61,7 +67,7 @@ export function Transcript({
         previous = group;
         return (
           <motion.div
-            className={`pc-message message-group ${m.role}`}
+            className={`pc-message message-group ${m.role}${live ? ' streaming' : ''}`}
             initial={m.id?.startsWith('pending-') && !reduced ? { opacity: 0, y: 6 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.16 }}
@@ -72,7 +78,7 @@ export function Transcript({
             <article className={`pc-bubble message ${m.role}`}>
               {crew && m.role === 'assistant' && (
                 <strong className="message-author">
-                  {m.author ? authorName(m.author) : 'Crew member'}
+                  {m.author ? authorName(m.author) : live ? title : 'Crew member'}
                 </strong>
               )}
               {m.role === 'tool' && <small className="message-author">Tool</small>}
@@ -91,7 +97,7 @@ export function Transcript({
                 )}
               </div>
             </article>
-            {m.text.trim() && (
+            {m.text.trim() && !live && (
               <div className="pc-message-actions">
                 <CopyMessage text={m.text} />
               </div>
@@ -99,25 +105,10 @@ export function Transcript({
           </motion.div>
         );
       })}
-      {stream && (
-        <article className="pc-message assistant streaming">
-          <div className="pc-bubble">
-            {crew && <strong className="message-author">{title}</strong>}
-            <MessageBody text={stream} />
-            <span className="caret" aria-hidden>
-              ▍
-            </span>
-          </div>
-        </article>
-      )}
       <div className="pc-activity-lane">
-        {running && !stream && (
+        {running && (
           <p className="pc-activity" role="status">
-            {activity === 'Stop requested'
-              ? 'Stopping'
-              : activity.startsWith('Using ')
-                ? 'Working'
-                : 'Thinking'}
+            {activity === 'Stop requested' ? 'Stopping' : activity}
           </p>
         )}
       </div>

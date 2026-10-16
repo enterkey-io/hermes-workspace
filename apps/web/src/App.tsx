@@ -32,6 +32,7 @@ import type { Organization, OrganizationState } from './ui/organization';
 import type { SetStateAction } from 'react';
 import { SearchOverlay } from './chat/SearchOverlay';
 import { SendProjection } from './chat/send-projection';
+import { toolActivity } from './chat/activity';
 import { useOverlayHistory } from './ui/overlay-history';
 import type { OwnerConnection } from './OwnerShell';
 import { WorkspaceSetup } from './WorkspaceSetup';
@@ -497,6 +498,16 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       pane.scrollTop = pane.scrollHeight;
   }, [messages, stream, pickingAgents, running]);
   useLayoutEffect(() => {
+    const pane = transcriptPane.current;
+    if (!pane) return;
+    const observer = new ResizeObserver(() => {
+      if (followLatest.current && !pickingAgents && !scrollAnimating.current)
+        pane.scrollTop = pane.scrollHeight;
+    });
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, [client, selection, pickingAgents, settings]);
+  useLayoutEffect(() => {
     const input = composer.current;
     if (!input) return;
     input.style.height = 'auto';
@@ -668,20 +679,28 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     const payload = event.payload ?? {};
     if (event.type === 'message.start') {
       runEpoch.current++;
+      sendProjection.current.beginReply();
       setRunning(true);
       setStream('');
-      setActivity('Working');
+      setActivity('Thinking');
     }
-    if (event.type === 'message.delta') setStream((old) => old + text(payload.text));
+    if (event.type === 'message.delta') {
+      setStream((old) => old + text(payload.text));
+      setActivity('Writing');
+    }
     if (event.type === 'message.complete') {
-      setActivity(payload.status === 'error' ? 'Turn failed' : 'Ready');
+      const persisted = payload.persisted_turn;
+      if (persisted && typeof persisted === 'object' && 'final_assistant_row_id' in persisted)
+        sendProjection.current.completeReply(persisted.final_assistant_row_id);
+      setActivity(payload.status === 'error' ? 'Turn failed' : 'Finishing');
       if (payload.status === 'error')
         setError('Hermes reported a failed turn. Refresh to inspect its history.');
       await refreshHistory(connection, target, true);
     }
-    if (event.type === 'tool.start') setActivity(`Using ${text(payload.name) || 'a tool'}`);
-    if (event.type === 'tool.complete') setActivity(`Finished ${text(payload.name) || 'a tool'}`);
-    if (event.type === 'status.update') setActivity(text(payload.text).slice(0, 500) || 'Working');
+    if (event.type === 'tool.start') setActivity(toolActivity(text(payload.name)));
+    if (event.type === 'tool.complete') setActivity('Thinking');
+    if (event.type === 'status.update')
+      setActivity(text(payload.text).trim().slice(0, 140) || 'Working');
     if (event.type === 'approval.request') {
       const data = object(
         await connection.invoke('chat.approvals', { session_id: target.sessionId }),
@@ -1664,6 +1683,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                 title={title}
                 crew={selection?.kind === 'room'}
                 stream={stream}
+                reply={sendProjection.current.reply}
                 running={running}
                 activity={activity}
                 authorName={(name) =>

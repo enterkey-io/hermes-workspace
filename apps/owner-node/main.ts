@@ -118,7 +118,7 @@ if (command === 'init' || command === 'recover') {
   );
   if (bridgePort !== undefined && headers['Content-Security-Policy'])
     headers['Content-Security-Policy'] = headers['Content-Security-Policy'].replace(
-      'connect-src https: wss:',
+      "connect-src 'self' https: wss:",
       `connect-src 'self' ${settings.origin.replace(/^https:/, 'wss:')}`,
     );
   const mime: Record<string, string> = {
@@ -126,6 +126,9 @@ if (command === 'init' || command === 'recover') {
     '.js': 'text/javascript; charset=utf-8',
     '.css': 'text/css; charset=utf-8',
     '.json': 'application/json',
+    '.webmanifest': 'application/manifest+json',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
     '.md': 'text/plain; charset=utf-8',
   };
   const server = createServer(async (req, res) => {

@@ -73,7 +73,7 @@ export const history = Array.from({ length: 28 }, (_, i) => ({
         : 'Here is the latest update on the project. The source material is organized and ready to review. We can work through the remaining decisions together.',
 }));
 export async function installFixture(context: BrowserContext) {
-  await context.route(new RegExp('^http://127\\.0\\.0\\.1:(8093|8095)/$'), async (route) => {
+  await context.route(new RegExp('^http://127\\.0\\.0\\.1:(8093|8095|8097)/$'), async (route) => {
     const response = await route.fetch();
     await route.fulfill({
       response,

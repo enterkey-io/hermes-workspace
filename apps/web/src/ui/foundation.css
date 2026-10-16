@@ -37,6 +37,15 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --scrollbar-thumb: #3b3a43;
   --scrollbar-thumb-hover: #575561;
+  --text-field: 13px;
+  --text-composer: 14px;
+}
+
+@media (max-width: 767px), (any-pointer: coarse) {
+  :root {
+    --text-field: max(16px, 1rem);
+    --text-composer: max(16px, 1rem);
+  }
 }
 
 @theme inline {

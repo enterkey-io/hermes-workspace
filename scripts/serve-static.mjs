@@ -38,6 +38,9 @@ const mime = {
   '.css': 'text/css; charset=utf-8',
   '.md': 'text/plain; charset=utf-8',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
 };
 const server = createServer(async (request, response) => {
   for (const [key, value] of Object.entries(headers)) response.setHeader(key, value);

@@ -35,6 +35,10 @@ requireRule(
 );
 const rail = read('apps/web/src/ui/OrganizationRail.tsx') + read('apps/web/src/chat/Rail.tsx');
 requireRule(
+  !read('apps/web/src/ui/layout.css').includes('#8e859d'),
+  'Composer focus must use the neutral --ring token, not the old hard-coded lavender.',
+);
+requireRule(
   !/GripVertical|pc-section-empty|label: ['"]Move (?:up|down|earlier)['"]/.test(rail),
   'Drag whole rows; do not reintroduce exposed handles, empty-section instructions, or reorder menu clutter.',
 );

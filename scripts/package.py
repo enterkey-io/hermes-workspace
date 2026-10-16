@@ -33,9 +33,15 @@ def archive(name, files):
 
 def web_payload():
     allowed = {'index.html', 'avatar-lab.html', '_headers', 'install.html', 'install.md',
-               'install.css', 'connection.json', 'version.json'}
-    return [path for path in web_root.rglob('*') if path.is_file() and not path.is_symlink()
-            and (str(path.relative_to(web_root)) in allowed or path.relative_to(web_root).parts[0] in {'assets', 'licenses'})]
+               'install.css', 'connection.json', 'version.json', 'manifest.webmanifest',
+               'service-worker.js', 'offline.html', 'offline.css'}
+    files = [path for path in web_root.rglob('*') if path.is_file() and not path.is_symlink()
+            and (str(path.relative_to(web_root)) in allowed or path.relative_to(web_root).parts[0] in {'assets', 'licenses', 'icons'})]
+    required = {'manifest.webmanifest', 'service-worker.js', 'offline.html', 'offline.css',
+                'icons/pebble.svg', 'icons/pebble-180.png', 'icons/pebble-192.png', 'icons/pebble-512.png'}
+    if not required.issubset({str(path.relative_to(web_root)) for path in files}):
+        raise ValueError('The web build is missing required PWA assets')
+    return files
 
 
 web = [(path, str(path.relative_to(web_root))) for path in web_payload()]
@@ -78,12 +84,12 @@ source = []
 for directory in ("apps", "packages", "plugins", "scripts", "test", "docs", ".github", "deploy"):
     for path in (root / directory).rglob("*"):
         if (path.is_file() and not path.is_symlink() and not {"dist", "node_modules", "__pycache__", "artifacts", ".wrangler", ".local", ".superdesign"}.intersection(path.parts)
-                and path.suffix in {".ts", ".tsx", ".css", ".html", ".md", ".json", ".mjs", ".py", ".yml", ".yaml", ".txt", ".sql", ".jsonc", ".example"}
+                and path.suffix in {".ts", ".tsx", ".css", ".html", ".md", ".json", ".mjs", ".js", ".webmanifest", ".svg", ".png", ".py", ".yml", ".yaml", ".txt", ".sql", ".jsonc", ".example"}
                 and not path.name.startswith(".env") and path.name not in {"auth.json", "credentials.json", "config.yaml"}):
             source.append((path, str(path.relative_to(root))))
 for name in ("AGENTS.md", "README.md", "PROGRESS.md", "IMPLEMENTATION_PLAN.md", "WEB_APP_PLAN.md", "LICENSE", "release.json",
              "package.json", "package-lock.json", "tsconfig.json", "eslint.config.mjs", "vitest.config.ts",
-             "playwright.config.ts", "playwright.ui-review.config.ts", "vite.ui-lab.config.ts", "playwright.chat.config.ts", "playwright.avatar.config.ts", "playwright.owner.config.ts", "vite.client.config.ts", "vite.web.config.ts", ".nvmrc", ".gitignore",
+             "playwright.config.ts", "playwright.ui-review.config.ts", "vite.ui-lab.config.ts", "playwright.chat.config.ts", "playwright.mobile.config.ts", "playwright.avatar.config.ts", "playwright.owner.config.ts", "vite.client.config.ts", "vite.web.config.ts", ".nvmrc", ".gitignore",
              ".prettierrc.json", ".prettierignore"):
     source.append((root / name, name))
 archive("workspace-source-preview.zip", source)

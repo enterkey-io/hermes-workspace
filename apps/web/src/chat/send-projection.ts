@@ -2,7 +2,21 @@ import type { ChatMessage } from '../conversation';
 
 /** Correlates only native receipts; repeated message text is never an identity. */
 export class SendProjection {
-  private aliases = new Map<string, string>();
+  private aliases = new Map<
+    string,
+    { renderKey: string; timestamp: string | number | undefined }
+  >();
+  reply = this.newReply();
+  private newReply() {
+    return { renderKey: `reply-${crypto.randomUUID()}`, timestamp: new Date().toISOString() };
+  }
+  beginReply() {
+    this.reply = this.newReply();
+  }
+  completeReply(nativeId: unknown) {
+    if (typeof nativeId === 'number' || typeof nativeId === 'string')
+      this.aliases.set(String(nativeId), this.reply);
+  }
   private pending:
     | {
         message: ChatMessage & { id: string; renderKey: string };
@@ -23,7 +37,10 @@ export class SendProjection {
     if (this.pending && (typeof nativeId === 'number' || typeof nativeId === 'string')) {
       const id = String(nativeId);
       this.pending.nativeId = id;
-      this.aliases.set(id, this.pending.message.renderKey);
+      this.aliases.set(id, {
+        renderKey: this.pending.message.renderKey,
+        timestamp: this.pending.message.timestamp,
+      });
     }
     return this.project(this.latest);
   }
@@ -46,8 +63,11 @@ export class SendProjection {
         rows.splice(index < 0 ? rows.length : index, 0, pending.message);
       }
     }
-    return rows.map((m) =>
-      m.id && this.aliases.has(m.id) ? { ...m, renderKey: this.aliases.get(m.id) } : m,
-    );
+    return rows.map((m) => {
+      const alias = m.id ? this.aliases.get(m.id) : undefined;
+      return alias
+        ? { ...m, renderKey: alias.renderKey, timestamp: m.timestamp ?? alias.timestamp }
+        : m;
+    });
   }
 }

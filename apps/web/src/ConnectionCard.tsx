@@ -1,6 +1,8 @@
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import { useEffect, useState } from 'react';
+import { Plug } from 'lucide-react';
+import { LoadingBar } from './components/ui/loading-bar';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 type Row = Record<string, unknown>;
 type Permission = {
@@ -89,22 +91,20 @@ export function ConnectionCard({
     /* no published authorization URL yet */
   }
   return (
-    <article className="connection-card expanded">
+    <article className="connection-card" aria-label={`${name} connection`}>
+      <LoadingBar active={busy} label={`Updating ${name}`} />
       <div className="connection-summary">
-        <div className="connection-icon">↗</div>
-        <div>
+        <span className="connection-icon" aria-hidden="true">
+          <Plug />
+        </span>
+        <div className="connection-identity">
           <h3>{name}</h3>
-          <p>
-            {String(server.transport)} · {server.enabled === false ? 'Disabled' : 'Configured'}
-          </p>
-          <small>
-            {server.oauth_tokens_present
-              ? 'Existing authorization found'
-              : 'Credentials stay in this Hermes profile'}
-          </small>
         </div>
+        <span className="connection-state">
+          {server.enabled === false ? 'Disabled' : 'Configured'}
+        </span>
       </div>
-      <div className="choice-row">
+      <div className="connection-actions">
         <Button
           variant="secondary"
           disabled={busy}
@@ -141,7 +141,7 @@ export function ConnectionCard({
         )}
       </div>
       {flow && (
-        <div role="status">
+        <div className="connection-auth-flow" role="status">
           <p>
             {flow.error ||
               (
@@ -180,9 +180,10 @@ export function ConnectionCard({
         </div>
       )}
       {permission?.bearer_supported && (
-        <details>
-          <summary>Set API key (Bearer)</summary>
+        <details className="connection-key">
+          <summary>API key</summary>
           <form
+            className="connection-key-form"
             onSubmit={(e) => {
               e.preventDefault();
               void run(async () => {
@@ -195,7 +196,7 @@ export function ConnectionCard({
                 setPermission(
                   (await client.invoke('connections.permissions', { profile, name })) as Permission,
                 );
-                setMessage('Key saved on Hermes. Test this connection before granting tools.');
+                setMessage('Key saved. Test the connection to choose its tools.');
               });
             }}
           >
@@ -210,18 +211,15 @@ export function ConnectionCard({
                 onChange={(e) => setKey(e.target.value)}
               />
             </label>
-            <small>
-              Use this for services that accept Bearer keys. Other authentication schemes need their
-              native Hermes setup.
-            </small>
             <Button variant="secondary" disabled={busy || !key}>
-              Save key on Hermes
+              Save key
             </Button>
           </form>
         </details>
       )}
       {!!tools.length && permission && (
         <form
+          className="connection-tools"
           onSubmit={(e) => {
             e.preventDefault();
             void run(async () => {
@@ -232,14 +230,12 @@ export function ConnectionCard({
                 expected: permission.fingerprint,
               })) as Permission;
               setPermission(p);
-              setMessage(
-                'Exact tool access saved. Hermes must refresh this agent’s runtime before changes are reported ready. New service tools remain unapproved.',
-              );
+              setMessage('Saved. Changes apply after this pebble restarts.');
             });
           }}
         >
-          <fieldset>
-            <legend>Tools for this agent</legend>
+          <fieldset aria-label={`${name} tools`}>
+            <legend>Allowed tools</legend>
             {tools.map((t) => (
               <label key={t.name} className="capability-choice">
                 <input

@@ -96,6 +96,7 @@ export type MenuItem = {
   items?: MenuItem[];
 };
 function Items({ items }: { items: MenuItem[] }) {
+  if (!items.length) return <EmptyMenuItem />;
   return items.map((item) =>
     item.items ? (
       <DropdownMenuSub key={item.label}>
@@ -124,6 +125,13 @@ function Items({ items }: { items: MenuItem[] }) {
         {item.label}
       </DropdownMenuItem>
     ),
+  );
+}
+export function EmptyMenuItem() {
+  return (
+    <DropdownMenuItem disabled className="opacity-50">
+      None
+    </DropdownMenuItem>
   );
 }
 export function Menu({

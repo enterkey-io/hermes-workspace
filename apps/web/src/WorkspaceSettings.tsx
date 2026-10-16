@@ -205,7 +205,7 @@ export function WorkspaceSettings({
           </>
         )}
         {tab === 'connections' && (
-          <>
+          <div className="connections-panel">
             <label className="scope-field">
               Pebble
               <select value={profile} onChange={(e) => setProfile(e.target.value)}>
@@ -281,7 +281,7 @@ export function WorkspaceSettings({
                 </FormSection>
               </>
             )}
-          </>
+          </div>
         )}
       </Tabs>
     </section>

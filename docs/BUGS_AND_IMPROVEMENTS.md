@@ -6,6 +6,16 @@ New reports receive a stable ID; later work updates the existing entry.
 
 ## Owner corrections after 0.7.0
 
+### Mobile, activity and Connections — 0.7.2 candidate
+
+| ID     | Report                                                                   | Repair and verification                                                                                                                                                                                                                                                                                 |
+| ------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-052 | Focusing the phone composer zooms and breaks the layout                  | Shared mobile field sizes are at least 16px. The chat follows the visual viewport during keyboard resize/pan, preserves pinch zoom and drafts, and stays above safe-area insets. Add WebKit/iPhone and Chromium/Android checks to CI. Physical iOS keyboard acceptance remains separate from emulation. |
+| PC-053 | Activity always says Thinking; replies and timestamps jump on completion | Render actual native status and readable tool activity. Stream through the same message component, reserve the footer from the first chunk, and retain bubble identity using Hermes' final row receipt. Keep optimistic send time when a native receipt temporarily omits it.                           |
+| PC-054 | Move menus are blank when no destinations exist                          | Shared menus show a disabled None item at 50% opacity; native placement menus use the same empty state.                                                                                                                                                                                                 |
+| PC-055 | Connections is poorly formatted                                          | Add responsive service cards, a bounded profile selector, aligned actions, expandable credential fields and structured tool permissions. Browser checks cover real production components with synthetic service fixtures.                                                                               |
+| PC-056 | Installable PWA and pebble app icon                                      | Package manifest, Apple touch icon, maskable icon and original SVG/PNG artwork. Serve correct MIME types from the owner app. Cache only public offline artwork; verify installation metadata and offline recovery without caching owner data.                                                           |
+
 The owner rejected the 0.7.0 experience. Its earlier review did not establish
 visual acceptance. The reference and installed screens had different compositions
 and CSS entry graphs. The review entry now imports the actual app entry, and

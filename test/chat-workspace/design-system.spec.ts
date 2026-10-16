@@ -490,8 +490,8 @@ test('chat proportions, restrained header hover, new avatar choices and minimal 
   const activity = page.locator('.pc-activity');
   await expect(activity).toHaveText('Thinking');
   expect(await activity.evaluate((n) => getComputedStyle(n).animationName)).toContain('shimmer');
-  await emit(page, 'tool.start', { tool: 'terminal' });
-  await expect(activity).toHaveText('Working');
+  await emit(page, 'tool.start', { name: 'terminal' });
+  await expect(activity).toHaveText('Running a command');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(activity).toHaveCSS('animation-name', 'none');
   await emit(page, 'message.complete', { status: 'done' });

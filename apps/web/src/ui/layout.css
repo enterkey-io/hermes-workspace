@@ -1,6 +1,6 @@
 .pc-shell {
   display: flex;
-  height: 100dvh;
+  height: var(--app-viewport-height, 100dvh);
   overflow: hidden;
   font-size: 14px;
   line-height: 1.5;
@@ -358,7 +358,7 @@
   transition: box-shadow var(--motion-hover);
 }
 .pc-composer:focus-within {
-  box-shadow: inset 0 0 0 1px #8e859d;
+  box-shadow: inset 0 0 0 1px var(--ring);
 }
 .pc-composer-row {
   display: flex;
@@ -374,7 +374,7 @@
   max-height: 160px;
   border-radius: 0;
   padding: 7px 0;
-  font-size: 14px;
+  font-size: var(--text-composer);
   line-height: 22px;
 }
 .pc-composer [data-slot='textarea']:focus-visible {
@@ -400,6 +400,10 @@
   flex-shrink: 0;
 }
 .pc-activity {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 13px;
   font-weight: 450;
   color: var(--muted-foreground);
@@ -770,10 +774,10 @@
 }
 .pc-fields [data-slot='input'] {
   height: 40px;
-  font-size: 13px;
+  font-size: var(--text-field);
 }
 .pc-fields [data-slot='textarea'] {
-  font-size: 13px;
+  font-size: var(--text-field);
 }
 .pc-form-footer {
   display: flex;
@@ -997,6 +1001,26 @@
     flex-basis: 280px;
   }
 }
+@media (max-width: 767px), (any-pointer: coarse) {
+  body:has(.pc-shell) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .pc-shell {
+    position: fixed;
+    top: var(--app-viewport-top, 0px);
+    inset-inline: 0;
+  }
+  [data-slot='dialog-content'] {
+    top: calc(var(--app-viewport-top, 0px) + var(--app-viewport-height, 100dvh) / 2);
+    max-height: calc(var(--app-viewport-height, 100dvh) - 24px);
+  }
+  [data-slot='sheet-content'] {
+    top: var(--app-viewport-top, 0px);
+    bottom: auto;
+    height: var(--app-viewport-height, 100dvh);
+  }
+}
 @media (max-width: 767px) {
   .pc-chat-header {
     padding: 0 16px;
@@ -1052,6 +1076,10 @@
   }
 }
 @media (pointer: coarse) {
+  .pc-composer-row button {
+    min-width: 44px;
+    min-height: 44px;
+  }
   .pc-row {
     grid-template-columns: minmax(0, 1fr) 44px;
   }

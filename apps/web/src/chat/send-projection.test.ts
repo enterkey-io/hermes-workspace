@@ -1,5 +1,23 @@
 import { it, expect } from 'vitest';
 import { SendProjection } from './send-projection';
+
+it('a native receipt without a timestamp keeps the visible send time', () => {
+  const view = new SendProjection();
+  view.begin(
+    {
+      role: 'user',
+      text: 'Hello',
+      id: 'pending',
+      renderKey: 'pending',
+      timestamp: '2026-10-16T17:00:00Z',
+    },
+    [],
+  );
+  view.acknowledge(5);
+  expect(view.project([{ id: '5', role: 'user', text: 'Hello' }])[0]?.timestamp).toBe(
+    '2026-10-16T17:00:00Z',
+  );
+});
 it('keeps one bubble and its render identity when history beats a delayed receipt', () => {
   const view = new SendProjection(),
     pending = {

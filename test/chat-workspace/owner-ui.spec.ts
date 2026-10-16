@@ -251,6 +251,8 @@ test('whole rows drag between sections, pins and crews without exposed handles',
   const member = studio
     .locator('.pebble-row')
     .filter({ has: page.getByRole('button', { name: /^Rowan / }) });
+  await member.click({ trial: true });
+  await first.click({ trial: true });
   const from = (await member.boundingBox())!,
     to = (await first.boundingBox())!;
   await page.mouse.move(from.x + 24, from.y + from.height / 2);

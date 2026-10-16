@@ -7,6 +7,7 @@ export default defineConfig({
   workers: 1,
   timeout: 30000,
   use: {
+    serviceWorkers: 'block',
     baseURL: 'http://127.0.0.1:8095',
     viewport: { width: 1440, height: 900 },
     ...(process.env.BOT_WEB_TEST_CHROMIUM

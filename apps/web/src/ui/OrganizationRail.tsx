@@ -40,6 +40,7 @@ import {
 } from './organization';
 import type { Organization, OrganizationEditor, Placement, RailDrag } from './organization';
 import { useOverlayHistory } from './overlay-history';
+import { EmptyMenuItem } from './primitives';
 
 type RailPebble = { id: string; name: string; title: string; preview: string; pinned: boolean };
 type ChangeOrganization = Dispatch<SetStateAction<Organization>>;
@@ -66,29 +67,30 @@ function PlacementMenu({
   value: Placement | undefined;
   onMove: (target: Placement) => void;
 }) {
+  const sections = org.sections.filter((section) => sectionAccepts(section.id, 'pebble'));
   return (
     <>
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>Move to section</DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
           <DropdownMenuRadioGroup value={value?.kind === 'section' ? value.id : ''}>
-            {org.sections
-              .filter((section) => sectionAccepts(section.id, 'pebble'))
-              .map((section) => (
-                <DropdownMenuRadioItem
-                  key={section.id}
-                  value={section.id}
-                  onSelect={() => onMove({ kind: 'section', id: section.id })}
-                >
-                  {section.name}
-                </DropdownMenuRadioItem>
-              ))}
+            {!sections.length && <EmptyMenuItem />}
+            {sections.map((section) => (
+              <DropdownMenuRadioItem
+                key={section.id}
+                value={section.id}
+                onSelect={() => onMove({ kind: 'section', id: section.id })}
+              >
+                {section.name}
+              </DropdownMenuRadioItem>
+            ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>Move to crew</DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
+          {!org.crews.length && <EmptyMenuItem />}
           <DropdownMenuRadioGroup value={value?.kind === 'crew' ? value.id : ''}>
             {org.crews.map((crew) => (
               <DropdownMenuRadioItem
@@ -344,6 +346,9 @@ export function OrganizationRail({
                 <DropdownMenuSubTrigger>Move to section</DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   <DropdownMenuRadioGroup value={sectionId}>
+                    {!org.sections.some((section) => sectionAccepts(section.id, 'crew')) && (
+                      <EmptyMenuItem />
+                    )}
                     {org.sections
                       .filter((section) => sectionAccepts(section.id, 'crew'))
                       .map((section) => (

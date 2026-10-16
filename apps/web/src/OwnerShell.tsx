@@ -2,6 +2,7 @@ import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import { useEffect, useState } from 'react';
 import { App } from './App';
+import { useAppViewport } from './ui/viewport';
 
 export interface OwnerConnection {
   ticket: () => Promise<{ ticket: string; bridgeUrl: string }>;
@@ -35,6 +36,7 @@ export async function ownerRequest(path: string, body?: unknown) {
   return value;
 }
 export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
+  useAppViewport();
   const [mode, setMode] = useState<
     'loading' | 'preview' | 'setup' | 'login' | 'ready' | 'unavailable'
   >('loading');

@@ -214,7 +214,7 @@ button:disabled {
   min-height: 36px;
   max-height: 160px;
   padding: 7px 0;
-  font-size: 14px;
+  font-size: var(--text-composer);
   line-height: 22px;
   flex: 1;
   min-width: 0;
@@ -428,7 +428,7 @@ button:disabled {
 .entity-page :is(input, textarea, select),
 .owner-card input,
 .workspace-setup input {
-  font-size: 13px;
+  font-size: var(--text-field);
 }
 .entity-page select {
   height: 40px;
@@ -711,19 +711,204 @@ button:disabled {
 .back-button {
   align-self: flex-start;
 }
-.connection-card,
 .request-review,
 .approval {
   padding: 16px 0;
   font-size: 13px;
 }
-.connection-card p,
 .request-review p,
 .approval p {
   color: var(--muted-foreground);
   font-size: 12px;
   margin: 8px 0;
   overflow-wrap: anywhere;
+}
+
+.connections-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 760px;
+}
+.connections-panel > .form-section {
+  margin: 0;
+}
+.scope-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 360px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.scope-field select {
+  width: 100%;
+  color: var(--foreground);
+}
+.connections-panel .form-section-heading {
+  margin-bottom: 14px;
+}
+.connection-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--card);
+  min-width: 0;
+}
+.connection-card + .connection-card {
+  margin-top: 12px;
+}
+.connection-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.connection-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+.connection-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.connection-identity {
+  flex: 1;
+  min-width: 0;
+}
+.connection-summary h3,
+.service-card h3 {
+  font-size: 14px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.connection-summary p,
+.service-card p,
+.connection-card small {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.connection-state {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.connection-actions,
+.connection-auth-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.connection-auth-flow > p {
+  flex-basis: 100%;
+}
+.connection-key summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.connection-card .connection-key-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 14px;
+}
+.connection-card .connection-tools {
+  gap: 16px;
+}
+.connection-tools fieldset {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.connection-tools legend {
+  margin-bottom: 16px;
+}
+.connection-tools .capability-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.capability-choice input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: var(--ring);
+}
+.capability-choice span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.capability-choice small {
+  display: block;
+  margin-top: 3px;
+}
+.connection-tools > button {
+  justify-self: start;
+}
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 12px;
+}
+.service-card {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 18px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--card);
+  min-width: 0;
+}
+.service-card > div {
+  flex: 1;
+}
+.service-card p {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.connection-card > [role='status'] {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.pc-message-meta time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .connection-card,
+  .service-card {
+    padding: 16px;
+  }
+  .connection-summary {
+    flex-wrap: wrap;
+  }
+  .connection-card .connection-key-form {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+  .connection-key-form > label {
+    width: 100%;
+  }
 }
 .connection-card pre,
 .request-review pre {
@@ -783,10 +968,16 @@ button:disabled {
     padding: 24px 20px;
   }
   .pc-chat-header {
-    padding: 0 16px;
+    padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0
+      max(16px, env(safe-area-inset-left));
+    min-height: calc(64px + env(safe-area-inset-top));
+  }
+  .product-sheet .pc-rail-header {
+    height: calc(64px + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
   }
   .pc-composer-wrap {
-    padding: 10px 12px 14px;
+    padding: 10px 12px max(14px, env(safe-area-inset-bottom));
   }
   .product-dialog {
     max-width: calc(100vw - 24px);

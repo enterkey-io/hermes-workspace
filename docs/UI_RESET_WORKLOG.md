@@ -153,3 +153,34 @@ and settled screenshots cover the actual app. Native probes verify enrollment,
 identity/SOUL preservation and a hidden introduction on both pinned source
 revisions. Installed package and remote CI results are recorded after packaging.
 No owner host was changed by these local checks.
+
+## 0.7.2 mobile and live-feedback repairs
+
+The phone composer used 14px text and the layout used the full layout viewport.
+The new mobile regression cases failed against that build on both the font size
+and a keyboard-sized visual viewport. Shared mobile field tokens now enforce
+16px or the owner's larger text size. The app follows visual-viewport resize and
+pan events without counteracting pinch zoom. Resize checks retain drafts and
+the reading position; composer controls have 44px touch targets.
+
+Native activity is rendered directly with readable tool labels. Streamed replies
+use the final bubble structure from the first chunk, and Hermes' persisted row
+receipt preserves the DOM identity. Timestamp fallback prevents a delayed send
+receipt from temporarily removing the visible time. Empty placement menus show
+a dimmed None item. Connections now has responsive service cards, credential
+disclosures and tool-selection controls, reviewed at desktop and phone sizes.
+
+The PWA includes original pebble artwork, installation metadata, correctly served
+PNG/manifest files and a public offline screen. Its worker caches exactly five
+public files, never account pages, API responses, chats, files or credentials.
+The mocked-network browser suites block service workers as Playwright recommends;
+the dedicated PWA suite uses real static serving without API interception.
+
+Local checks: `npm run check` (90 unit tests), the 26 production workspace browser
+flows, 10 mobile WebKit/Chromium checks, 200 plugin checks, and the real 0.21.7
+owner flow passed. The activity/Connections cases passed again after final copy
+edits. The new focus-token check rejects the old lavender composer border in
+`648537c`. Screenshots were inspected locally; no external design upload occurred.
+Keyboard geometry is simulated: no physical iPhone keyboard or OS installation
+sheet was exercised. Publication remains gated on packaged-install acceptance
+and the CI checks. An owner's running plugin still needs its normal upgrade.

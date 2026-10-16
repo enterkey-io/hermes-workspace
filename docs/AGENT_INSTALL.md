@@ -72,13 +72,13 @@ installation.
 
 ## 3. Obtain the immutable combined release
 
-Candidate: `v0.7.1-preview.1`. If these assets are not published, stop and report
+Candidate: `v0.7.2-preview.1`. If these assets are not published, stop and report
 that the candidate is unavailable. Do not substitute main or an API-only package.
 
-- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.1-preview.1/workspace-manifest.json)
-- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.1-preview.1/SHA256SUMS)
-- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.1-preview.1/workspace-plugin-preview.zip)
-- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.1-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.2-preview.1/workspace-manifest.json)
+- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.2-preview.1/SHA256SUMS)
+- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.2-preview.1/workspace-plugin-preview.zip)
+- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.2-preview.1/workspace-source-preview.zip)
 
 Verify size and SHA-256 against both manifest and checksum file. Reject absolute
 archive paths, traversal, symlinks and entries escaping private staging. The
@@ -198,7 +198,7 @@ with `hermes bot-web setup-link` (use `--renew-setup` only if it expired).
 remaining seconds). Its output contains the private file path, never the secret.
 
 Event parsing and legacy access controls are specified in
-[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.7.1-preview.1/docs/WIRE_PROTOCOL.md).
+[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.7.2-preview.1/docs/WIRE_PROTOCOL.md).
 Never use global revocation for diagnostic cleanup: use DELETE `/v1/connect`
 with the probe's own lease. Global revocation now requires `hermes bot-web revoke
 --all` or the operator-only HTTP body `{"all":true}`.
@@ -230,6 +230,20 @@ to update enrolled agents' runtime-only plugin copies; they receive no web bundl
 If initial setup expires before account creation, run `hermes bot-web setup-link
 --renew-setup` and privately deliver the new link. It refuses to replace a claimed
 owner account. Never delete a claimed account or regenerate keys to repair an update.
+
+### Mobile and PWA verification
+
+The combined package includes the PWA manifest, original Pebble Crew icons and
+public offline screen. Through the owner's existing HTTPS origin, verify
+`/manifest.webmanifest` returns `application/manifest+json` and the 180, 192 and
+512px PNG files under `/icons/` return `image/png`. Keep manifest, worker, icon
+and offline routes on that same origin. No new host, account or permission is
+needed. The service worker caches only public artwork and offline-screen files,
+never owner pages, API responses, chats, uploads or credentials.
+
+Existing installations keep their login and ordinary URL after this update.
+Browser refresh loads the new app; installing it on a home screen is optional.
+Do not claim physical-phone keyboard behavior was verified by fetching assets.
 
 ## Verify the 0.7 interface update
 

@@ -1,6 +1,6 @@
 {
   "name": "pebble-crew",
-  "version": "0.7.1-preview.1",
+  "version": "0.7.2-preview.1",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -32,6 +32,7 @@
     "serve": "node scripts/serve-static.mjs",
     "package": "npm run build && python3 scripts/package.py",
     "test:avatars": "playwright test --config playwright.avatar.config.ts",
+    "test:mobile": "playwright test --config playwright.mobile.config.ts",
     "build:owner": "node scripts/build-owner.mjs",
     "serve:owner": "node apps/owner-node/dist/main.mjs serve",
     "typecheck:worker": "tsc --noEmit -p apps/owner-worker/tsconfig.json",
