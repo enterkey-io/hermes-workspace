@@ -18,6 +18,8 @@ def main():
     register_attachments()
     from screen_native import register as register_screen
     register_screen()
+    from search_native import register as register_search
+    register_search()
     start_hosted_room_service()
     try:
         entry.main()

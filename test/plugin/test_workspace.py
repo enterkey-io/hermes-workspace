@@ -62,6 +62,24 @@ class WorkspaceTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(InvalidOperation):
             await self.service.invoke('bots.update_handle', {'profile': 'default', 'handle': 'safe', 'expected_revision': -1})
 
+    async def test_extended_appearance_catalogue_survives_restart_without_changing_identity(self):
+        original = self.store.read()['bots']['default']
+        for shape, color in zip(('cairn', 'seed', 'dune', 'flint', 'drift'),
+                                ('umber', 'moss', 'ocean', 'heather', 'sienna')):
+            state = self.store.read()
+            look = {'kind': 'shape', 'shape': shape, 'color': color}
+            await self.service.invoke('bots.appearance.update', {
+                'profile': 'default', 'appearance': look, 'photo': None,
+                'expected_revision': state['revision']})
+            reopened = WorkspaceStore(self.path)
+            saved = reopened.read()['bots']['default']
+            self.assertEqual(saved['appearance'], look)
+            self.assertEqual(saved['id'], original['id'])
+            self.assertEqual(saved['handle'], original['handle'])
+            self.assertEqual(saved['role'], original['role'])
+            reopened.db.close()
+        self.assertFalse(any(method == 'prompt.submit' for method, _ in self.native.calls))
+
     async def test_reporting_cycle_is_rejected_and_teams_do_not_grant_permissions(self):
         state = self.store.read()
         role = state['bots']['amy']['role']

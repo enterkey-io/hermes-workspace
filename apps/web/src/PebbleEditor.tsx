@@ -1,3 +1,6 @@
+import { Textarea } from './components/ui/textarea';
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import type { WorkspaceState, WorkspaceBot, Appearance, Role } from './workspace';
@@ -171,7 +174,8 @@ export function PebbleEditor({
               The saved {section === 'appearance' ? 'avatar' : section} changed while you were
               editing.
               <div className="form-actions">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     if (section === 'handle') setHandle(bot.handle);
                     if (section === 'appearance') {
@@ -187,10 +191,13 @@ export function PebbleEditor({
                   }}
                 >
                   Use saved version
-                </button>
-                <button onClick={() => setConflicts((old) => ({ ...old, [section]: false }))}>
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setConflicts((old) => ({ ...old, [section]: false }))}
+                >
                   Keep my edits
-                </button>
+                </Button>
               </div>
             </Notice>
           ))}
@@ -208,7 +215,7 @@ export function PebbleEditor({
                   Handle
                   <span className="handle-input">
                     <span aria-hidden>@</span>
-                    <input
+                    <Input
                       aria-label="Handle"
                       required
                       minLength={2}
@@ -221,9 +228,12 @@ export function PebbleEditor({
                   </span>
                 </label>
                 <div className="form-actions">
-                  <button disabled={!!busy || !!conflicts.handle || handle === bot.handle}>
+                  <Button
+                    variant="secondary"
+                    disabled={!!busy || !!conflicts.handle || handle === bot.handle}
+                  >
                     Save handle
-                  </button>
+                  </Button>
                 </div>
               </form>
             </FormSection>
@@ -249,9 +259,12 @@ export function PebbleEditor({
                   revision={state.revision}
                 />
                 <div className="form-actions">
-                  <button disabled={!!busy || !!conflicts.appearance || photoBusy}>
+                  <Button
+                    variant="secondary"
+                    disabled={!!busy || !!conflicts.appearance || photoBusy}
+                  >
                     Save avatar
-                  </button>
+                  </Button>
                 </div>
               </form>
             </FormSection>
@@ -276,7 +289,7 @@ export function PebbleEditor({
             >
               <label>
                 Title
-                <input
+                <Input
                   maxLength={1000}
                   value={role.title}
                   placeholder="e.g. Chief of Staff"
@@ -285,7 +298,7 @@ export function PebbleEditor({
               </label>
               <label>
                 Description
-                <textarea
+                <Textarea
                   rows={3}
                   maxLength={1000}
                   value={role.description}
@@ -303,7 +316,7 @@ export function PebbleEditor({
                         expectedOutputs: 'Expected outputs',
                       }[key]
                     }
-                    <textarea
+                    <Textarea
                       rows={3}
                       maxLength={1000}
                       value={role[key]}
@@ -329,19 +342,10 @@ export function PebbleEditor({
                   </select>
                 </label>
               )}
-              <label>
-                Crew
-                <select value={team} onChange={(e) => setTeam(e.target.value)}>
-                  <option value="">No crew</option>
-                  {state.teams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
               <div className="form-actions">
-                <button disabled={!!busy || !!conflicts.role}>Save role</button>
+                <Button variant="secondary" disabled={!!busy || !!conflicts.role}>
+                  Save role
+                </Button>
               </div>
             </form>
             {bot.enrolled && bot.profile !== state.orchestrator && (
@@ -351,12 +355,13 @@ export function PebbleEditor({
                   {bot.name} will coordinate your pebbles. The current Main Pebble will report to
                   them.
                 </p>
-                <button
+                <Button
+                  variant="secondary"
                   disabled={!!busy}
                   onClick={() => void save('workspace.set_orchestrator', {}, 'lead')}
                 >
                   Make {bot.name} Main Pebble
-                </button>
+                </Button>
               </details>
             )}
           </FormSection>
@@ -425,7 +430,9 @@ export function PebbleEditor({
                   Saved access takes effect when Hermes refreshes this pebble’s runtime.
                 </p>
                 <div className="form-actions">
-                  <button disabled={!!busy || !toolsets.length}>Save tools & skills</button>
+                  <Button variant="secondary" disabled={!!busy || !toolsets.length}>
+                    Save tools & skills
+                  </Button>
                 </div>
               </form>
             )}
@@ -445,7 +452,8 @@ export function PebbleEditor({
                         Use the primary profile’s selected model authorization. Other service
                         credentials are not copied.
                       </p>
-                      <button
+                      <Button
+                        variant="secondary"
                         disabled={!!busy}
                         onClick={() =>
                           void save(
@@ -456,7 +464,7 @@ export function PebbleEditor({
                         }
                       >
                         Use this model
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <Notice>This model needs authorization in Hermes.</Notice>
@@ -477,8 +485,11 @@ export function PebbleEditor({
         <Drawer title="Unsaved changes" variant="dialog" onClose={() => setDiscard(false)}>
           <h2>Discard unsaved changes?</h2>
           <div className="form-actions">
-            <button onClick={() => setDiscard(false)}>Keep editing</button>
-            <button
+            <Button variant="secondary" onClick={() => setDiscard(false)}>
+              Keep editing
+            </Button>
+            <Button
+              variant="secondary"
               className="danger-text"
               onClick={() => {
                 onDirtyChange(false);
@@ -486,7 +497,7 @@ export function PebbleEditor({
               }}
             >
               Discard changes
-            </button>
+            </Button>
           </div>
         </Drawer>
       )}

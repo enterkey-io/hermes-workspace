@@ -1,5 +1,16 @@
 # Installed-owner implementation status
 
+**16 October 0.7.0 update:** the actual app now uses the independently reviewed
+shadcn/Radix foundation across chat, Settings, Add/Edit pebble, account, requests
+and connections. The update includes integrated details motion, persistent custom
+sidebar organization/native Crew chats, owner-local search, immediate message
+metadata/receipt correlation, expanded avatar choices and the owner's narrower
+message/darker reply treatment. See the current [review](UI_RESET_REVIEW_CHECKLIST.md),
+[work log](UI_RESET_WORKLOG.md) and [release notes](releases/0.7.0-preview.1.md).
+The records below describe preceding implementations; their passing checks did
+not establish the visual quality accepted by the owner. Native Computer startup,
+all-device performance and owner-host acceptance remain separate checks.
+
 **16 October 0.6.0 update:** the owner authorized inline implementation of the
 [design system](PEBBLE_CREW_DESIGN_SYSTEM.md) and [UX plan](PEBBLE_CREW_UX_IMPLEMENTATION_PLAN.md).
 Settings, New/Edit pebble, Crews, account/connection/request flows and chat now

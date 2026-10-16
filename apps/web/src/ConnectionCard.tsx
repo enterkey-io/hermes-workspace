@@ -1,3 +1,5 @@
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 import { useEffect, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 type Row = Record<string, unknown>;
@@ -103,7 +105,8 @@ export function ConnectionCard({
         </div>
       </div>
       <div className="choice-row">
-        <button
+        <Button
+          variant="secondary"
           disabled={busy}
           onClick={() =>
             void run(async () => {
@@ -122,9 +125,10 @@ export function ConnectionCard({
           }
         >
           Test connection
-        </button>
+        </Button>
         {permission?.auth === 'oauth' && (
-          <button
+          <Button
+            variant="secondary"
             disabled={busy}
             onClick={() =>
               void run(async () =>
@@ -133,7 +137,7 @@ export function ConnectionCard({
             }
           >
             Sign in to {name}
-          </button>
+          </Button>
         )}
       </div>
       {flow && (
@@ -160,7 +164,8 @@ export function ConnectionCard({
             </a>
           )}
           {!['approved', 'error'].includes(flow.status) && (
-            <button
+            <Button
+              variant="secondary"
               onClick={() =>
                 void run(async () =>
                   setFlow(
@@ -170,7 +175,7 @@ export function ConnectionCard({
               }
             >
               Cancel sign-in
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -196,7 +201,7 @@ export function ConnectionCard({
           >
             <label>
               API key
-              <input
+              <Input
                 required
                 type="password"
                 autoComplete="off"
@@ -209,7 +214,9 @@ export function ConnectionCard({
               Use this for services that accept Bearer keys. Other authentication schemes need their
               native Hermes setup.
             </small>
-            <button disabled={busy || !key}>Save key on Hermes</button>
+            <Button variant="secondary" disabled={busy || !key}>
+              Save key on Hermes
+            </Button>
           </form>
         </details>
       )}
@@ -251,7 +258,9 @@ export function ConnectionCard({
               </label>
             ))}
           </fieldset>
-          <button disabled={busy}>Save selected tools</button>
+          <Button variant="secondary" disabled={busy}>
+            Save selected tools
+          </Button>
         </form>
       )}
       {message && <p role="status">{message}</p>}

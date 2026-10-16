@@ -5,7 +5,6 @@ import type { BridgeEvent } from '@hermes-client/protocol';
 import { FirstRun } from './FirstRun';
 import { lazy, Suspense } from 'react';
 const NewPebble = lazy(() => import('./NewPebble').then((m) => ({ default: m.NewPebble })));
-const CrewEditor = lazy(() => import('./CrewEditor').then((m) => ({ default: m.CrewEditor })));
 const WorkspaceSettings = lazy(() =>
   import('./WorkspaceSettings').then((m) => ({ default: m.WorkspaceSettings })),
 );
@@ -24,6 +23,15 @@ import { Inspector } from './chat/Inspector';
 import { Icon } from './chat/Icon';
 import { Drawer } from './chat/Drawer';
 import { RequestReview } from './chat/RequestReview';
+import { DetailsDock } from './ui/DetailsDock';
+import { ChevronRight } from 'lucide-react';
+import { Menu } from './ui/primitives';
+import { organizationState } from './ui/organization';
+import type { Organization, OrganizationState } from './ui/organization';
+import type { SetStateAction } from 'react';
+import { SearchOverlay } from './chat/SearchOverlay';
+import { SendProjection } from './chat/send-projection';
+import { useOverlayHistory } from './ui/overlay-history';
 import type { OwnerConnection } from './OwnerShell';
 import { WorkspaceSetup } from './WorkspaceSetup';
 
@@ -73,10 +81,13 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const eventVersion = useRef(0);
   const [bots, setBots] = useState<Bot[]>([]);
   const [rooms, setRooms] = useState<Row[]>([]);
+  const [crewChats, setCrewChats] = useState<Record<string, string>>({});
   const roomsRef = useRef(rooms);
   roomsRef.current = rooms;
   const [selection, setSelection] = useState<Selection>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const sendProjection = useRef(new SendProjection());
+  const runEpoch = useRef(0);
   const [routines, setRoutines] = useState<Row[]>([]);
   const [approvals, setApprovals] = useState<Row[]>([]);
   const [draft, setDraft] = useState('');
@@ -90,16 +101,10 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const [streamState, setStreamState] = useState<'opening' | 'live' | 'lost'>('opening');
   const [error, setError] = useState('');
   const [nav, setNav] = useState(false);
-  const desktop = useMedia('(min-width: 1200px)');
+  const phone = useMedia('(max-width: 767px)');
   const [details, setDetails] = useState(
-    () =>
-      matchMedia('(min-width:1200px)').matches &&
-      localStorage.getItem('pebblecrew.details') !== 'closed',
+    () => localStorage.getItem('pebblecrew.details') === 'open',
   );
-  const [detailsPresent, setDetailsPresent] = useState(details);
-  useEffect(() => {
-    if (!desktop) setDetails(false);
-  }, [desktop]);
   const [editProfile, setEditProfile] = useState<string>();
   const dirtyEditor = useRef(false),
     pendingNavigation = useRef<(() => void) | undefined>(undefined);
@@ -108,6 +113,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     dirtyEditor.current = dirty;
   }, []);
   function navigate(action: () => void) {
+    rememberScroll();
     if (dirtyEditor.current) {
       pendingNavigation.current = action;
       setConfirmNavigation(true);
@@ -117,26 +123,116 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     return true;
   }
 
-  const [crewEditor, setCrewEditor] = useState<{ id?: string }>();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [confirmCrew, setConfirmCrew] = useState<string>();
+  const [organization, setOrganization] = useState<OrganizationState>({
+    revision: 0,
+    sections: [
+      { id: 'pebbles', name: 'Pebbles', collapsed: false, items: [] },
+      { id: 'crews', name: 'Crews', collapsed: false, items: [] },
+    ],
+    crews: [],
+  });
+  const organizationBase = useRef(organization);
+  const organizationQueue = useRef<((current: Organization) => Organization)[]>([]);
+  const organizationFlight = useRef<BotBridgeClient | undefined>(undefined);
+  const organizationPending = useRef<Promise<boolean>>(Promise.resolve(true));
+  async function pumpOrganization() {
+    if (!current.current || organizationFlight.current === current.current) return false;
+    const connection = current.current;
+    organizationFlight.current = connection;
+    try {
+      while (organizationQueue.current.length && current.current === connection) {
+        const change = organizationQueue.current[0]!,
+          base = organizationBase.current;
+        const next = change(base);
+        const result = organizationState(
+          await connection.invoke('organization.save', {
+            organization: { sections: next.sections, crews: next.crews },
+            expected_revision: base.revision,
+          }),
+        );
+        if (current.current !== connection) return false;
+        organizationQueue.current.shift();
+        organizationBase.current = result;
+        setOrganization({
+          ...organizationQueue.current.reduce<Organization>((v, f) => f(v), result),
+          revision: result.revision,
+        });
+      }
+      return current.current === connection;
+    } catch (error) {
+      if (current.current === connection) {
+        organizationQueue.current = [];
+        try {
+          const actual = organizationState(await connection.invoke('organization.get', {}));
+          if (current.current === connection) {
+            organizationBase.current = actual;
+            setOrganization(actual);
+          }
+        } catch {
+          setOrganization(organizationBase.current);
+        }
+        fail(error);
+      }
+      return false;
+    } finally {
+      if (organizationFlight.current === connection) organizationFlight.current = undefined;
+    }
+  }
+  function changeOrganization(change: SetStateAction<Organization>) {
+    if (!current.current || streamState !== 'live') return;
+    organizationQueue.current.push(typeof change === 'function' ? change : () => change);
+    setOrganization((v) => ({
+      ...organizationQueue.current.reduce<Organization>(
+        (value, f) => f(value),
+        organizationBase.current,
+      ),
+      revision: v.revision,
+    }));
+    if (organizationFlight.current !== current.current)
+      organizationPending.current = pumpOrganization();
+  }
+  async function openCrew(id: string, confirm = false) {
+    const crew = organization.crews.find((c) => c.id === id);
+    if (!crew || crew.members.length < 2 || crew.members.length > 6) {
+      setError('A crew chat needs 2–6 pebbles. Move pebbles into the crew from their menus.');
+      return;
+    }
+    const connection = current.current;
+    if (!connection) return;
+    try {
+      if (!(await organizationPending.current) || current.current !== connection) return;
+      const result = object(
+        await connection.invoke('organization.chat', {
+          id,
+          expected_revision: organizationBase.current.revision,
+          confirm_new: confirm,
+        }),
+      );
+      if (current.current !== connection) return;
+      if (result.state === 'new_chat_required') {
+        setConfirmCrew(id);
+        return;
+      }
+      if (result.state !== 'ready') throw new Error('Crew chat could not be confirmed');
+      setConfirmCrew(undefined);
+      setSettings(false);
+      openRoom(object(result.room));
+      void loadRoster(connection, true).catch(fail);
+    } catch (e) {
+      fail(e);
+    }
+  }
   const [pinIntents, setPinIntents] = useState<Record<string, boolean>>({});
   const pendingPinIds = useRef(new Set<string>());
   const mutationQueue = useRef(Promise.resolve());
   const scrollAnimation = useRef<(() => void) | undefined>(undefined);
   const scrollAnimating = useRef(false);
   const detailsAnchor = useRef<{ id: string; offset: number } | undefined>(undefined);
-  useEffect(() => {
-    localStorage.setItem('pebblecrew.details', details ? 'open' : 'closed');
-    if (details) {
-      setDetailsPresent(true);
-      return;
-    }
-    const timer = setTimeout(
-      () => setDetailsPresent(false),
-      matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180,
-    );
-    return () => clearTimeout(timer);
-  }, [details]);
+
   const [routinePending, setRoutinePending] = useState('');
+  const [detailsTarget, setDetailsTarget] = useState<{ tab: 'files' | 'routines'; id: string }>();
   const [stopping, setStopping] = useState(false);
   const [pinOrder, setPinOrder] = useState<string[]>([]);
   const preferencesRevision = useRef(0);
@@ -149,7 +245,6 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   workspaceRef.current = workspace;
   const scrollPositions = useRef(new Map<string, { top: number; follow: boolean }>());
   const closeNav = useCallback(() => setNav(false), []);
-  const closeDetails = useCallback(() => setDetails(false), []);
   const closeReview = useCallback(() => setReview(undefined), []);
   const [pickingAgents, setPickingAgents] = useState(false);
   const transcriptPane = useRef<HTMLDivElement>(null);
@@ -258,6 +353,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     connectGeneration.current++;
     clearTimeout(reconnectTimer.current);
     clearTimeout(renewTimer.current);
+    organizationQueue.current = [];
+    organizationPending.current = Promise.resolve(true);
     setWorkspace(undefined);
     setAgentStates({});
     sessionProfiles.current.clear();
@@ -271,6 +368,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     setSelection(undefined);
     setBots([]);
     setRooms([]);
+    sendProjection.current = new SendProjection();
     setMessages([]);
     setRoutines([]);
     setApprovals([]);
@@ -417,6 +515,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     }
   }, [busy, blocked, pickingAgents, selection]);
   function toggleDetails(value: boolean) {
+    detailsAnchor.current = undefined;
     const pane = transcriptPane.current;
     if (pane && !followLatest.current) {
       const top = pane.getBoundingClientRect().top;
@@ -429,19 +528,57 @@ export function App({ owner }: { owner?: OwnerConnection }) {
           offset: message.getBoundingClientRect().top - top,
         };
     }
+    localStorage.setItem('pebblecrew.details', value ? 'open' : 'closed');
     setDetails(value);
+    if (!value)
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>('.chat-title')?.focus({ preventScroll: true }),
+      );
   }
-  useLayoutEffect(() => {
+  useOverlayHistory(details && phone && !settings && !pickingAgents && !searchOpen, () => {
+    toggleDetails(false);
+    return true;
+  });
+  useEffect(() => {
+    if (!details) return;
+    const escape = (e: KeyboardEvent) => {
+      if (
+        e.key === 'Escape' &&
+        !e.defaultPrevented &&
+        !document.querySelector('[role="dialog"][data-state="open"]')
+      ) {
+        e.preventDefault();
+        toggleDetails(false);
+      }
+    };
+    document.addEventListener('keydown', escape);
+    return () => document.removeEventListener('keydown', escape);
+  }, [details, phone]);
+  const restoreDetailsAnchor = useCallback(() => {
     const pane = transcriptPane.current,
       anchor = detailsAnchor.current;
+    if (pane && followLatest.current) {
+      pane.scrollTop = pane.scrollHeight;
+      return;
+    }
     if (pane && anchor) {
       const node = pane.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(anchor.id)}"]`);
       if (node)
         pane.scrollTop +=
           node.getBoundingClientRect().top - pane.getBoundingClientRect().top - anchor.offset;
     }
-    detailsAnchor.current = undefined;
-  }, [details, desktop]);
+  }, []);
+  useLayoutEffect(() => {
+    const pane = transcriptPane.current,
+      target = selected.current;
+    if (settings || !pane || !target) return;
+    const saved = scrollPositions.current.get(draftKey(target));
+    if (saved) {
+      followLatest.current = saved.follow;
+      pane.scrollTop = saved.follow ? pane.scrollHeight : saved.top;
+      document.querySelector<HTMLElement>('.chat-title')?.focus({ preventScroll: true });
+    }
+  }, [settings]);
   useEffect(() => () => scrollAnimation.current?.(), []);
   function jumpToLatest() {
     const pane = transcriptPane.current;
@@ -463,12 +600,18 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     );
   }
 
-  async function refreshHistory(connection: BotBridgeClient, target: Selection) {
+  async function refreshHistory(connection: BotBridgeClient, target: Selection, complete = false) {
     if (target.kind !== 'bot' || selectionConnection.current !== connection) return;
+    const terminalEpoch = runEpoch.current;
     const data = object(await connection.invoke('chat.history', { session_id: target.sessionId }));
     if (current.current === connection && selected.current === target) {
       observedHistory(target, data.messages);
-      setMessages(transcript(data.messages));
+      setMessages(sendProjection.current.project(transcript(data.messages), complete));
+      if (complete && terminalEpoch === runEpoch.current) {
+        setStream('');
+        setRunning(false);
+        setStopping(false);
+      }
     }
     const saved = scrollPositions.current.get(draftKey(target));
     if (saved && !saved.follow) {
@@ -499,13 +642,15 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       const state: Activity | undefined =
         event.type === 'approval.request'
           ? 'attention'
-          : event.type === 'message.start' || event.type === 'tool.start'
-            ? 'working'
-            : event.type === 'message.complete'
-              ? event.payload?.status === 'error'
-                ? 'attention'
-                : 'done'
-              : undefined;
+          : event.type === 'message.start' || event.type === 'tool.complete'
+            ? 'thinking'
+            : event.type === 'tool.start'
+              ? 'working'
+              : event.type === 'message.complete'
+                ? event.payload?.status === 'error'
+                  ? 'attention'
+                  : 'done'
+                : undefined;
       if (state) setAgentStates((old) => ({ ...old, [profile]: state }));
     }
     const target = selected.current;
@@ -521,19 +666,17 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     eventVersion.current++;
     const payload = event.payload ?? {};
     if (event.type === 'message.start') {
+      runEpoch.current++;
       setRunning(true);
       setStream('');
       setActivity('Working');
     }
     if (event.type === 'message.delta') setStream((old) => old + text(payload.text));
     if (event.type === 'message.complete') {
-      setRunning(false);
-      setStopping(false);
-      setStream('');
       setActivity(payload.status === 'error' ? 'Turn failed' : 'Ready');
       if (payload.status === 'error')
         setError('Hermes reported a failed turn. Refresh to inspect its history.');
-      await refreshHistory(connection, target);
+      await refreshHistory(connection, target, true);
     }
     if (event.type === 'tool.start') setActivity(`Using ${text(payload.name) || 'a tool'}`);
     if (event.type === 'tool.complete') setActivity(`Finished ${text(payload.name) || 'a tool'}`);
@@ -555,9 +698,28 @@ export function App({ owner }: { owner?: OwnerConnection }) {
           const data = object(await connection.invoke('workspace.snapshot', {}));
           if (current.current !== connection) return;
           const state = workspaceState(data.workspace);
+          const org = organizationState(data.organization);
+          if (
+            organizationFlight.current !== connection &&
+            (workspaceRef.current?.id !== state.id ||
+              org.revision >= organizationBase.current.revision)
+          ) {
+            organizationBase.current = org;
+            setOrganization({
+              ...organizationQueue.current.reduce<Organization>((v, f) => f(v), org),
+              revision: org.revision,
+            });
+          }
           setWorkspace(state);
           workspaceRef.current = state;
           setBots(state.bots.filter((b) => b.managed && !b.hidden));
+          setCrewChats(
+            Object.fromEntries(
+              Object.entries(object(data.crew_chats)).filter(
+                (entry): entry is [string, string] => typeof entry[1] === 'string',
+              ),
+            ),
+          );
           const loadedRooms = rows(data.rooms);
           setRooms(loadedRooms);
           const prefs = object(data.preferences);
@@ -581,6 +743,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
             setSelection(undefined);
             setRemovedDraft(currentDraft.current);
             setDraft('');
+            sendProjection.current = new SendProjection();
             setMessages([]);
             setStream('');
             setRunning(false);
@@ -676,6 +839,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     let connection: BotBridgeClient | undefined;
     try {
       connection = new BotBridgeClient(normalizeEndpoint(endpoint, import.meta.env.DEV), token);
+      organizationQueue.current = [];
+      organizationPending.current = Promise.resolve(true);
       current.current = connection;
       autoOpened.current = false;
       await connection.connect();
@@ -721,6 +886,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     selected.current = undefined;
     setSelection(undefined);
     displayedRead.current = undefined;
+    sendProjection.current = new SendProjection();
     setMessages([]);
     setStream('');
     setApprovals([]);
@@ -749,7 +915,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       selectionConnection.current = client;
       setSelection(target);
       observedHistory(target, data.messages);
-      setMessages(transcript(data.messages));
+      setMessages(sendProjection.current.project(transcript(data.messages)));
       const saved = scrollPositions.current.get(draftKey(target));
       if (saved && !saved.follow) {
         followLatest.current = false;
@@ -792,7 +958,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         version === eventVersion.current
       ) {
         observedHistory(target, snapshot.messages);
-        setMessages(transcript(snapshot.messages));
+        setMessages(sendProjection.current.project(transcript(snapshot.messages)));
         setRunning(snapshot.running === true);
         setStream(snapshot.inflight ? text(object(snapshot.inflight).assistant) : '');
       }
@@ -818,6 +984,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     followLatest.current = true;
     setShowLatest(false);
     displayedRead.current = undefined;
+    sendProjection.current = new SendProjection();
     setMessages([]);
     setStream('');
     setApprovals([]);
@@ -875,7 +1042,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               ? 'Room members are working'
               : 'Native room driver ready',
         );
-        setMessages(roomMessages([...events.values()]));
+        setMessages(sendProjection.current.project(roomMessages([...events.values()])));
         const room = roomsRef.current.find(
           (r) => r.room_id === (selection?.kind === 'room' ? selection.room.room_id : ''),
         );
@@ -927,20 +1094,24 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     const fileIds = uploads.files.flatMap((f) => (f.id ? [f.id] : []));
     followLatest.current = true;
     setShowLatest(false);
-    setMessages((old) => [
-      ...old,
-      {
-        role: 'user',
-        text: message,
-        ...(fileIds.length
-          ? {
-              files: uploads.files
-                .filter((f) => f.id)
-                .map((f) => ({ id: f.id!, name: f.name, size: f.size })),
-            }
-          : {}),
-      },
-    ]);
+    const pendingId = `pending-${crypto.randomUUID()}`;
+    const roomEventId = crypto.randomUUID();
+    const pendingMessage = {
+      id: pendingId,
+      renderKey: pendingId,
+      timestamp: new Date().toISOString(),
+      role: 'user',
+      text: message,
+      ...(fileIds.length
+        ? {
+            files: uploads.files
+              .filter((f) => f.id)
+              .map((f) => ({ id: f.id!, name: f.name, size: f.size })),
+          }
+        : {}),
+    };
+    setMessages(sendProjection.current.begin(pendingMessage, messages));
+    setDraft('');
     if (target.kind === 'bot') {
       setRunning(true);
       setActivity('Working');
@@ -952,14 +1123,17 @@ export function App({ owner }: { owner?: OwnerConnection }) {
           text: message,
           ...(fileIds.length ? { attachments: fileIds, request_id: crypto.randomUUID() } : {}),
         })) as Row;
+        if (owns()) setMessages(sendProjection.current.acknowledge(result.user_row_id));
         if (fileIds.length && result.state !== 'accepted')
           throw new Error('Attachment outcome uncertain');
-      } else
+      } else {
         await client.invoke('room.send', {
           room_id: text(selection.room.room_id),
-          event_id: crypto.randomUUID(),
+          event_id: roomEventId,
           text: message,
         });
+        if (owns()) setMessages(sendProjection.current.acknowledge(roomEventId));
+      }
       if (owns()) {
         drafts.current.delete(draftKey(target));
         uploads.sent(draftKey(target), fileIds);
@@ -967,7 +1141,10 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         setDraft('');
       }
     } catch (error) {
-      if (owns()) setBlocked(true);
+      if (owns()) {
+        setBlocked(true);
+        setDraft(message);
+      }
       if (owns() && fileIds.length) setAttachmentUncertain(true);
       if (owns())
         setError(
@@ -1136,8 +1313,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       room={selection?.kind === 'room' ? selection.room : undefined}
       workspace={workspace}
       client={client}
-      activity={activity}
       routines={routines}
+      target={detailsTarget}
       sessionId={selection?.kind === 'bot' ? selection.sessionId : undefined}
       filesVersion={filesVersion}
       pending={routinePending}
@@ -1147,7 +1324,6 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         setEditProfile(selection?.kind === 'bot' ? selection.bot.profile : undefined);
         setSettingsTab('agents');
         setSettings(true);
-        setDetails(false);
       }}
     >
       {approvals.map((approval) => (
@@ -1239,18 +1415,12 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       }
       client={client}
       pendingPins={Object.fromEntries(Object.keys(pinIntents).map((id) => [id, true]))}
-      onNewCrew={() =>
-        navigate(() => {
-          setCrewEditor({});
-          setNav(false);
-        })
-      }
-      onEditCrew={(id) =>
-        navigate(() => {
-          setCrewEditor({ id });
-          setNav(false);
-        })
-      }
+      organization={organization}
+      crewChats={crewChats}
+      onOrganization={changeOrganization}
+      onCrew={(id) => navigate(() => void openCrew(id))}
+      onSearch={() => setSearchOpen(true)}
+      onClose={nav ? closeNav : undefined}
       onEdit={(profile) =>
         navigate(() => {
           setEditProfile(profile);
@@ -1314,43 +1484,52 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       }}
     />
   );
+  const settingsContent = workspace ? (
+    <Suspense fallback={<p role="status">Loading Settings…</p>}>
+      <WorkspaceSettings
+        key={`${settingsTab}:${editProfile ?? ''}`}
+        onDirtyChange={onDirtyChange}
+        initialTab={settingsTab}
+        initialProfile={
+          settingsTab === 'agents'
+            ? editProfile
+            : selection?.kind === 'bot'
+              ? selection.bot.profile
+              : undefined
+        }
+        client={client}
+        owner={!!owner}
+        state={workspace}
+        onChange={(state) => {
+          setWorkspace(state);
+          void loadRoster(client).catch(fail);
+        }}
+        onClose={() => setSettings(false)}
+      />
+    </Suspense>
+  ) : null;
   return (
     <main
-      className={`workspace ${settings ? 'editing' : ''} ${details && desktop && !settings ? 'has-details' : ''}`}
+      className={`pc-shell workspace ${settings && settingsTab !== 'agents' ? 'editing' : ''} ${details && phone && !settings ? 'phone-details' : ''}`}
     >
-      <aside className="sidebar">{rail}</aside>
+      <aside className="pc-rail sidebar" aria-label="Pebbles and crews">
+        {rail}
+      </aside>
       {nav && (
         <Drawer title="navigation" onClose={closeNav}>
           {rail}
         </Drawer>
       )}
-      <section className="conversation" aria-label="Conversation">
-        {settings && workspace ? (
-          <Suspense fallback={<p role="status">Loading Settings…</p>}>
-            <WorkspaceSettings
-              key={`${settingsTab}:${editProfile ?? ''}`}
-              onDirtyChange={onDirtyChange}
-              initialTab={settingsTab}
-              initialProfile={
-                settingsTab === 'agents'
-                  ? editProfile
-                  : selection?.kind === 'bot'
-                    ? selection.bot.profile
-                    : undefined
-              }
-              client={client}
-              owner={!!owner}
-              state={workspace}
-              onChange={(state) => {
-                setWorkspace(state);
-                void loadRoster(client).catch(fail);
-              }}
-              onClose={() => setSettings(false)}
-            />
-          </Suspense>
+      <section
+        className="pc-main conversation"
+        aria-label="Conversation"
+        inert={details && phone && !settings}
+      >
+        {settings && settingsTab !== 'agents' && workspace ? (
+          settingsContent
         ) : (
           <>
-            <header className="chat-header">
+            <header className="pc-chat-header chat-header">
               <button
                 className="icon-button mobile-nav"
                 aria-label="Toggle navigation"
@@ -1358,7 +1537,15 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               >
                 <Icon name="menu" />
               </button>
-              <div className="chat-title">
+              <button
+                type="button"
+                className="pc-chat-identity chat-title"
+                aria-labelledby="chat-heading chat-role chat-details-action"
+                aria-expanded={details}
+                aria-controls="pebble-details"
+                disabled={!selection}
+                onClick={() => toggleDetails(!details)}
+              >
                 {selection?.kind === 'bot' && (
                   <PebbleAvatar
                     bot={selection.bot}
@@ -1371,16 +1558,23 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                   <CrewAvatar room={selection.room} workspace={workspace} client={client} />
                 )}
                 <div>
-                  <h1>{title}</h1>
+                  <h1 id="chat-heading">{title}</h1>{' '}
+                  <span id="chat-details-action" className="sr-only">
+                    {details ? 'Hide details' : 'Show details'}
+                  </span>{' '}
                   {selection?.kind === 'bot' && (
-                    <p>
+                    <p id="chat-role">
                       {workspace?.bots.find((b) => b.profile === selection.bot.profile)?.role
                         .title ||
                         `@${workspace?.bots.find((b) => b.profile === selection.bot.profile)?.handle ?? selection.bot.profile}`}
                     </p>
                   )}
                 </div>
-              </div>
+                <ChevronRight
+                  className={`pc-details-chevron ${details ? 'is-open' : ''}`}
+                  aria-hidden
+                />
+              </button>
               <div className="header-actions">
                 {requestCount > 0 && (
                   <button
@@ -1403,16 +1597,6 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                     <Icon name="refresh" />
                   </button>
                 )}
-                <button
-                  className="icon-button details-trigger"
-                  aria-label={details ? 'Hide details' : 'Show details'}
-                  aria-expanded={details}
-                  aria-controls="pebble-details"
-                  onClick={() => toggleDetails(!details)}
-                >
-                  <Icon name="settings" />
-                  {approvals.length > 0 && <span className="unread-dot" />}
-                </button>
               </div>
             </header>
             {(error || (blocked && streamState !== 'opening')) && (
@@ -1442,9 +1626,15 @@ export function App({ owner }: { owner?: OwnerConnection }) {
             )}
             <div
               ref={transcriptPane}
-              className={`transcript ${pickingAgents ? 'choosing-agents' : ''}`}
+              className={`pc-transcript transcript ${pickingAgents ? 'choosing-agents' : ''}`}
               role={pickingAgents ? undefined : 'log'}
               aria-live={pickingAgents ? undefined : 'off'}
+              onWheel={() => {
+                detailsAnchor.current = undefined;
+              }}
+              onTouchStart={() => {
+                detailsAnchor.current = undefined;
+              }}
               onScroll={(event) => {
                 if (pickingAgents) return;
                 const pane = event.currentTarget;
@@ -1454,79 +1644,58 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                 acknowledgeRead();
               }}
             >
-              {pickingAgents ? (
-                <Suspense fallback={<p role="status">Loading…</p>}>
-                  <NewPebble
-                    client={client}
-                    state={workspace!}
-                    onDirtyChange={onDirtyChange}
-                    connected={streamState === 'live'}
-                    onClose={() => navigate(() => setPickingAgents(false))}
-                    onDone={async (profile) => {
-                      await loadRoster(client, true);
-                      if (current.current === client) {
-                        setPickingAgents(false);
-                        if (profile) {
-                          const bot = workspaceRef.current?.bots.find((b) => b.profile === profile);
-                          if (bot) await open(bot);
-                        }
-                      }
-                    }}
-                  />
-                </Suspense>
-              ) : (
-                <Transcript
-                  messages={withSharedFiles(messages, sharedFiles)}
-                  onDownloadFile={(file) => {
-                    if (selection?.kind !== 'bot') return;
-                    void client
-                      .downloadFile(selection.sessionId, file.id)
-                      .then((blob) => {
-                        const url = URL.createObjectURL(blob),
-                          a = document.createElement('a');
-                        a.href = url;
-                        a.download = file.name;
-                        a.click();
-                        setTimeout(() => URL.revokeObjectURL(url), 1000);
-                      })
-                      .catch(fail);
-                  }}
-                  title={title}
-                  crew={selection?.kind === 'room'}
-                  stream={stream}
-                  running={running}
-                  authorName={(name) =>
-                    workspace?.bots.find(
-                      (b) =>
-                        b.profile === name ||
-                        b.handle === name.replace('@', '') ||
-                        (name === 'hermes' && b.profile === 'default'),
-                    )?.name ?? name
-                  }
-                >
-                  {!selection && (
-                    <div className="welcome">
-                      <h2>{streamState !== 'live' ? 'Connecting…' : 'Choose a conversation'}</h2>
-                      {streamState === 'live' && !bots.length && (
-                        <button onClick={() => setPickingAgents(true)}>Add existing agents</button>
-                      )}
-                    </div>
-                  )}
-                  {selection && !messages.length && !stream && !running && (
-                    <p className="empty-chat">Say hello to {title}.</p>
-                  )}
-                  {removedDraft && (
-                    <section className="recovered-draft">
-                      <h3>Unsent draft</h3>
-                      <p className="preserve-whitespace">{removedDraft}</p>
-                      <button onClick={() => void navigator.clipboard.writeText(removedDraft)}>
-                        Copy draft
-                      </button>
-                      <button onClick={() => setRemovedDraft('')}>Dismiss</button>
-                    </section>
-                  )}
-                </Transcript>
-              )}
+              <Transcript
+                messages={withSharedFiles(messages, sharedFiles)}
+                onDownloadFile={(file) => {
+                  if (selection?.kind !== 'bot') return;
+                  void client
+                    .downloadFile(selection.sessionId, file.id)
+                    .then((blob) => {
+                      const url = URL.createObjectURL(blob),
+                        a = document.createElement('a');
+                      a.href = url;
+                      a.download = file.name;
+                      a.click();
+                      setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    })
+                    .catch(fail);
+                }}
+                title={title}
+                crew={selection?.kind === 'room'}
+                stream={stream}
+                running={running}
+                activity={activity}
+                authorName={(name) =>
+                  workspace?.bots.find(
+                    (b) =>
+                      b.profile === name ||
+                      b.handle === name.replace('@', '') ||
+                      (name === 'hermes' && b.profile === 'default'),
+                  )?.name ?? name
+                }
+              >
+                {!selection && (
+                  <div className="welcome">
+                    <h2>{streamState !== 'live' ? 'Connecting…' : 'Choose a conversation'}</h2>
+                    {streamState === 'live' && !bots.length && (
+                      <button onClick={() => setPickingAgents(true)}>Add existing agents</button>
+                    )}
+                  </div>
+                )}
+                {selection && !messages.length && !stream && !running && (
+                  <p className="empty-chat">Say hello to {title}.</p>
+                )}
+                {removedDraft && (
+                  <section className="recovered-draft">
+                    <h3>Unsent draft</h3>
+                    <p className="preserve-whitespace">{removedDraft}</p>
+                    <button onClick={() => void navigator.clipboard.writeText(removedDraft)}>
+                      Copy draft
+                    </button>
+                    <button onClick={() => setRemovedDraft('')}>Dismiss</button>
+                  </section>
+                )}
+              </Transcript>
             </div>
             {!pickingAgents && (
               <>
@@ -1541,7 +1710,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                   </button>
                 )}
                 <div
-                  className="composer"
+                  className="pc-composer-wrap composer-wrap"
                   onDragOver={(e) => {
                     if (selection?.kind === 'bot' && client.supportsAttachments) e.preventDefault();
                   }}
@@ -1595,6 +1764,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                   )}
 
                   <form
+                    className="pc-composer pc-composer-row"
                     onSubmit={(e) => {
                       e.preventDefault();
                       void send();
@@ -1617,15 +1787,34 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                             e.target.value = '';
                           }}
                         />
-                        <button
-                          type="button"
-                          className="attach-button icon-button"
-                          aria-label="Attach files"
+                        <Menu
+                          label="Add attachment"
+                          upward
                           disabled={busy || blocked || uploads.files.length >= 5}
-                          onClick={() => attachmentInput.current?.click()}
+                          items={[
+                            {
+                              label: 'File',
+                              action: () => {
+                                if (attachmentInput.current) {
+                                  attachmentInput.current.accept = '';
+                                  attachmentInput.current.click();
+                                }
+                              },
+                            },
+                            {
+                              label: 'Photo',
+                              action: () => {
+                                if (attachmentInput.current) {
+                                  attachmentInput.current.accept =
+                                    'image/png,image/jpeg,image/webp';
+                                  attachmentInput.current.click();
+                                }
+                              },
+                            },
+                          ]}
                         >
-                          <Icon name="attachment" />
-                        </button>
+                          <Icon name="plus" />
+                        </Menu>
                       </>
                     )}
                     <textarea
@@ -1691,20 +1880,98 @@ export function App({ owner }: { owner?: OwnerConnection }) {
           </>
         )}
       </section>
-      <>
-        {desktop && detailsPresent && !settings && (
-          <aside
-            id="pebble-details"
-            className={`details-panel ${!details ? 'is-leaving' : ''}`}
-            inert={!details}
-          >
-            {detailsContent}
-          </aside>
-        )}
-      </>
-      {details && !desktop && !settings && (
-        <Drawer title="details" onClose={closeDetails}>
+      <DetailsDock
+        open={details && (!settings || settingsTab === 'agents')}
+        onFrame={restoreDetailsAnchor}
+      >
+        <div id="pebble-details" className="pc-details details-panel">
           {detailsContent}
+        </div>
+      </DetailsDock>
+      {settings && settingsTab === 'agents' && (
+        <Drawer
+          title="Edit pebble"
+          variant="dialog"
+          onBeforeClose={() => {
+            if (!dirtyEditor.current) return true;
+            pendingNavigation.current = () => setSettings(false);
+            setConfirmNavigation(true);
+            return false;
+          }}
+          onClose={() => setSettings(false)}
+        >
+          {settingsContent}
+        </Drawer>
+      )}
+      {pickingAgents && (
+        <Drawer
+          title="New pebble"
+          variant="dialog"
+          onBeforeClose={() => {
+            if (!dirtyEditor.current) return true;
+            pendingNavigation.current = () => setPickingAgents(false);
+            setConfirmNavigation(true);
+            return false;
+          }}
+          onClose={() => setPickingAgents(false)}
+        >
+          <Suspense fallback={<p role="status">Loading…</p>}>
+            <NewPebble
+              client={client}
+              state={workspace!}
+              onDirtyChange={onDirtyChange}
+              connected={streamState === 'live'}
+              onClose={() => navigate(() => setPickingAgents(false))}
+              onDone={async (profile) => {
+                await loadRoster(client, true);
+                if (current.current === client) {
+                  setPickingAgents(false);
+                  if (profile) {
+                    const bot = workspaceRef.current?.bots.find((b) => b.profile === profile);
+                    if (bot) await open(bot);
+                  }
+                }
+              }}
+            />
+          </Suspense>
+        </Drawer>
+      )}
+      <SearchOverlay
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        client={client}
+        onBot={(profile, detail) => {
+          const bot = bots.find((b) => b.profile === profile);
+          if (bot)
+            navigate(() => {
+              setSettings(false);
+              void open(bot).then(() => {
+                if (
+                  detail &&
+                  selected.current?.kind === 'bot' &&
+                  selected.current.bot.profile === profile
+                ) {
+                  setDetailsTarget(detail);
+                  toggleDetails(true);
+                }
+              });
+            });
+        }}
+        onRoom={(room) =>
+          navigate(() => {
+            setSettings(false);
+            openRoom(room);
+          })
+        }
+      />
+      {confirmCrew && (
+        <Drawer title="Updated crew" variant="dialog" onClose={() => setConfirmCrew(undefined)}>
+          <h2>Start a chat with this crew?</h2>
+          <p>Membership changed. Your previous chat will stay in Group chats.</p>
+          <div className="form-actions">
+            <button onClick={() => setConfirmCrew(undefined)}>Cancel</button>
+            <button onClick={() => void openCrew(confirmCrew, true)}>Start new chat</button>
+          </div>
         </Drawer>
       )}
       {confirmNavigation && (
@@ -1715,7 +1982,9 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         >
           <h2>Discard unsaved changes?</h2>
           <div className="form-actions">
-            <button onClick={() => setConfirmNavigation(false)}>Keep editing</button>
+            <button data-autofocus onClick={() => setConfirmNavigation(false)}>
+              Keep editing
+            </button>
             <button
               className="danger-text"
               onClick={() => {
@@ -1728,29 +1997,6 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               Discard changes
             </button>
           </div>
-        </Drawer>
-      )}
-      {crewEditor && workspace && (
-        <Drawer
-          title={crewEditor.id ? 'Edit crew' : 'New crew'}
-          variant="dialog"
-          onClose={() => navigate(() => setCrewEditor(undefined))}
-        >
-          <Suspense fallback={<p role="status">Loading crew…</p>}>
-            <CrewEditor
-              client={client}
-              state={workspace}
-              crewId={crewEditor.id}
-              onDirtyChange={(v) => {
-                dirtyEditor.current = v;
-              }}
-              onClose={() => navigate(() => setCrewEditor(undefined))}
-              onDone={async () => {
-                await loadRoster(client, true);
-                setCrewEditor(undefined);
-              }}
-            />
-          </Suspense>
         </Drawer>
       )}
       {review && (

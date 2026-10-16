@@ -26,6 +26,11 @@ const names: Record<Shape, string> = {
   petal: 'Petal',
   kite: 'Kite',
   arch: 'Arch',
+  cairn: 'Cairn',
+  seed: 'Seed',
+  dune: 'Dune',
+  flint: 'Flint',
+  drift: 'Drift',
 };
 const root = document.querySelector<HTMLDivElement>('#lab')!;
 root.innerHTML = `

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { SHAPES } from '../../apps/web/src/avatar-lab/engine';
 test('private first use, native onboarding, idle keepalive, reconnection, settings and ordinary login', async ({
   page,
   context,
@@ -65,10 +66,10 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
     'true',
   );
   await expect(picker.locator('.avatar-preview svg.avatar')).toHaveCount(1);
-  await expect(picker.locator('.avatar-shapes button')).toHaveCount(5);
+  await expect(picker.locator('.avatar-shapes button')).toHaveCount(SHAPES.length);
   await expect(picker.locator('.avatar-shapes')).toHaveText('');
   await expect(picker.locator('.avatar-colors')).toHaveText('');
-  const face = picker.locator('.avatar-preview g[fill="#222329"]');
+  const face = picker.locator('.avatar-preview [data-avatar-part="body"]');
   const initialGaze = await face.getAttribute('transform');
   await page.clock.runFor(7100);
   expect(await face.getAttribute('transform')).not.toBe(initialGaze);
@@ -82,7 +83,7 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await page.locator('.handle-input input').fill('aurora');
   await page.getByRole('button', { name: 'White', exact: true }).click();
   await page.getByRole('button', { name: 'petal', exact: true }).click();
-  await expect(picker.locator('.avatar-shapes path')).toHaveCount(5);
+  await expect(picker.locator('.avatar-shapes path')).toHaveCount(SHAPES.length);
   for (const path of await picker.locator('.avatar-shapes path').all())
     await expect(path).toHaveAttribute('fill', '#f4f3ef');
   await expect(picker.locator('.avatar-preview path[fill="#f4f3ef"]')).toHaveCount(1);
@@ -126,8 +127,8 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await page.getByRole('menuitem', { name: 'New crew', exact: true }).click();
   const crew = page.getByRole('dialog', { name: 'New crew', exact: true });
   await crew.getByLabel('Name', { exact: true }).fill('Research');
-  await crew.getByRole('button', { name: 'Create crew', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Research', exact: true })).toBeVisible();
+  await crew.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Research .*Open chat$/ })).toBeVisible();
   await page.getByRole('button', { name: 'Actions for Alpha', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
   const png = await page.evaluate(() => {
@@ -150,22 +151,29 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   );
   await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
   await expect(
-    page.getByRole('navigation', { name: 'Pebbles' }).locator('.agent-avatar img'),
+    page
+      .getByRole('navigation', { name: 'Pebbles', includeHidden: true })
+      .locator('.agent-avatar img'),
   ).toHaveCount(1);
   await page.getByRole('button', { name: 'Animated', exact: true }).click();
   await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
   await expect(
-    page.getByRole('navigation', { name: 'Pebbles' }).locator('.agent-avatar img'),
+    page
+      .getByRole('navigation', { name: 'Pebbles', includeHidden: true })
+      .locator('.agent-avatar img'),
   ).toHaveCount(0);
   await page.getByRole('button', { name: 'Photo', exact: true }).click();
   await page.getByRole('button', { name: 'Save avatar', exact: true }).click();
   await expect(
-    page.getByRole('navigation', { name: 'Pebbles' }).locator('.agent-avatar img'),
+    page
+      .getByRole('navigation', { name: 'Pebbles', includeHidden: true })
+      .locator('.agent-avatar img'),
   ).toHaveCount(1);
   await page.getByRole('tab', { name: 'Role', exact: true }).click();
   await page.getByLabel('Title', { exact: true }).fill('Team lead');
   await page.getByLabel('Description', { exact: true }).fill('Coordinates synthetic research');
   await page.getByRole('button', { name: 'Save role', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Role saved.');
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Team lead');
   await page.getByRole('button', { name: 'Close Edit Alpha', exact: true }).click();
   await page.getByRole('button', { name: 'Your account' }).click();

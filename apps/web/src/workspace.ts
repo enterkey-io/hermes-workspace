@@ -1,6 +1,7 @@
+import type { Shape } from './avatar-lab/engine';
 export type Appearance = {
   kind: 'shape' | 'photo';
-  shape: 'pebble' | 'beacon' | 'petal' | 'kite' | 'arch';
+  shape: Shape;
   color: string;
 };
 export type Role = {

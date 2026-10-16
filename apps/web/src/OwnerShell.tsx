@@ -1,3 +1,5 @@
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 import { useEffect, useState } from 'react';
 import { App } from './App';
 
@@ -127,7 +129,9 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
         {mode === 'unavailable' ? (
           <>
             <p>The app isn’t responding. Try again in a moment.</p>
-            <button onClick={() => void check()}>Try again</button>
+            <Button variant="secondary" onClick={() => void check()}>
+              Try again
+            </Button>
           </>
         ) : mode === 'loading' ? null : (
           <>
@@ -138,7 +142,7 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
               {mode === 'setup' && !usingSetupLink && (
                 <label>
                   Private setup code
-                  <input
+                  <Input
                     required
                     autoComplete="off"
                     value={proof}
@@ -148,7 +152,7 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
               )}
               <label>
                 Username
-                <input
+                <Input
                   required
                   autoComplete="username"
                   minLength={3}
@@ -161,7 +165,7 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
               </label>
               <label>
                 Password
-                <input
+                <Input
                   required
                   type="password"
                   autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
@@ -175,7 +179,7 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
               {mode === 'setup' && (
                 <label>
                   Confirm password
-                  <input
+                  <Input
                     required
                     type="password"
                     autoComplete="new-password"
@@ -189,9 +193,9 @@ export function OwnerShell({ setupProof = '' }: { setupProof?: string } = {}) {
                   {error}
                 </p>
               )}
-              <button className="primary" disabled={busy}>
+              <Button variant="default" className="primary" disabled={busy}>
                 {busy ? 'Please wait…' : mode === 'setup' ? 'Create login' : 'Sign in'}
-              </button>
+              </Button>
             </form>
             {mode === 'login' && (
               <details>

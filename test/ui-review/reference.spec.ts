@@ -21,7 +21,7 @@ test.beforeEach(async ({ page }) => {
 test('rail actions have their own space; search preserves layout and returns focus', async ({
   page,
 }) => {
-  for (const selector of ['.review-row', '.review-pin']) {
+  for (const selector of ['.pc-row', '.pc-pin']) {
     const regions = await page.locator(selector).evaluateAll((rows) =>
       rows.map((row) => {
         const action = row.querySelector('[aria-haspopup="menu"]')!.getBoundingClientRect();
@@ -34,14 +34,14 @@ test('rail actions have their own space; search preserves layout and returns foc
     );
     for (const r of regions) expect(r.overlapX <= 0 || r.overlapY <= 0).toBe(true);
   }
-  const before = await page.locator('.review-rail-header').boundingBox();
+  const before = await page.locator('.pc-rail-header').boundingBox();
   await page.getByRole('button', { name: 'Search Pebble Crew', exact: true }).click();
   await page.getByRole('combobox').fill('launch');
   await expect(
     page.getByRole('option', { name: 'The launch brief is ready Arlo · Today' }),
   ).toBeVisible();
   await expect(page.getByText('Sample results', { exact: true })).toBeVisible();
-  expect(await page.locator('.review-rail-header').boundingBox()).toEqual(before);
+  expect(await page.locator('.pc-rail-header').boundingBox()).toEqual(before);
   await page.keyboard.press('Escape');
   await settled(page);
   await expect(page.getByRole('button', { name: 'Search Pebble Crew', exact: true })).toBeFocused();
@@ -69,7 +69,7 @@ test('picker identity and selections survive filtering and compact resize', asyn
   await settled(page);
   await page.getByRole('checkbox', { name: 'Add Indigo', exact: true }).check();
   const label = page
-    .locator('.review-existing-item')
+    .locator('.pc-existing-item')
     .filter({ has: page.getByRole('checkbox', { name: 'Add Indigo', exact: true }) });
   const original = await label.textContent();
   await page.getByLabel('Find an existing agent').fill('Indigo');
@@ -89,11 +89,11 @@ test('details stays docked on tablet, keeps chat usable and has a single header 
   await settled(page);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect
-    .poll(async () => (await page.locator('.review-details-slot').boundingBox())?.width)
+    .poll(async () => (await page.locator('.pc-details-slot').boundingBox())?.width)
     .toBeCloseTo(288, 0);
   const geometry = await page.evaluate(() => ({
-    panel: document.querySelector('.review-details')!.getBoundingClientRect().toJSON(),
-    main: document.querySelector('.review-main')!.getBoundingClientRect().toJSON(),
+    panel: document.querySelector('.pc-details')!.getBoundingClientRect().toJSON(),
+    main: document.querySelector('.pc-main')!.getBoundingClientRect().toJSON(),
   }));
   expect(geometry.panel.x).toBeCloseTo(geometry.main.right, 0);
   expect(geometry.panel.height).toBeCloseTo(829, 0);
@@ -108,7 +108,7 @@ test('details stays docked on tablet, keeps chat usable and has a single header 
   await expect(page.getByRole('button', { name: 'Mica details', exact: true })).toBeFocused();
   await page.getByRole('button', { name: 'Mica details', exact: true }).click();
   await settled(page);
-  expect((await page.locator('.review-details-slot').boundingBox())?.width).toBeCloseTo(288, 0);
+  expect((await page.locator('.pc-details-slot').boundingBox())?.width).toBeCloseTo(288, 0);
 });
 
 test('send has one stable bubble and immediate metadata; attachments use File and Photo', async ({
@@ -116,7 +116,7 @@ test('send has one stable bubble and immediate metadata; attachments use File an
 }) => {
   await page.getByLabel('Message', { exact: true }).fill('A stable preview message');
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
-  const bubble = page.locator('.review-message').filter({ hasText: 'A stable preview message' });
+  const bubble = page.locator('.pc-message').filter({ hasText: 'A stable preview message' });
   const id = await bubble.getAttribute('data-message-id');
   const time = await bubble.locator('time').textContent();
   expect(time).toBeTruthy();
@@ -142,9 +142,9 @@ test('desktop shell width and panel travel share one clock in both directions', 
               [];
             const start = performance.now();
             const frame = () => {
-              const main = document.querySelector('.review-main')!.getBoundingClientRect(),
-                slot = document.querySelector('.review-details-slot')!.getBoundingClientRect(),
-                panel = document.querySelector('.review-details-fixed')!.getBoundingClientRect();
+              const main = document.querySelector('.pc-main')!.getBoundingClientRect(),
+                slot = document.querySelector('.pc-details-slot')!.getBoundingClientRect(),
+                panel = document.querySelector('.pc-details-fixed')!.getBoundingClientRect();
               frames.push({
                 t: performance.now() - start,
                 mainRight: main.right,
@@ -180,7 +180,7 @@ test('desktop shell width and panel travel share one clock in both directions', 
 test('avatars turn both directions with asymmetric eyes; reduced motion stays static', async ({
   page,
 }) => {
-  const row = page.locator('.review-row').first(),
+  const row = page.locator('.pc-row').first(),
     svg = row.locator('svg.avatar');
   async function pose() {
     return svg.evaluate((node) =>
@@ -243,7 +243,7 @@ test('account and attachment menus use the shared dark, borderless surface', asy
     await page.keyboard.press('Escape');
     await settled(page);
   }
-  const scrollbars = await page.locator('.review-transcript').evaluate((el) => ({
+  const scrollbars = await page.locator('.pc-transcript').evaluate((el) => ({
     width: getComputedStyle(el).scrollbarWidth,
     color: getComputedStyle(el).scrollbarColor,
   }));
@@ -252,7 +252,7 @@ test('account and attachment menus use the shared dark, borderless surface', asy
 });
 
 test('crews open independent chats; their menu owns crew settings', async ({ page }) => {
-  await page.getByRole('button', { name: 'Open Studio chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Studio .*Open chat$/ }).click();
   await expect(page.getByLabel('Message', { exact: true })).toHaveAttribute(
     'placeholder',
     'Message Studio',
@@ -263,7 +263,7 @@ test('crews open independent chats; their menu owns crew settings', async ({ pag
   await expect(page.getByRole('status')).toHaveText('Thinking');
   await page.getByRole('button', { name: 'Open Arlo', exact: true }).click();
   await expect(page.getByText('Crew-only message', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Open Studio chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Studio .*Open chat$/ }).click();
   await expect(page.getByText('Crew-only message', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Actions for Studio', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Crew settings', exact: true }).click();
@@ -283,28 +283,28 @@ test('sections can be created, collapsed, reordered and receive pebbles through 
   await page.getByRole('menuitemradio', { name: 'Projects', exact: true }).click();
   await settled(page);
   const section = page.getByRole('region', { name: 'Projects', exact: true });
-  await expect(section.getByRole('button', { name: 'Open Rowan', exact: true })).toBeVisible();
+  await expect(section.getByRole('button', { name: /^Open Rowan / })).toBeVisible();
   await section.getByRole('button', { name: 'Projects', exact: true }).click();
-  await expect(section.getByRole('button', { name: 'Open Rowan', exact: true })).toHaveCount(0);
+  await expect(section.getByRole('button', { name: /^Open Rowan / })).toHaveCount(0);
   await section.getByRole('button', { name: 'Projects', exact: true }).click();
   await page.getByRole('button', { name: 'Actions for Projects section', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Move up', exact: true }).click();
   await settled(page);
   expect(
     await page
-      .locator('.review-list')
+      .locator('.pc-list')
       .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('aria-label'))),
   ).toEqual(['Personal', 'Projects', 'Crews']);
   await section
-    .locator('.review-row')
+    .locator('.pc-row')
     .dragTo(
-      page.getByRole('region', { name: 'Personal', exact: true }).locator('.review-section-header'),
+      page.getByRole('region', { name: 'Personal', exact: true }).locator('.pc-section-header'),
     );
   await settled(page);
   await expect(
     page
       .getByRole('region', { name: 'Personal', exact: true })
-      .getByRole('button', { name: 'Open Rowan', exact: true }),
+      .getByRole('button', { name: /^Open Rowan / }),
   ).toBeVisible();
 });
 
@@ -321,12 +321,12 @@ test('pebbles move between crews and retain their identity and selected conversa
   await page.getByRole('menuitemradio', { name: 'Research', exact: true }).click();
   await settled(page);
   await expect(
-    page.getByLabel('Research pebbles').getByRole('button', { name: 'Open Ember', exact: true }),
+    page.getByLabel('Research pebbles').getByRole('button', { name: /^Open Ember / }),
   ).toBeVisible();
   await expect(
-    page.getByLabel('Studio pebbles').getByRole('button', { name: 'Open Ember', exact: true }),
+    page.getByLabel('Studio pebbles').getByRole('button', { name: /^Open Ember / }),
   ).toHaveCount(0);
-  await page.getByRole('button', { name: 'Open Ember', exact: true }).click();
+  await page.getByRole('button', { name: /^Open Ember / }).click();
   await expect(page.getByRole('button', { name: 'Ember details', exact: true })).toBeVisible();
 });
 
@@ -361,7 +361,7 @@ test('thinking and working use one quiet shimmering label, stable geometry, and 
 });
 
 test('equal face-relative pointer distances reach equal left and right gaze', async ({ page }) => {
-  const row = page.locator('.review-row.pebble-row').first(),
+  const row = page.locator('.pc-row.pebble-row').first(),
     svg = row.locator('svg.avatar'),
     box = (await svg.boundingBox())!;
   async function center() {
@@ -392,14 +392,14 @@ test('phone details occupies the interface without a modal and returns focus to 
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await expect
-    .poll(async () => (await page.locator('.review-details-slot').boundingBox())?.width)
+    .poll(async () => (await page.locator('.pc-details-slot').boundingBox())?.width)
     .toBeCloseTo(390, 0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('.review-main')).toHaveAttribute('inert', '');
+  await expect(page.locator('.pc-main')).toHaveAttribute('inert', '');
   await page.getByRole('button', { name: 'Close details', exact: true }).click();
   await settled(page);
   await expect(page.getByRole('button', { name: 'Arlo details', exact: true })).toBeFocused();
-  await expect(page.locator('.review-main')).not.toHaveAttribute('inert');
+  await expect(page.locator('.pc-main')).not.toHaveAttribute('inert');
   await page.getByRole('button', { name: 'Arlo details', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Arlo', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -409,7 +409,7 @@ test('phone details occupies the interface without a modal and returns focus to 
 test('crew drafts and chosen files remain with their originating conversation', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Open Studio chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Studio .*Open chat$/ }).click();
   await page.getByLabel('Message', { exact: true }).fill('Crew draft');
   await page.getByLabel('Choose files', { exact: true }).setInputFiles({
     name: 'crew-notes.txt',
@@ -421,7 +421,7 @@ test('crew drafts and chosen files remain with their originating conversation', 
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue('');
   await expect(page.getByText('crew-notes.txt', { exact: true })).toHaveCount(0);
   await page.getByLabel('Message', { exact: true }).fill('Arlo draft');
-  await page.getByRole('button', { name: 'Open Studio chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Studio .*Open chat$/ }).click();
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue('Crew draft');
   await expect(page.getByText('crew-notes.txt', { exact: true })).toBeVisible();
 });

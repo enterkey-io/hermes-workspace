@@ -1,5 +1,16 @@
 /** Original procedural study. No vendor artwork or animation runtime. */
-export const SHAPES = ['pebble', 'beacon', 'petal', 'kite', 'arch'] as const;
+export const SHAPES = [
+  'pebble',
+  'beacon',
+  'petal',
+  'kite',
+  'arch',
+  'cairn',
+  'seed',
+  'dune',
+  'flint',
+  'drift',
+] as const;
 export type Shape = (typeof SHAPES)[number];
 export const STATES = ['ready', 'thinking', 'working', 'waiting', 'attention', 'done'] as const;
 export type Activity = (typeof STATES)[number];
@@ -11,6 +22,11 @@ export const COLORS = [
   { id: 'rose', label: 'Rose', hex: '#e7a5ba' },
   { id: 'sky', label: 'Sky', hex: '#9bbfe8' },
   { id: 'white', label: 'White', hex: '#f4f3ef' },
+  { id: 'umber', label: 'Umber', hex: '#9c7658' },
+  { id: 'moss', label: 'Moss', hex: '#789463' },
+  { id: 'ocean', label: 'Ocean', hex: '#5e8fb5' },
+  { id: 'heather', label: 'Heather', hex: '#8b76b5' },
+  { id: 'sienna', label: 'Sienna', hex: '#b67559' },
 ] as const;
 
 /** Fixed normalized paths can be replayed as native vector paths on other platforms. */
@@ -21,6 +37,13 @@ export const BODY_PATHS: Record<Shape, string> = {
   petal: 'M50 22 C70 4 94 27 80 48 C100 66 76 93 53 80 C34 99 6 78 21 54 C2 33 27 7 50 22 Z',
   kite: 'M43 14 Q50 8 58 15 L85 43 Q93 50 85 59 L59 85 Q50 94 42 85 L15 59 Q7 50 15 42 Z',
   arch: 'M17 54 C17 0 83 0 83 54 L83 75 Q83 86 72 86 L28 86 Q17 86 17 75 Z',
+  cairn: 'M34 18 Q50 10 67 20 L86 65 Q92 83 74 87 L25 87 Q9 84 15 68 Z',
+  seed: 'M27 22 C49 9 77 10 86 32 C98 56 72 82 36 90 C17 83 9 49 27 22 Z',
+  dune: 'M12 56 C14 36 28 20 45 19 C62 18 62 10 75 17 C87 24 89 42 88 59 C89 77 75 87 51 87 C28 90 8 80 12 56 Z',
+  flint:
+    'M22 22 Q25 16 34 16 L64 12 Q71 12 77 21 L91 46 Q95 54 87 63 L66 87 Q61 92 51 88 L18 76 Q10 73 12 61 L15 35 Q16 26 22 22 Z',
+  drift:
+    'M13 35 C21 14 42 17 56 23 C70 28 87 18 92 39 C98 60 86 77 66 82 C48 89 31 85 18 74 C7 63 6 49 13 35 Z',
 };
 
 export interface Pose {

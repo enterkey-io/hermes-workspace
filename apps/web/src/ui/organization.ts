@@ -15,27 +15,6 @@ export type OrganizationEditor =
   | { kind: 'new-crew' }
   | { kind: 'edit-crew'; id: string };
 
-export const initialOrganization: Organization = {
-  sections: [
-    {
-      id: 'personal',
-      name: 'Personal',
-      collapsed: false,
-      items: ['sample-0', 'sample-1', 'sample-2', 'sample-3'].map((id) => ({ kind: 'pebble', id })),
-    },
-    { id: 'crews', name: 'Crews', collapsed: false, items: [{ kind: 'crew', id: 'studio' }] },
-  ],
-  crews: [
-    {
-      id: 'studio',
-      name: 'Studio',
-      purpose: 'Design and writing',
-      collapsed: false,
-      members: ['sample-4', 'sample-5'],
-    },
-  ],
-};
-
 function insertBefore<T>(items: T[], item: T, before: (value: T) => boolean) {
   const index = items.findIndex(before);
   const next = [...items];
@@ -210,4 +189,95 @@ export function readRailDrag(
   if (kind === 'crew' && org.crews.some((c) => c.id === id)) return { kind, id };
   if (kind === 'section' && org.sections.some((s) => s.id === id)) return { kind, id };
   return undefined;
+}
+
+export type OrganizationState = Organization & { revision: number };
+/** Validate the plugin boundary before the UI operates on placement identities. */
+export function organizationState(value: unknown): OrganizationState {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('revision' in value) ||
+    !Number.isSafeInteger(value.revision) ||
+    !('sections' in value) ||
+    !Array.isArray(value.sections) ||
+    !value.sections.length ||
+    value.sections.length > 100 ||
+    !('crews' in value) ||
+    !Array.isArray(value.crews) ||
+    value.crews.length > 100
+  )
+    throw new Error('Invalid sidebar organization');
+  const named = (v: unknown): v is { id: string; name: string; collapsed: boolean } =>
+    !!v &&
+    typeof v === 'object' &&
+    'id' in v &&
+    typeof v.id === 'string' &&
+    'name' in v &&
+    typeof v.name === 'string' &&
+    'collapsed' in v &&
+    typeof v.collapsed === 'boolean';
+  const sections: Section[] = value.sections.map((s: unknown) => {
+    if (!named(s) || !('items' in s) || !Array.isArray(s.items) || s.items.length > 1000)
+      throw new Error('Invalid section');
+    const items: RailItem[] = s.items.map((i: unknown) => {
+      if (
+        !i ||
+        typeof i !== 'object' ||
+        !('kind' in i) ||
+        !['pebble', 'crew'].includes(String(i.kind)) ||
+        !('id' in i) ||
+        typeof i.id !== 'string'
+      )
+        throw new Error('Invalid placement');
+      return { kind: i.kind === 'pebble' ? 'pebble' : 'crew', id: i.id };
+    });
+    return { id: s.id, name: s.name, collapsed: s.collapsed, items };
+  });
+  const crews: Crew[] = value.crews.map((c: unknown) => {
+    if (
+      !named(c) ||
+      !('purpose' in c) ||
+      typeof c.purpose !== 'string' ||
+      !('members' in c) ||
+      !Array.isArray(c.members) ||
+      c.members.length > 1000 ||
+      !c.members.every((i: unknown) => typeof i === 'string')
+    )
+      throw new Error('Invalid crew');
+    return {
+      id: c.id,
+      name: c.name,
+      collapsed: c.collapsed,
+      purpose: c.purpose,
+      members: c.members,
+    };
+  });
+  return { revision: Number(value.revision), sections, crews };
+}
+
+export function removeCrew(org: Organization, id: string): Organization {
+  const crew = org.crews.find((c) => c.id === id);
+  if (!crew) return org;
+  return {
+    crews: org.crews.filter((c) => c.id !== id),
+    sections: org.sections.map((s, i) => ({
+      ...s,
+      items: [
+        ...s.items.filter((item) => item.kind !== 'crew' || item.id !== id),
+        ...(i === 0 ? crew.members.map((member) => ({ kind: 'pebble' as const, id: member })) : []),
+      ],
+    })),
+  };
+}
+export function removeSection(org: Organization, id: string): Organization {
+  if (org.sections.length < 2) return org;
+  const section = org.sections.find((s) => s.id === id);
+  if (!section) return org;
+  return {
+    ...org,
+    sections: org.sections
+      .filter((s) => s.id !== id)
+      .map((s, i) => (i === 0 ? { ...s, items: [...s.items, ...section.items] } : s)),
+  };
 }

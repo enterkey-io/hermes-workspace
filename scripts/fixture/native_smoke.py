@@ -294,6 +294,21 @@ async def exercise(root, home, port, *, seed_only=False):
         assert created.get('ok') is True
         await ops.enable_existing('delete-probe')
         snapshot = await service.invoke('workspace.snapshot', {})
+        org = await service.invoke('organization.get', {})
+        members = [b['id'] for b in snapshot['workspace']['bots'] if b['profile'] in {'alpha', 'beta'}]
+        assert len(members) == 2
+        sections = [{**section, 'items': [item for item in section['items'] if item['kind'] != 'pebble' or item['id'] not in members]} for section in org['sections']]
+        crews = [{**crew, 'members': [i for i in crew['members'] if i not in members]} for crew in org['crews']]
+        crews.append({'id': 'native-review-crew', 'name': 'Native review crew', 'purpose': '', 'collapsed': False, 'members': members})
+        sections[0]['items'].append({'kind': 'crew', 'id': 'native-review-crew'})
+        saved = await service.invoke('organization.save', {'organization': {'sections': sections, 'crews': crews}, 'expected_revision': org['revision']})
+        target = {'id': 'native-review-crew', 'expected_revision': saved['revision'], 'confirm_new': False}
+        crew_chat = await service.invoke('organization.chat', target)
+        crew_again = await service.invoke('organization.chat', target)
+        assert crew_chat['state'] == 'ready' and crew_chat['room']['room_id'] == crew_again['room']['room_id']
+        assert {m['profile'] for m in crew_chat['room']['members']} == {'alpha', 'beta'}
+        linked = await service.invoke('workspace.snapshot', {})
+        assert linked['crew_chats']['native-review-crew'] == crew_chat['room']['room_id']
         bot = next(b for b in snapshot['workspace']['bots'] if b['profile'] == 'delete-probe')
         alpha_clock = next(b for b in snapshot['workspace']['bots'] if b['profile'] == 'alpha')
         assert alpha_clock['cursor_type'] == 'row' and alpha_clock['cursor'] > 0
@@ -322,7 +337,7 @@ async def exercise(root, home, port, *, seed_only=False):
         assert next(b for b in current['bots'] if b['profile'] == 'delete-probe')['id'] != bot['id']
         store.db.close()
         print(json.dumps({"native_bot_mode": "pass", "canonical_continuity": "pass",
-            "native_attachment_tool_read": "pass", "native_image_history": "pass", "attachment_download_restart": "pass", "attachment_receipt_no_replay": "pass", "typed_room_creation": "pass",
+            "native_attachment_tool_read": "pass", "native_image_history": "pass", "attachment_download_restart": "pass", "attachment_receipt_no_replay": "pass", "typed_room_creation": "pass", "persistent_native_crew_chat": "pass",
             "native_message_agent_injection": "pass", "owner_scoped_routines": "pass",
             "native_teammate_delivery": "pass", "native_room_driver_execution": "pass",
             "native_denied_approval": "pass", "native_stop": "pass",

@@ -3,6 +3,7 @@ export type ChatMessage = {
   role: string;
   text: string;
   id?: string | undefined;
+  renderKey?: string | undefined;
   author?: string | undefined;
   timestamp?: string | number | undefined;
   source?: Row;

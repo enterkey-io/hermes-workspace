@@ -1,3 +1,6 @@
+import { Textarea } from './components/ui/textarea';
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 import { useEffect, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { safeError } from '@hermes-client/core';
@@ -56,9 +59,13 @@ export function NewPebble({
   if (mode === 'existing')
     return (
       <div className="entity-page">
-        <button className="text-button back-button" onClick={() => setMode('choose')}>
+        <Button
+          variant="ghost"
+          className="text-button back-button"
+          onClick={() => setMode('choose')}
+        >
           ← New pebble
-        </button>
+        </Button>
         <AgentPicker
           client={client}
           connected={connected}
@@ -129,24 +136,25 @@ export function NewPebble({
       {error && <Notice error>{error}</Notice>}
       {mode === 'choose' ? (
         <div className="creation-choices">
-          <button onClick={() => setMode('existing')}>
+          <Button variant="secondary" onClick={() => setMode('existing')}>
             <strong>Add existing</strong>
             <span>Bring in one of your Hermes agents.</span>
-          </button>
-          <button onClick={() => setMode('create')}>
+          </Button>
+          <Button variant="secondary" onClick={() => setMode('create')}>
             <strong>Create new</strong>
             <span>Start a fresh pebble with its own personality.</span>
-          </button>
+          </Button>
         </div>
       ) : (
         <>
-          <button
+          <Button
+            variant="ghost"
             className="text-button back-button"
             disabled={busy}
             onClick={() => setMode('choose')}
           >
             ← Choose another option
-          </button>
+          </Button>
           {request ? (
             <RequestReview
               request={request}
@@ -164,7 +172,7 @@ export function NewPebble({
               >
                 <label>
                   Name
-                  <input
+                  <Input
                     required
                     maxLength={80}
                     autoComplete="off"
@@ -185,7 +193,7 @@ export function NewPebble({
                   Handle
                   <span className="handle-input">
                     <span aria-hidden>@</span>
-                    <input
+                    <Input
                       aria-label="Handle"
                       required
                       pattern="[a-z][a-z0-9-]{1,39}"
@@ -202,7 +210,7 @@ export function NewPebble({
                 </label>
                 <label>
                   Description
-                  <textarea
+                  <Textarea
                     rows={2}
                     maxLength={1000}
                     value={description}
@@ -211,7 +219,7 @@ export function NewPebble({
                 </label>
                 <label>
                   Instructions
-                  <textarea
+                  <Textarea
                     rows={4}
                     maxLength={12000}
                     placeholder="How should this pebble work?"
@@ -233,12 +241,13 @@ export function NewPebble({
                   </Notice>
                 )}
                 <div className="form-actions">
-                  <button
+                  <Button
+                    variant="default"
                     className="primary"
                     disabled={busy || !connected || loading || !model?.supported}
                   >
                     {busy ? 'Preparing…' : 'Review pebble'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </FormSection>

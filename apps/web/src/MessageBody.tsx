@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Copy, Check } from 'lucide-react';
+import { IconButton } from './components/ui/icon-button';
 
 function CodeBlock({ children }: { children?: ReactNode }) {
   const code = useRef<HTMLPreElement>(null);
@@ -58,18 +60,17 @@ export function MessageBody({ text }: { text: string }) {
 export function CopyMessage({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
+    <IconButton
       className="copy-message"
-      type="button"
-      aria-label="Copy message"
+      label={copied ? 'Copied' : 'Copy message'}
+      icon={copied ? Check : Copy}
+      quiet
       onClick={() => {
         void navigator.clipboard
           .writeText(text)
           .then(() => setCopied(true))
           .catch(() => setCopied(false));
       }}
-    >
-      {copied ? 'Copied' : 'Copy'}
-    </button>
+    />
   );
 }

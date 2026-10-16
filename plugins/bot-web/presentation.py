@@ -99,6 +99,9 @@ async def snapshot(service, fresh=False):
     result = {'workspace': state, 'bots': [service.ops.summary(r) for r in profiles
         if isinstance(r.get('ui_meta', {}).get('hermes-bots'), dict) and not r['ui_meta']['hermes-bots'].get('hidden')],
         'rooms': rooms.get('rooms', []), 'preferences': preferences(service.store)}
+    from .organization import read as organization, chat_links
+    result['organization'] = organization(service, service.store.read())
+    result['crew_chats'] = chat_links(service, service.store.read())
     result['revision'] = hashlib.sha256(json.dumps(result, sort_keys=True, default=str).encode()).hexdigest()
     service._snapshot = (time.monotonic(), deepcopy(result))
     return result

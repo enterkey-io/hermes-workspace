@@ -1,6 +1,6 @@
 # UI reset independent review
 
-Status: **prototype foundation direction accepted within the observations below; production migration not reviewed**. This file is an executable acceptance record, not a declaration of completion. Reviewer must be independent of the production implementer and inspect the actual built UI. Reference contract: [UI_SYSTEM_RESET.md](UI_SYSTEM_RESET.md).
+Status: **production migration independently accepted within the recorded UI test scope; native and package verification recorded separately**. This file is an executable acceptance record, not a declaration of completion. Reviewer must be independent of the production implementer and inspect the actual built UI. Reference contract: [UI_SYSTEM_RESET.md](UI_SYSTEM_RESET.md).
 
 ## Record before reviewing
 
@@ -115,3 +115,22 @@ browser tests; no new independent review or production migration is implied.
 Activity must have an observed Thinking → Working → reply progression, one
 shimmering text label, no dots, stable metadata/layout and a static reduced-motion
 equivalent. Verify the native event mapping separately during production work.
+
+## Independent production UI review — 2026-10-16
+
+**Scoped acceptance:** the migrated production UI is accepted for the interactions and visual states below. The independent Astra reviewer drove the actual built app at localhost8093 using intercepted synthetic native fixtures, separate from the implementer. This supersedes the earlier prototype-only verdict for this tested scope. No owner data, model calls, native services or production source were changed by the reviewer.
+
+Production passes covered 1440px desktop, 1200px tablet, 390px phone and 320px compact forms: Settings Account/Connections/Requests, Add existing and New pebble, Profile/Role/Tools editing, rail/pin menus, search and historical-result preview, and docked details. The initial nine findings were corrected and rechecked at their stated evidence level: dirty changes survive Escape/Back; creation has reachable scrolling/actions at 320px; Settings restores transcript position; opening/closing details follows the latest message; Tools check rows are spaced; the completion-before-receipt send race retains its optimistic render key. Search metadata-only roster reads, native visible-message projection and explicit authorized context targets were inspected in source; exact historical preview navigation was exercised with synthetic responses, not inferred to be a native integration test.
+
+Final residual-focus checks observed Keep editing focused inside the top dirty confirmation, focus returning to the changed field, preview Back returning to Search, and phone details receiving focus before Escape restores the header. Latest narrowly reviewed asset was `workspace-CXet8dQt.js`: owner rows compute a 50% maximum width, reply surfaces are #202022, header remains transparent on hover, only its arrow translates 3px, and expansion rotates the arrow 90°. Settled screenshots were inspected; no contrast defect or runtime page error was observed in these sampled states.
+
+**Accessibility evidence is qualified.** Settled dialog/preview samples had no axe violations. Base-chat axe still reports `label-content-name-mismatch` after labels were corrected, but the exact diagnostic now shows an automated whitespace-boundary mismatch: visible DOM fragments concatenate as `MicaExecutive assistant` / `RowanOperationsThe weekly report is ready.`, while their accessible names correctly contain those words with spaces and the Bot Chat action. Manual review accepts the corrected human-readable labels; do not remove spaces from accessible names merely to satisfy this comparator. The full details view also has moderate landmark/heading best-practice findings, and a focused Search tooltip can produce a moderate region finding. These are recorded limits, not an assertion of a clean full accessibility audit.
+
+Remaining release gates require separate evidence: real owner-local native search across authorized historical chats/files/routines and revocation/incarnation changes; native approvals, file and organization persistence races; error/uncertain-send/reconnect behavior; large service/request datasets; interrupted reading-anchor motion; physical mobile keyboard and assistive-technology testing; full avatar catalogue pose/size/expression/performance coverage; packaging and native installation. Search implementation is present, but this UI fixture review does not certify those backend guarantees. Parent-run native/plugin tests must retain their own results. The detailed ignored evidence is `artifacts/ui-reset/astra/production/REVIEW.md` with pass1–pass4 JSON and settled screenshots; this committed checklist preserves the review verdict and boundaries even when those artifacts are absent.
+
+Implementer follow-up after the scoped independent acceptance: explicit JSX text
+boundaries now separate visible name/role/preview fragments, the Main Pebble badge
+uses a vector star, and rail/details landmarks have distinct labels. Full settled
+axe scans of the actual chat and expanded details reported zero violations, with
+no page errors (`artifacts/release-0.7/final/review.json`). This supplementary scan
+does not expand the independent review's native, device or formal conformance scope.

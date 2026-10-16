@@ -5,7 +5,7 @@ installable plugin. It includes the web app, local administrator login and nativ
 integration, served through one owner-controlled address. All state stays on the
 owner's infrastructure; no vendor account, content store or relay is required.
 
-The combined-plugin candidate is **0.6.0-preview.1** (integration 0.6.0). This is a
+The combined-plugin candidate is **0.7.0-preview.1** (integration 0.7.0). This is a
 development preview, not production certification. A version in source does not
 mean its release is published or an owner's host was upgraded. See
 [implementation status](docs/IMPLEMENTATION_STATUS.md).
@@ -34,7 +34,7 @@ valid TLS and any local-network permission.
 ## Workspace features
 
 Existing-agent discovery/enrollment, native canonical chats, streaming, approvals,
-Stop, existing crews and bot-owned routine controls. A sectioned rail with pins, native previews and read state, crew participants, per-conversation drafts and scroll positions, and responsive details/navigation drawers. Native Hide/Unhide and owner-reviewed Delete update the roster automatically, including changes made outside the app. Crews and editable roles/reporting,
+Stop, existing crews and bot-owned routine controls. A sectioned rail with pins, native previews and read state, crew participants, per-conversation drafts and scroll positions, and integrated details panels and responsive navigation. Native Hide/Unhide and owner-reviewed Delete update the roster automatically, including changes made outside the app. Crews and editable roles/reporting,
 one starred Main Pebble, public-handle routing and saved appearances. A real
 `workspace_agents` plugin tool and bundled skill submit exact management proposals
 for owner review; models cannot self-approve or grant privileges.
@@ -47,12 +47,16 @@ OAuth/PKCE and individual tool selection. Configuration and successful discovery
 are distinct from activation in an already-running agent.
 
 The shared avatar renderer uses original vector shapes and one visibility-aware
-scheduler. White and user photos are supported. Photos are normalized locally and
+scheduler. Ten original shapes, twelve colors (including White) and user photos are supported. Photos are normalized locally and
 independently validated/re-encoded before native Hermes asset storage. The isolated
 `/avatar-lab.html` remains available for motion/performance experiments without any
 Hermes or model requests. See the [avatar plan](docs/AVATAR_SYSTEM_PLAN.md).
 
 Direct pebble chats support private file pick/paste/drop and authenticated downloads in Files. On supported Linux Hermes hosts, the experimental native Computer viewer (disabled by default pending host acceptance) uses one-use tickets and native watch/control leases. It shares the host security boundary; it is not an isolated computer per pebble.
+
+Owner-local search covers visible native Bot Chat history, routines and supported
+sent-file text with explicit limits. Custom sections/Crews persist independently
+of profile roles; a Crew opens or reuses a real native room.
 
 ## Interface work and owner reports
 

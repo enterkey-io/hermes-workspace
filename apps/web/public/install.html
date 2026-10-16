@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Install Pebble Crew</title><link rel="stylesheet" href="/install.css"></head><body><header><a href="/">← Back to app</a></header><main><section class="owner-note"><p class="eyebrow">FOR THE OWNER</p><h1>Give this page to your Hermes agent.</h1><p>Your agent installs the plugin on your Hermes host, sets up reliable startup and a private web address, then gives you one private setup link. Open it to create your administrator login and bring in your existing primary agent.</p><p>The plugin includes the web app. Your conversations, memory, service credentials and login stay on your infrastructure. No pairing conversation is needed.</p><a href="/install.md">Read or copy the plain-text instructions ↗</a></section><nav aria-label="Installer downloads"><a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-manifest.json">Package manifest</a><a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-plugin-preview.zip">Complete plugin</a><a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-source-preview.zip">Source code</a></nav><article><h1>Install Pebble Crew</h1>
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Install Pebble Crew</title><link rel="stylesheet" href="/install.css"></head><body><header><a href="/">← Back to app</a></header><main><section class="owner-note"><p class="eyebrow">FOR THE OWNER</p><h1>Give this page to your Hermes agent.</h1><p>Your agent installs the plugin on your Hermes host, sets up reliable startup and a private web address, then gives you one private setup link. Open it to create your administrator login and bring in your existing primary agent.</p><p>The plugin includes the web app. Your conversations, memory, service credentials and login stay on your infrastructure. No pairing conversation is needed.</p><a href="/install.md">Read or copy the plain-text instructions ↗</a></section><nav aria-label="Installer downloads"><a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-manifest.json">Package manifest</a><a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-plugin-preview.zip">Complete plugin</a><a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-source-preview.zip">Source code</a></nav><article><h1>Install Pebble Crew</h1>
 <p>For the owner&#x27;s Hermes installation agent: install the <strong>combined plugin</strong> on the</p>
 <p>owner&#x27;s Hermes host. It includes the web app, owner login and native Bot Mode</p>
 <p>integration. Finish supervision and HTTPS verification, then give the owner **one</p>
@@ -58,12 +58,12 @@
 <p>requirement before promising a URL. A terminal or <code>nohup</code> process is not a finished</p>
 <p>installation.</p>
 <h2>3. Obtain the immutable combined release</h2>
-<p>Candidate: <code>v0.6.0-preview.1</code>. If these assets are not published, stop and report</p>
+<p>Candidate: <code>v0.7.0-preview.1</code>. If these assets are not published, stop and report</p>
 <p>that the candidate is unavailable. Do not substitute main or an API-only package.</p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-manifest.json" rel="noreferrer">Manifest</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/SHA256SUMS" rel="noreferrer">SHA256SUMS</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-plugin-preview.zip" rel="noreferrer">Complete plugin</a></p>
-<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-source-preview.zip" rel="noreferrer">Source</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-manifest.json" rel="noreferrer">Manifest</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/SHA256SUMS" rel="noreferrer">SHA256SUMS</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-plugin-preview.zip" rel="noreferrer">Complete plugin</a></p>
+<p class="bullet">• <a href="https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-source-preview.zip" rel="noreferrer">Source</a></p>
 <p>Verify size and SHA-256 against both manifest and checksum file. Reject absolute</p>
 <p>archive paths, traversal, symlinks and entries escaping private staging. The</p>
 <p>installable directory is <code>bot-web/</code>, including <code>web-runtime/</code>. The repository root</p>
@@ -146,7 +146,7 @@ hermes bot-web verify --public</code></pre>
 <p><code>setup-link</code> returns <code>expires</code> (Unix epoch milliseconds) and <code>expires_in</code> (whole</p>
 <p>remaining seconds). Its output contains the private file path, never the secret.</p>
 <p>Event parsing and legacy access controls are specified in</p>
-<p><a href="https://github.com/enterkey-io/pebble-crew/blob/v0.6.0-preview.1/docs/WIRE_PROTOCOL.md" rel="noreferrer">the wire protocol</a>.</p>
+<p><a href="https://github.com/enterkey-io/pebble-crew/blob/v0.7.0-preview.1/docs/WIRE_PROTOCOL.md" rel="noreferrer">the wire protocol</a>.</p>
 <p>Never use global revocation for diagnostic cleanup: use DELETE <code>/v1/connect</code></p>
 <p>with the probe&#x27;s own lease. Global revocation now requires `hermes bot-web revoke</p>
 <p>--all<code> or the operator-only HTTP body </code>{&quot;all&quot;:true}`.</p>
@@ -168,7 +168,7 @@ hermes bot-web verify --public</code></pre>
 <p>If initial setup expires before account creation, run `hermes bot-web setup-link</p>
 <p>--renew-setup` and privately deliver the new link. It refuses to replace a claimed</p>
 <p>owner account. Never delete a claimed account or regenerate keys to repair an update.</p>
-<h2>Verify the 0.6 interface update</h2>
+<h2>Verify the 0.7 interface update</h2>
 <p>Do not recreate the owner login, repeat onboarding, add a placeholder, or enroll</p>
 <p>extra profiles to test this update. Preserve the existing primary identity,</p>
 <p>handles, appearances, teams, role cards, keys, ports and HTTPS route. Update the</p>
@@ -192,7 +192,7 @@ hermes bot-web verify --public</code></pre>
 <p>owner who intentionally chooses that topology. Follow <code>docs/INDEPENDENT_INSTALL.md</code></p>
 <p>and its matching release. This is an advanced alternative, not a requirement for</p>
 <p>the combined plugin.</p>
-<h2>0.6 interface and optional capabilities</h2>
+<h2>Interface and optional capabilities</h2>
 <p>The combined update includes the complete redesigned UI and matching integration.</p>
 <p>Do not update only the static files when enabling Files/Computer. Direct-chat</p>
 <p>files use a private owner-local staging/index store under the integration state;</p>
@@ -204,4 +204,25 @@ hermes bot-web verify --public</code></pre>
 <p>It uses native Bot Screen only on supported 0.21.7 Linux hosts with its</p>
 <p>desktop packages configured. Do not install packages or request sudo as a side</p>
 <p>effect of opening the app. Full Linux screen startup remains a host-specific</p>
-<p>acceptance check; ordinary chat does not require it. Never expose a raw VNC port.</p></article></main><footer>This page contains installation instructions and public software packages. No owner credentials are requested here.</footer></body></html>
+<p>acceptance check; ordinary chat does not require it. Never expose a raw VNC port.</p>
+<h2>0.7 sidebar, search and appearance data</h2>
+<p>Update the complete plugin and prebuilt runtime together. The 0.7 web app requires</p>
+<p>its matching integration; a static-only update is insufficient. Keep the existing</p>
+<p>owner account, cookie keys, private state, login sessions, profiles, model settings,</p>
+<p>ports and HTTPS route. Do not send model prompts as installation probes.</p>
+<p>Organization is a separate owner-local presentation record: section and Crew</p>
+<p>order, collapse state and membership. Existing role/team assignments initialize</p>
+<p>it once; moving a sidebar item does not rewrite a profile&#x27;s role or reporting.</p>
+<p>Opening a Crew with 2–6 available pebbles creates or reuses its native Hermes room.</p>
+<p>A changed membership explicitly asks for a new chat; the previous history remains</p>
+<p>in Group chats. Removing a sidebar Crew does not delete native history.</p>
+<p>Search runs on this Hermes host, including visible canonical Bot Chat history,</p>
+<p>routine metadata and supported sent-file text. It does not open or resume sessions,</p>
+<p>advance read cursors, run models or create a transcript index. Limits are shown in</p>
+<p>the search UI. PDF/image/binary content is filename-only; unsupported generated</p>
+<p>outputs and group attachments remain outside this feature. Preserve the owner-local</p>
+<p>file store and presentation database during upgrades and rollback.</p>
+<p>Ten shape options and twelve colors are now supported, along with owner photos.</p>
+<p>Existing saved appearances are retained. Do not reset appearance or onboarding to</p>
+<p>expose the new choices. Give the owner their same plain URL after public verification;</p>
+<p>reloading once loads the new assets, with no pairing or new administrator setup.</p></article></main><footer>This page contains installation instructions and public software packages. No owner credentials are requested here.</footer></body></html>

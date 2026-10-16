@@ -4,6 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { createServer } from 'node:net';
 import assert from 'node:assert/strict';
 import { generateKeyPair, exportJWK, jwtVerify, importJWK } from 'jose';
 const directory = await mkdtemp(join(tmpdir(), 'workspace-worker-'));
@@ -11,7 +12,11 @@ const config = resolve('apps/owner-worker/wrangler.jsonc');
 const cli = resolve('node_modules/wrangler/bin/wrangler.js');
 const vars = resolve('apps/owner-worker/.dev.vars');
 const previous = await readFile(vars).catch(() => null);
-const origin = 'http://127.0.0.1:8095';
+const reservation = createServer();
+await new Promise((r) => reservation.listen(0, '127.0.0.1', r));
+const port = reservation.address().port;
+await new Promise((r) => reservation.close(r));
+const origin = `http://127.0.0.1:${port}`;
 const proof = 'S'.repeat(43);
 const pair = await generateKeyPair('EdDSA', { extractable: true });
 const settings = {
@@ -38,7 +43,7 @@ async function start() {
       '--ip',
       '127.0.0.1',
       '--port',
-      '8095',
+      String(port),
       '--persist-to',
       directory,
       '--config',
@@ -64,10 +69,13 @@ async function start() {
   throw new Error('Worker failed to start: ' + output.slice(-3000));
 }
 async function stop() {
-  if (!server) return;
-  server.kill('SIGTERM');
-  await new Promise((r) => server.once('exit', r));
+  const child = server;
   server = undefined;
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise((r) => {
+    child.once('exit', r);
+    child.kill('SIGTERM');
+  });
 }
 async function call(path, body, cookie) {
   const r = await fetch(origin + path, {

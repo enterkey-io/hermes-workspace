@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { SHAPES } from '../../apps/web/src/avatar-lab/engine';
 
 const pose = '#hero svg [data-avatar-part="body"]';
 
@@ -67,18 +68,27 @@ test('large rosters dispose old instances, skip offscreen poses and handle simul
   page,
 }) => {
   await page.goto('/avatar-lab.html');
-  await expect(page.locator('#metrics')).toHaveAttribute('data-mounted', '30');
+  await expect(page.locator('#metrics')).toHaveAttribute(
+    'data-mounted',
+    String(25 + SHAPES.length),
+  );
   await page.getByRole('button', { name: '120', exact: true }).click();
-  await expect(page.locator('#metrics')).toHaveAttribute('data-mounted', '126');
+  await expect(page.locator('#metrics')).toHaveAttribute(
+    'data-mounted',
+    String(121 + SHAPES.length),
+  );
   await page.waitForTimeout(150);
   const visible = Number(await page.locator('#metrics').getAttribute('data-visible'));
   expect(visible).toBeGreaterThan(0);
-  expect(visible).toBeLessThan(126);
+  expect(visible).toBeLessThan(121 + SHAPES.length);
   const hero = await page.locator('#hero').innerHTML();
   await page.waitForTimeout(350);
   expect(await page.locator('#hero').innerHTML()).toBe(hero);
   await page.getByRole('button', { name: '24', exact: true }).click();
-  await expect(page.locator('#metrics')).toHaveAttribute('data-mounted', '30');
+  await expect(page.locator('#metrics')).toHaveAttribute(
+    'data-mounted',
+    String(25 + SHAPES.length),
+  );
   // Headless Chromium keeps tabs visible. Drive its visibility boundary explicitly;
   // actual foreground/background switching is a separate headed-browser check.
   await page.evaluate(() => {
@@ -182,10 +192,16 @@ test('photo replaces animation locally, can be removed, and rejects vector uploa
   await expect(page.locator('#hero img')).toBeVisible();
   await expect(page.locator('#hero-name')).toHaveText('Photo avatar');
   await expect(page.locator('#hero img')).toHaveAttribute('src', /^data:image\/png;base64,/);
-  await expect(page.locator('#metrics')).toHaveAttribute('data-mounted', '28');
+  await expect(page.locator('#metrics')).toHaveAttribute(
+    'data-mounted',
+    String(23 + SHAPES.length),
+  );
   await page.getByRole('button', { name: 'Animated shape', exact: true }).click();
   await expect(page.locator('#hero svg')).toBeVisible();
-  await expect(page.locator('#metrics')).toHaveAttribute('data-mounted', '30');
+  await expect(page.locator('#metrics')).toHaveAttribute(
+    'data-mounted',
+    String(25 + SHAPES.length),
+  );
   await page.getByRole('button', { name: 'Photo', exact: true }).click();
   await expect(page.locator('#hero img')).toBeVisible();
   await page.getByRole('button', { name: 'Remove photo', exact: true }).click();

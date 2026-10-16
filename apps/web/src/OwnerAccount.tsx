@@ -1,3 +1,5 @@
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
 import { useState } from 'react';
 import { ownerRequest } from './OwnerShell';
 export function OwnerAccount() {
@@ -34,7 +36,7 @@ export function OwnerAccount() {
       >
         <label>
           Current password
-          <input
+          <Input
             required
             type="password"
             autoComplete="current-password"
@@ -44,7 +46,7 @@ export function OwnerAccount() {
         </label>
         <label>
           New password
-          <input
+          <Input
             required
             type="password"
             autoComplete="new-password"
@@ -56,7 +58,7 @@ export function OwnerAccount() {
         </label>
         <label>
           Confirm new password
-          <input
+          <Input
             required
             type="password"
             autoComplete="new-password"
@@ -64,24 +66,33 @@ export function OwnerAccount() {
             onChange={(e) => setConfirm(e.target.value)}
           />
         </label>
-        <button disabled={busy}>Change password</button>
+        <div className="form-actions">
+          <Button disabled={busy}>Change password</Button>
+        </div>
       </form>
-      <button
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            await ownerRequest('/api/auth/revoke-other-sessions', {});
-            setMessage('Other devices will be signed out within five minutes.');
-          } catch {
-            setMessage('Session revocation could not be confirmed.');
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        Sign out other devices
-      </button>
+      <div className="account-devices">
+        <div>
+          <h2>Other devices</h2>
+          <p>End your other signed-in sessions.</p>
+        </div>
+        <Button
+          variant="secondary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await ownerRequest('/api/auth/revoke-other-sessions', {});
+              setMessage('Other devices will be signed out within five minutes.');
+            } catch {
+              setMessage('Session revocation could not be confirmed.');
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Sign out other devices
+        </Button>
+      </div>
       {message && <p role="status">{message}</p>}
     </section>
   );

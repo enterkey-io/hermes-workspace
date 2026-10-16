@@ -1,3 +1,4 @@
+import { Button } from '../components/ui/button';
 import { useEffect, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { Notice } from '../ui/primitives';
@@ -20,10 +21,12 @@ export function FilesPanel({
   client,
   sessionId,
   version,
+  focusId,
 }: {
   client: BotBridgeClient;
   sessionId: string;
   version: number;
+  focusId?: string | undefined;
 }) {
   const [files, setFiles] = useState<SharedFile[]>([]),
     [loading, setLoading] = useState(true),
@@ -51,6 +54,15 @@ export function FilesPanel({
       live = false;
     };
   }, [client, sessionId, version, retry]);
+  useEffect(() => {
+    if (focusId && !loading)
+      document
+        .querySelector<HTMLElement>(`[data-file-id="${CSS.escape(focusId)}"]`)
+        ?.scrollIntoView({
+          block: 'center',
+          behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'instant' : 'smooth',
+        });
+  }, [focusId, loading, files]);
   async function download(file: SharedFile) {
     setBusy(file.id);
     setError('');
@@ -73,7 +85,9 @@ export function FilesPanel({
       {error && (
         <Notice error>
           {error}
-          <button onClick={() => setRetry((x) => x + 1)}>Try again</button>
+          <Button variant="secondary" onClick={() => setRetry((x) => x + 1)}>
+            Try again
+          </Button>
         </Notice>
       )}
       {loading ? (
@@ -83,18 +97,19 @@ export function FilesPanel({
       ) : (
         <ul className="file-list">
           {files.map((file) => (
-            <li key={file.id}>
+            <li key={file.id} data-file-id={file.id}>
               <span>
                 <strong>{file.name}</strong>
                 <small>{fileSize(file.size)} · Shared in this chat</small>
               </span>
-              <button
+              <Button
+                variant="secondary"
                 disabled={!!busy}
                 aria-label={`Download ${file.name}`}
                 onClick={() => void download(file)}
               >
                 {busy === file.id ? 'Downloading…' : 'Download'}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

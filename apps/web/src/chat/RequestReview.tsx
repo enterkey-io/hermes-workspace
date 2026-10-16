@@ -1,3 +1,5 @@
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { useState } from 'react';
 import type { Row } from '../conversation';
 export function RequestReview({
@@ -107,7 +109,7 @@ export function RequestReview({
             {deleting && (
               <>
                 Type <strong>{String(spec.profile)}</strong> to confirm
-                <input
+                <Input
                   aria-label="Confirm profile name"
                   autoComplete="off"
                   value={confirmation}
@@ -117,23 +119,24 @@ export function RequestReview({
             )}
           </label>
           <div className="choice-row">
-            <button disabled={busy} onClick={() => onDecision(false)}>
+            <Button variant="secondary" disabled={busy} onClick={() => onDecision(false)}>
               Deny
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
               className={deleting ? 'danger' : ''}
               disabled={busy || (deleting && confirmation !== spec.profile)}
               onClick={() => onDecision(true, deleting ? confirmation : undefined)}
             >
               {deleting ? 'Delete permanently' : 'Approve exact request'}
-            </button>
+            </Button>
           </div>
         </>
       )}
       {deleting && ['executing', 'uncertain', 'partial'].includes(String(r.state)) && (
-        <button disabled={busy} onClick={onInspect}>
+        <Button variant="secondary" disabled={busy} onClick={onInspect}>
           Check outcome
-        </button>
+        </Button>
       )}
     </article>
   );

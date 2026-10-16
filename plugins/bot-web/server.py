@@ -282,6 +282,11 @@ def create_app(token, origins, hosts, gateway=None, trust=None, workspace=None, 
                     result = await files.invoke(ops, client['principal'], operation, params)
                 else:
                     raise InvalidOperation('Attachment operation unavailable')
+            elif operation in {'search.query', 'search.context'}:
+                if not workspace:
+                    raise InvalidOperation('Owner-local search unavailable')
+                from .search import query, context
+                result = await (query if operation == 'search.query' else context)(workspace, files, client['principal'], params)
             elif operation == 'chat.send':
                 if files and 'attachments' in params:
                     result = await files.submit(ops, client['principal'], params)

@@ -1,3 +1,4 @@
+import { Button } from '../components/ui/button';
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import type RFB from '@novnc/novnc';
@@ -76,7 +77,9 @@ export function ComputerPanel({
       {error && (
         <Notice error>
           {error}
-          <button onClick={() => void update()}>Try again</button>
+          <Button variant="secondary" onClick={() => void update()}>
+            Try again
+          </Button>
         </Notice>
       )}
       {!status ? (
@@ -98,16 +101,17 @@ export function ComputerPanel({
             {status.running ? 'Computer is running.' : 'Computer is stopped.'}
           </p>
           {status.blocker && <Notice>{status.blocker}</Notice>}
-          <button
+          <Button
+            variant="secondary"
             disabled={busy || (!status.running && !!status.blocker)}
             onClick={() => (status.running ? setOpen(true) : void start())}
           >
             {busy ? 'Starting…' : status.running ? 'Open Computer' : 'Start Computer'}
-          </button>
+          </Button>
           {status.running && (
-            <button disabled={busy} onClick={() => setStopping(true)}>
+            <Button variant="secondary" disabled={busy} onClick={() => setStopping(true)}>
               Stop Computer
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -116,10 +120,12 @@ export function ComputerPanel({
           <h2>Stop {name}’s Computer?</h2>
           <p>Open desktop applications will close. Chat stays available.</p>
           <div className="form-actions">
-            <button onClick={() => setStopping(false)}>Cancel</button>
-            <button disabled={busy} onClick={() => void stop()}>
+            <Button variant="secondary" onClick={() => setStopping(false)}>
+              Cancel
+            </Button>
+            <Button variant="secondary" disabled={busy} onClick={() => void stop()}>
               Stop Computer
-            </button>
+            </Button>
           </div>
         </Drawer>
       )}
@@ -253,20 +259,21 @@ function ComputerViewer({
         </span>
       </header>
       <div className="computer-actions">
-        <button
+        <Button
+          variant="secondary"
           disabled={!connected || busy}
           onClick={() => void control(mine ? 'release' : 'control')}
         >
           {mine ? 'Hand back' : 'Take control'}
-        </button>
+        </Button>
         {human && !mine && (
-          <button disabled={busy} onClick={() => void control('force_release')}>
+          <Button variant="secondary" disabled={busy} onClick={() => void control('force_release')}>
             Hand back to pebble
-          </button>
+          </Button>
         )}
-        <button disabled={busy} onClick={() => setAttempt((x) => x + 1)}>
+        <Button variant="secondary" disabled={busy} onClick={() => setAttempt((x) => x + 1)}>
           Reconnect
-        </button>
+        </Button>
       </div>
       {error && <Notice error>{error}</Notice>}
       {hidden && <Notice>Screen paused while this tab is hidden.</Notice>}

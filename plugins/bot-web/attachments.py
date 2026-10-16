@@ -203,8 +203,8 @@ class AttachmentStore:
                         refs.append(result['ref_text'])
                 if result.get('attached') is not True:
                     raise NativeError('Attachment staging was not confirmed')
-            await ops.invoke('chat.send', {'session_id': sid, 'text': (params['text'].strip() or 'Please review the attached files.') + ('\n\n' + '\n'.join(refs) if refs else '')})
+            receipt = await ops.invoke('chat.send', {'session_id': sid, 'text': (params['text'].strip() or 'Please review the attached files.') + ('\n\n' + '\n'.join(refs) if refs else '')})
             with self.db:
                 self.db.execute("UPDATE sends SET state='accepted' WHERE id=?", (request_id,))
                 self.db.executemany("UPDATE files SET state='sent' WHERE id=?", [(row['id'],) for row in files])
-            return {'state': 'accepted', 'submitted': True}
+            return {'state': 'accepted', 'submitted': True, **({'user_row_id': receipt['user_row_id']} if isinstance(receipt.get('user_row_id'), (int, str)) else {})}

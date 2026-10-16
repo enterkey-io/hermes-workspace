@@ -1,14 +1,14 @@
+import { initialOrganization } from './organization-fixture';
 import { describe, it, expect } from 'vitest';
 import {
-  initialOrganization,
   nudgeItem,
   nudgeSection,
   placeCrew,
   placePebble,
   readRailDrag,
   reorderSection,
-} from './organization';
-import type { Organization } from './organization';
+} from '../ui/organization';
+import type { Organization } from '../ui/organization';
 function occurrences(org: Organization, id: string) {
   return (
     org.sections.flatMap((s) => s.items).filter((i) => i.kind === 'pebble' && i.id === id).length +

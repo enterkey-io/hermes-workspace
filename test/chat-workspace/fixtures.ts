@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
+import type { OrganizationState } from '../../apps/web/src/ui/organization';
 import type { WorkspaceState } from '../../apps/web/src/workspace';
 export const names = [
   'Arlo',
@@ -84,6 +85,19 @@ export async function installFixture(context: BrowserContext) {
     });
   });
   let state = fixtureState();
+  let organization: OrganizationState = {
+    revision: 0,
+    sections: [
+      {
+        id: 'pebbles',
+        name: 'Pebbles',
+        collapsed: false,
+        items: state.bots.map((b) => ({ kind: 'pebble', id: b.id })),
+      },
+      { id: 'crews', name: 'Crews', collapsed: false, items: [] },
+    ],
+    crews: [],
+  };
   let prefs = { revision: 0, pin_order: ['identity-0', 'identity-1'] };
   let requests: Record<string, unknown>[] = [];
   let routines = [
@@ -158,6 +172,8 @@ export async function installFixture(context: BrowserContext) {
       return original(input, init);
     };
   });
+  const crewRooms: Record<string, unknown>[] = [];
+  const crewChats: Record<string, string> = {};
   await context.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     const value =
@@ -197,11 +213,25 @@ export async function installFixture(context: BrowserContext) {
     }
     if (operation === 'bot.open') lease?.add(`session-${params.profile}`);
     let result: unknown = {};
-    if (operation === 'workspace.snapshot')
+    if (operation === 'workspace.snapshot') {
+      const liveIds = state.bots.filter((b) => b.managed).map((b) => b.id),
+        assigned = new Set(
+          organization.sections
+            .flatMap((s) => s.items.filter((i) => i.kind === 'pebble').map((i) => i.id))
+            .concat(organization.crews.flatMap((c) => c.members)),
+        );
+      organization.sections = organization.sections.map((s) => ({
+        ...s,
+        items: s.items.filter((i) => i.kind === 'crew' || liveIds.includes(i.id)),
+      }));
+      organization.sections[0]!.items.push(
+        ...liveIds.filter((id) => !assigned.has(id)).map((id) => ({ kind: 'pebble' as const, id })),
+      );
       result = {
         workspace: state,
         bots: state.bots.filter((b) => b.managed && !b.hidden),
         rooms: [
+          ...crewRooms,
           {
             room_id: 'crew-1',
             name: 'Research crew',
@@ -214,6 +244,61 @@ export async function installFixture(context: BrowserContext) {
           },
         ],
         preferences: prefs,
+        organization,
+        crew_chats: crewChats,
+      };
+    }
+    if (operation === 'organization.get') result = organization;
+    if (operation === 'organization.save') {
+      organization = { ...params.organization, revision: organization.revision + 1 };
+      result = organization;
+    }
+    if (operation === 'organization.chat') {
+      const crew = organization.crews.find((c) => c.id === params.id);
+      if (!crew || params.expected_revision !== organization.revision || crew.members.length < 2) {
+        await route.fulfill({ status: 400, json: { code: 'STALE_REVISION' } });
+        return;
+      }
+      let room = crewRooms.find((r) => r.room_id === crewChats[crew.id]);
+      if (!room) {
+        room = {
+          room_id: 'native-' + crew.id,
+          name: crew.name,
+          created_at: 1700000010,
+          members: crew.members.map((id) => {
+            const b = state.bots.find((b) => b.id === id)!;
+            return { profile: b.profile, member_id: b.profile };
+          }),
+        };
+        crewRooms.push(room);
+        crewChats[crew.id] = String(room.room_id);
+      }
+      result = { state: 'ready', room };
+    }
+    if (operation === 'search.query') {
+      const kind = params.query.toLowerCase().includes('weekly') ? 'routine' : 'message';
+      result = {
+        hits: [
+          {
+            id: 'hit-arlo',
+            kind,
+            title: kind === 'routine' ? 'Weekly research brief' : 'Arlo · message',
+            snippet: 'Saved synthetic search result',
+            profile: 'arlo',
+            item_id: kind === 'routine' ? 'routine-1' : '91',
+            bot_id: state.bots[0]!.id,
+          },
+        ],
+        coverage: 'Synthetic native search fixture',
+      };
+    }
+    if (operation === 'search.context')
+      result = {
+        title: params.kind === 'routine' ? 'Weekly research brief' : 'Arlo · message',
+        text:
+          params.kind === 'routine'
+            ? 'Every Monday at 9:00 AM'
+            : 'Synthetic older sequoia message, outside the loaded history.',
       };
     if (operation === 'connections.list' || operation === 'services.catalog')
       result = { servers: [] };

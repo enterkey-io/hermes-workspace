@@ -214,7 +214,14 @@ class BotOperations:
             return await self.gateway.call('groups.create', {'room_id': room_id, 'name': name.strip(), 'members': members})
         if operation == "rooms.list":
             fields(params, [])
-            return await self.gateway.call("groups.list", {"limit": 100, "offset": 0})
+            rooms, offset = {}, 0
+            for _ in range(100):
+                page = await self.gateway.call('groups.list', {'limit': 100, 'offset': offset})
+                rooms.update((r['room_id'], r) for r in page.get('rooms', []))
+                if page.get('next_offset') is None:
+                    return {'rooms': list(rooms.values())}
+                offset = page['next_offset']
+            return {'rooms': list(rooms.values()), 'limited': True}
         if operation == "room.approve":
             fields(params, ["room_id", "member_id", "task_id", "execution_generation", "request_id", "choice"])
             keys = ["member_id", "task_id", "request_id"]

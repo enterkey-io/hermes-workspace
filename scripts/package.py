@@ -40,7 +40,7 @@ def web_payload():
 
 web = [(path, str(path.relative_to(web_root))) for path in web_payload()]
 web += [(root / "scripts/serve-static.mjs", "serve-static.mjs"), (root / "LICENSE", "LICENSE"),
-        (root / "docs/SETUP.md", "SETUP.md")]
+        (root / "docs/SETUP.md", "SETUP.md"), (root / "docs/licenses/shadcn-ui.txt", "licenses/shadcn-ui.txt")]
 archive("workspace-web-preview.zip", web)
 # Installed-owner Node distribution. Dependencies are installed from the pinned lock;
 # runtime state is never packaged. Keep repository-relative paths used by the CLI.
@@ -48,7 +48,7 @@ owner = [(path, "apps/web/dist/" + str(path.relative_to(web_root))) for path in 
 owner.append((owner_bundle, 'apps/owner-node/dist/main.mjs'))
 for name in ("apps/owner-worker/migrations/0001_owner.sql",
              "package.json", "package-lock.json", "release.json", "LICENSE", "docs/AGENT_INSTALL.md",
-             "scripts/provision-worker.mjs"):
+             "scripts/provision-worker.mjs", "docs/licenses/shadcn-ui.txt"):
     owner.append((root / name, name))
 for directory in ("apps", "packages"):
     for package in (root / directory).glob("*/package.json"):
@@ -83,7 +83,7 @@ for directory in ("apps", "packages", "plugins", "scripts", "test", "docs", ".gi
             source.append((path, str(path.relative_to(root))))
 for name in ("README.md", "PROGRESS.md", "IMPLEMENTATION_PLAN.md", "WEB_APP_PLAN.md", "LICENSE", "release.json",
              "package.json", "package-lock.json", "tsconfig.json", "eslint.config.mjs", "vitest.config.ts",
-             "playwright.config.ts", "playwright.chat.config.ts", "playwright.avatar.config.ts", "playwright.owner.config.ts", "vite.client.config.ts", "vite.web.config.ts", ".nvmrc", ".gitignore",
+             "playwright.config.ts", "playwright.ui-review.config.ts", "vite.ui-lab.config.ts", "playwright.chat.config.ts", "playwright.avatar.config.ts", "playwright.owner.config.ts", "vite.client.config.ts", "vite.web.config.ts", ".nvmrc", ".gitignore",
              ".prettierrc.json", ".prettierignore"):
     source.append((root / name, name))
 archive("workspace-source-preview.zip", source)

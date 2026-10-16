@@ -1,3 +1,4 @@
+import { Button } from './components/ui/button';
 import { safeError } from '@hermes-client/core';
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
@@ -166,9 +167,13 @@ export function WorkspaceSettings({
         {error && (
           <Notice error>
             {error}{' '}
-            <button className="text-button" onClick={() => setRefresh((x) => x + 1)}>
+            <Button
+              variant="ghost"
+              className="text-button"
+              onClick={() => setRefresh((x) => x + 1)}
+            >
               Try again
-            </button>
+            </Button>
           </Notice>
         )}
         {notice && <Notice>{notice}</Notice>}
@@ -237,7 +242,8 @@ export function WorkspaceSettings({
                         </div>
                         {['http', 'sse', 'streamable-http'].includes(String(s.transport)) ||
                         s.installed ? (
-                          <button
+                          <Button
+                            variant="secondary"
                             disabled={busy || servers.some((x) => x.name === s.name)}
                             onClick={async () => {
                               const target = profile;
@@ -261,7 +267,7 @@ export function WorkspaceSettings({
                             }}
                           >
                             {servers.some((x) => x.name === s.name) ? 'Added' : 'Add service'}
-                          </button>
+                          </Button>
                         ) : (
                           <span className="field-hint">Set up in Hermes first</span>
                         )}

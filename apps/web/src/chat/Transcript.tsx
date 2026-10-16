@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { MessageBody, CopyMessage } from '../MessageBody';
 import { messageDate, projectTimeline } from '../conversation';
 import type { ChatMessage } from '../conversation';
@@ -8,6 +9,7 @@ export function Transcript({
   crew,
   stream,
   running,
+  activity,
   children,
   authorName,
   onDownloadFile,
@@ -17,13 +19,15 @@ export function Transcript({
   crew: boolean;
   stream: string;
   running: boolean;
+  activity: string;
   children?: ReactNode;
   authorName: (name: string) => string;
   onDownloadFile: (file: { id: string; name: string }) => void;
 }) {
+  const reduced = useReducedMotion();
   let previous = '';
   return (
-    <>
+    <div className="pc-messages">
       {children}
       {projectTimeline(messages).map((item, i) => {
         if (item.kind === 'activity')
@@ -56,13 +60,16 @@ export function Transcript({
         const label = group && group !== previous;
         previous = group;
         return (
-          <div
-            className="message-group"
+          <motion.div
+            className={`pc-message message-group ${m.role}`}
+            initial={m.id?.startsWith('pending-') && !reduced ? { opacity: 0, y: 6 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.16 }}
             data-message-id={m.id ?? `pending-${i}`}
-            key={m.id ?? `pending-${i}`}
+            key={m.renderKey ?? m.id ?? `pending-${i}`}
           >
-            {label && <p className="date-divider">{group}</p>}
-            <article className={`message ${m.role}`}>
+            {label && <p className="pc-date date-divider">{group}</p>}
+            <article className={`pc-bubble message ${m.role}`}>
               {crew && m.role === 'assistant' && (
                 <strong className="message-author">
                   {m.author ? authorName(m.author) : 'Crew member'}
@@ -76,33 +83,44 @@ export function Transcript({
                   {file.name} ↓
                 </button>
               ))}
-              <div className="message-meta">
+              <div className="pc-message-meta message-meta">
                 {date && (
                   <time dateTime={date.toISOString()}>
                     {date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                   </time>
                 )}
-                {m.text.trim() && <CopyMessage text={m.text} />}
               </div>
             </article>
-          </div>
+            {m.text.trim() && (
+              <div className="pc-message-actions">
+                <CopyMessage text={m.text} />
+              </div>
+            )}
+          </motion.div>
         );
       })}
       {stream && (
-        <article className="message assistant streaming">
-          {crew && <strong className="message-author">{title}</strong>}
-          <MessageBody text={stream} />
-          <span className="caret" aria-hidden>
-            ▍
-          </span>
+        <article className="pc-message assistant streaming">
+          <div className="pc-bubble">
+            {crew && <strong className="message-author">{title}</strong>}
+            <MessageBody text={stream} />
+            <span className="caret" aria-hidden>
+              ▍
+            </span>
+          </div>
         </article>
       )}
-      {running && !stream && (
-        <p className="thinking" role="status">
-          <span className="thinking-dots" />
-          Working…
-        </p>
-      )}
-    </>
+      <div className="pc-activity-lane">
+        {running && !stream && (
+          <p className="pc-activity" role="status">
+            {activity === 'Stop requested'
+              ? 'Stopping'
+              : activity.startsWith('Using ')
+                ? 'Working'
+                : 'Thinking'}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

@@ -65,9 +65,10 @@ import { AgentAvatar } from '../AgentAvatar';
 import { COLORS, SHAPES } from '../avatar-lab/engine';
 import { previewPhoto } from '../avatar-lab/photo';
 import type { Appearance } from '../workspace';
-import { OrganizationRail, PebbleActions, OrganizationDialog } from './OrganizationRail';
-import { initialOrganization, placePebble } from './organization';
-import type { Crew, OrganizationEditor } from './organization';
+import { OrganizationRail, PebbleActions, OrganizationDialog } from '../ui/OrganizationRail';
+import { placePebble } from '../ui/organization';
+import { initialOrganization } from './organization-fixture';
+import type { Crew, OrganizationEditor } from '../ui/organization';
 
 type Pebble = {
   id: string;
@@ -333,9 +334,9 @@ export function UiReview() {
     );
   }
   const rail = (
-    <aside className="review-rail" aria-label="Pebbles and crews">
-      <header className="review-rail-header">
-        <span className="review-wordmark">Pebble Crew</span>
+    <aside className="pc-rail" aria-label="Pebbles and crews">
+      <header className="pc-rail-header">
+        <span className="pc-wordmark">Pebble Crew</span>
         <IconAction label="Search Pebble Crew" icon={Search} onClick={openSearch} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -367,9 +368,9 @@ export function UiReview() {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
-      <div className="review-rail-scroll">
+      <div className="pc-rail-scroll">
         <motion.div
-          className="review-pins"
+          className="pc-pins"
           layout
           transition={{ duration: reduced ? 0 : 0.22, ease: easing }}
         >
@@ -379,10 +380,10 @@ export function UiReview() {
               <motion.div
                 layout
                 key={pebble.id}
-                className={`review-pin pinned-tile ${!selectedCrew && selected.id === pebble.id ? 'is-selected' : ''}`}
+                className={`pc-pin pinned-tile ${!selectedCrew && selected.id === pebble.id ? 'is-selected' : ''}`}
                 transition={{ duration: reduced ? 0 : 0.22, ease: easing }}
               >
-                <div className="review-pin-actions">
+                <div className="pc-pin-actions">
                   <PebbleActions
                     pebble={pebble}
                     onPin={() => pin(pebble)}
@@ -392,7 +393,7 @@ export function UiReview() {
                   />
                 </div>
                 <button
-                  className="review-pin-open"
+                  className="pc-pin-open"
                   onClick={() => openPebble(pebble)}
                   aria-label={`Open ${pebble.name}`}
                 >
@@ -428,7 +429,7 @@ export function UiReview() {
           }}
         />
       </div>
-      <footer className="review-rail-footer">
+      <footer className="pc-rail-footer">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -496,9 +497,9 @@ export function UiReview() {
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider delayDuration={350}>
-        <div className="review-shell">
+        <div className="pc-shell">
           {!compactNavigation && rail}
-          <main className="review-main" inert={mobile && details && page === 'chat'}>
+          <main className="pc-main" inert={mobile && details && page === 'chat'}>
             {page === 'settings' ? (
               <SettingsPanel
                 onClose={() => {
@@ -510,7 +511,7 @@ export function UiReview() {
               />
             ) : (
               <>
-                <header className="review-chat-header">
+                <header className="pc-chat-header">
                   {compactNavigation && (
                     <IconAction
                       label="Open navigation"
@@ -520,14 +521,14 @@ export function UiReview() {
                   )}
                   <button
                     ref={toggle}
-                    className="review-chat-identity"
+                    className="pc-chat-identity"
                     aria-label={`${selectedCrew?.name ?? selected.name} details`}
                     aria-expanded={details}
                     aria-controls="conversation-details"
                     onClick={() => showDetails(!details)}
                   >
                     {selectedCrew ? (
-                      <span className="review-header-crew">
+                      <span className="pc-header-crew">
                         <Users />
                       </span>
                     ) : (
@@ -539,11 +540,11 @@ export function UiReview() {
                         {selectedCrew ? `${selectedCrew.members.length} pebbles` : selected.title}
                       </small>
                     </span>
-                    <ChevronRight className="review-details-chevron" data-open={details} />
+                    <ChevronRight className="pc-details-chevron" data-open={details} />
                   </button>
                 </header>
                 <div
-                  className="review-transcript"
+                  className="pc-transcript"
                   ref={viewport}
                   onScroll={() => {
                     const root = viewport.current;
@@ -554,13 +555,13 @@ export function UiReview() {
                     }
                   }}
                 >
-                  <div className="review-messages">
-                    <p className="review-date">Today</p>
+                  <div className="pc-messages">
+                    <p className="pc-date">Today</p>
                     {messages.map((message) => (
                       <Message key={message.id} message={message} />
                     ))}
                     {!messages.length && !working && (
-                      <div className="review-empty-chat">
+                      <div className="pc-empty-chat">
                         <h1>{selectedCrew?.name ?? selected.name}</h1>
                         <p>
                           {selectedCrew
@@ -569,9 +570,9 @@ export function UiReview() {
                         </p>
                       </div>
                     )}
-                    <div className="review-activity-lane" role="status" aria-atomic="true">
+                    <div className="pc-activity-lane" role="status" aria-atomic="true">
                       {working && (
-                        <span className="review-activity" data-activity={working}>
+                        <span className="pc-activity" data-activity={working}>
                           {working === 'thinking' ? 'Thinking' : 'Working'}
                         </span>
                       )}
@@ -580,7 +581,7 @@ export function UiReview() {
                 </div>
                 {latest && (
                   <Button
-                    className="review-latest rounded-full"
+                    className="pc-latest rounded-full"
                     variant="secondary"
                     size="sm"
                     onClick={() => {
@@ -595,16 +596,16 @@ export function UiReview() {
                     Latest messages
                   </Button>
                 )}
-                <div className="review-composer-wrap">
+                <div className="pc-composer-wrap">
                   <form
-                    className="review-composer"
+                    className="pc-composer"
                     onSubmit={(e) => {
                       e.preventDefault();
                       send();
                     }}
                   >
                     {!!attachments.length && (
-                      <div className="review-attachment-list">
+                      <div className="pc-attachment-list">
                         {attachments.map((name) => (
                           <span key={name}>
                             <FileText />
@@ -620,7 +621,7 @@ export function UiReview() {
                         ))}
                       </div>
                     )}
-                    <div className="review-composer-row">
+                    <div className="pc-composer-row">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -699,13 +700,13 @@ export function UiReview() {
           </main>
           <motion.div
             id="conversation-details"
-            className="review-details-slot"
+            className="pc-details-slot"
             initial={false}
             style={{ width: detailsWidth }}
             onUpdate={preserve}
           >
             <div
-              className="review-details-fixed"
+              className="pc-details-fixed"
               style={{ width: panelWidth }}
               inert={!details || page === 'settings'}
               onKeyDown={(event) => {
@@ -722,7 +723,7 @@ export function UiReview() {
             <Sheet open={navigation && overlay.kind === 'none'} onOpenChange={setNavigation}>
               <SheetContent
                 side="left"
-                className="review-nav-sheet"
+                className="pc-nav-sheet"
                 showCloseButton={false}
                 onCloseAutoFocus={(event) => {
                   event.preventDefault();
@@ -800,7 +801,7 @@ export function UiReview() {
               <Input id="create-name" placeholder="Pebble name" />
               <Label htmlFor="create-role">Role</Label>
               <Textarea id="create-role" rows={3} />
-              <div className="review-form-footer">
+              <div className="pc-form-footer">
                 <Button variant="ghost" onClick={() => setOverlay({ kind: 'none' })}>
                   Cancel
                 </Button>
@@ -827,23 +828,23 @@ function Message({ message }: { message: ReviewMessage }) {
   return (
     <motion.article
       data-message-id={message.id}
-      className={`review-message ${message.role}`}
+      className={`pc-message ${message.role}`}
       initial={message.fresh && !reduced ? { opacity: 0.4, y: 8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.16, ease: easing }}
     >
-      <div className="review-bubble">
+      <div className="pc-bubble">
         {message.text.split('\n\n').map((text, i) => (
           <p key={i}>{text}</p>
         ))}
-        <div className="review-message-meta">
+        <div className="pc-message-meta">
           <time dateTime={at.toISOString()}>
             {at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
           </time>
           {message.role === 'user' && <CheckCheck aria-label="Sent in preview" />}
         </div>
       </div>
-      <div className="review-message-actions">
+      <div className="pc-message-actions">
         <IconAction
           label={copied ? 'Copied' : 'Copy message'}
           icon={copied ? Check : Copy}
@@ -870,11 +871,11 @@ function Details({
 }) {
   const [routines, setRoutines] = useState([true, true, false]);
   return (
-    <aside className="review-details details-panel" aria-label={`${pebble.name} details`}>
+    <aside className="pc-details details-panel" aria-label={`${pebble.name} details`}>
       <header>
         <IconAction label="Close details" icon={X} onClick={onClose} />
       </header>
-      <div className="review-details-identity">
+      <div className="pc-details-identity">
         <Face pebble={pebble} large />
         <h2 tabIndex={-1}>{pebble.name}</h2>
         <p>{pebble.title}</p>
@@ -888,9 +889,9 @@ function Details({
           <TabsTrigger value="routines">Routines</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
         </TabsList>
-        <TabsContent value="routines" className="review-routines">
+        <TabsContent value="routines" className="pc-routines">
           {['Morning briefing', 'Weekly crew review', 'Research digest'].map((name, i) => (
-            <div className="review-routine" key={name}>
+            <div className="pc-routine" key={name}>
               <div>
                 <h3>{name}</h3>
                 <p>{['Weekdays at 8:00 AM', 'Mondays at 9:00 AM', 'Fridays at 3:00 PM'][i]}</p>
@@ -906,14 +907,14 @@ function Details({
           ))}
         </TabsContent>
         <TabsContent value="files">
-          <div className="review-file">
+          <div className="pc-file">
             <FileText />
             <span>
               <strong>Launch brief.pdf</strong>
               <small>Shared today · 284 KB</small>
             </span>
           </div>
-          <p className="review-muted text-xs">
+          <p className="pc-muted text-xs">
             Sample file · downloads are unavailable in this preview.
           </p>
         </TabsContent>
@@ -936,12 +937,12 @@ function CrewDetails({
   onOpen: (pebble: Pebble) => void;
 }) {
   return (
-    <aside className="review-details details-panel" aria-label={`${crew.name} details`}>
+    <aside className="pc-details details-panel" aria-label={`${crew.name} details`}>
       <header>
         <IconAction label="Close details" icon={X} onClick={onClose} />
       </header>
-      <div className="review-details-identity">
-        <span className="review-crew-faces review-crew-faces-large">
+      <div className="pc-details-identity">
+        <span className="pc-crew-faces pc-crew-faces-large">
           {members.slice(0, 2).map((member) => (
             <span key={member.id}>
               <Face pebble={member} />
@@ -961,7 +962,7 @@ function CrewDetails({
           <TabsTrigger value="files">Files</TabsTrigger>
         </TabsList>
         <TabsContent value="pebbles">
-          <div className="review-crew-roster">
+          <div className="pc-crew-roster">
             {members.map((member) => (
               <button key={member.id} onClick={() => onOpen(member)}>
                 <Face pebble={member} />
@@ -972,12 +973,12 @@ function CrewDetails({
               </button>
             ))}
             {!members.length && (
-              <p className="review-muted">Move pebbles into this crew from their three-dot menu.</p>
+              <p className="pc-muted">Move pebbles into this crew from their three-dot menu.</p>
             )}
           </div>
         </TabsContent>
         <TabsContent value="files">
-          <p className="review-muted">Files shared in this crew will appear here.</p>
+          <p className="pc-muted">Files shared in this crew will appear here.</p>
         </TabsContent>
       </Tabs>
     </aside>
@@ -1005,7 +1006,7 @@ function SearchOverlay({
       }}
     >
       <DialogContent
-        className="review-search"
+        className="pc-search"
         showCloseButton={false}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
@@ -1059,7 +1060,7 @@ function SearchOverlay({
               </CommandItem>
             </CommandGroup>
           </CommandList>
-          <footer className="review-search-footer">
+          <footer className="pc-search-footer">
             <span>Sample results</span>
             <span>↑↓ Navigate · ↵ Open · Esc Close</span>
           </footer>
@@ -1072,28 +1073,28 @@ function SearchOverlay({
 function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [saved, setSaved] = useState(false);
   return (
-    <section className="review-settings" aria-label="Settings">
-      <header className="review-settings-header">
+    <section className="pc-settings" aria-label="Settings">
+      <header className="pc-settings-header">
         <h1>Settings</h1>
         <IconAction label="Close Settings" icon={X} onClick={onClose} />
       </header>
-      <Tabs defaultValue="account" className="review-settings-layout">
+      <Tabs defaultValue="account" className="pc-settings-layout">
         <TabsList variant="line">
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="connections">Connections</TabsTrigger>
         </TabsList>
-        <div className="review-settings-body">
+        <div className="pc-settings-body">
           <TabsContent value="account">
             <h2>Your account</h2>
-            <p className="review-muted">Manage this Pebble Crew installation.</p>
+            <p className="pc-muted">Manage this Pebble Crew installation.</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 setSaved(true);
               }}
             >
-              <div className="review-fields">
+              <div className="pc-fields">
                 <div>
                   <Label htmlFor="owner-name">Name</Label>
                   <Input id="owner-name" defaultValue="Alex" autoComplete="off" />
@@ -1108,14 +1109,14 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                   />
                 </div>
               </div>
-              <div className="review-form-footer">
+              <div className="pc-form-footer">
                 {saved && <span role="status">Saved in this preview</span>}
                 <Button type="submit">Save changes</Button>
               </div>
             </form>
-            <section className="review-setting-section">
+            <section className="pc-setting-section">
               <h3>Password</h3>
-              <p className="review-muted">Keep access to your installation secure.</p>
+              <p className="pc-muted">Keep access to your installation secure.</p>
               <Button variant="outline" onClick={() => setSaved(true)}>
                 Change password
               </Button>
@@ -1123,11 +1124,11 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           </TabsContent>
           <TabsContent value="appearance">
             <h2>Appearance</h2>
-            <p className="review-muted">One theme across your crew.</p>
-            <div className="review-settings-row">
-              <Label htmlFor="review-theme">Theme</Label>
+            <p className="pc-muted">One theme across your crew.</p>
+            <div className="pc-settings-row">
+              <Label htmlFor="pc-theme">Theme</Label>
               <Select defaultValue="dark">
-                <SelectTrigger id="review-theme">
+                <SelectTrigger id="pc-theme">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1135,30 +1136,30 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="review-settings-row">
+            <div className="pc-settings-row">
               <div>
-                <Label htmlFor="review-motion">Avatar motion</Label>
-                <p className="review-muted">Follows your device’s reduced-motion setting.</p>
+                <Label htmlFor="pc-motion">Avatar motion</Label>
+                <p className="pc-muted">Follows your device’s reduced-motion setting.</p>
               </div>
-              <Switch id="review-motion" defaultChecked />
+              <Switch id="pc-motion" defaultChecked />
             </div>
           </TabsContent>
           <TabsContent value="connections">
             <h2>Connections</h2>
-            <p className="review-muted">Services your pebbles can use.</p>
-            <div className="review-service">
-              <span className="review-service-icon">
+            <p className="pc-muted">Services your pebbles can use.</p>
+            <div className="pc-service">
+              <span className="pc-service-icon">
                 <Folder />
               </span>
               <div>
                 <h3>GitHub</h3>
-                <p className="review-muted">Repositories and issues</p>
+                <p className="pc-muted">Repositories and issues</p>
               </div>
               <Button variant="outline" size="sm" disabled>
                 Connect
               </Button>
             </div>
-            <p className="review-muted text-xs">
+            <p className="pc-muted text-xs">
               Service connections are not available in this design preview.
             </p>
           </TabsContent>
@@ -1201,7 +1202,7 @@ function ExistingOverlay({
       }}
     >
       <DialogContent
-        className="review-existing"
+        className="pc-existing"
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           focusLive('[aria-label="New"],[aria-label="Open navigation"]');
@@ -1220,12 +1221,12 @@ function ExistingOverlay({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="review-existing-list">
+        <div className="pc-existing-list">
           {available
             .map((name, index) => ({ name, index }))
             .filter(({ name }) => name.toLowerCase().includes(query.toLowerCase()))
             .map(({ name, index: i }) => (
-              <label key={name} className="review-existing-item">
+              <label key={name} className="pc-existing-item">
                 <AgentAvatar
                   id={`existing-${name}`}
                   look={{
@@ -1252,7 +1253,7 @@ function ExistingOverlay({
               </label>
             ))}
         </div>
-        <footer className="review-selection-footer">
+        <footer className="pc-selection-footer">
           <span>{chosen.length ? `${chosen.length} selected` : 'Choose pebbles to add'}</span>
           <Button
             disabled={!chosen.length}
@@ -1318,7 +1319,7 @@ function EditorOverlay({
       }}
     >
       <DialogContent
-        className="review-editor"
+        className="pc-editor"
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           focusLive(
@@ -1337,10 +1338,10 @@ function EditorOverlay({
             <TabsTrigger value="tools">Tools & skills</TabsTrigger>
           </TabsList>
           <TabsContent value="profile">
-            <div className="review-editor-profile">
-              <div className="review-avatar-editor appearance-picker">
-                <AgentAvatar id="review-appearance" look={look} photo={photo} large />
-                <div className="review-shapes">
+            <div className="pc-editor-profile">
+              <div className="pc-avatar-editor appearance-picker">
+                <AgentAvatar id="pc-appearance" look={look} photo={photo} large />
+                <div className="pc-shapes">
                   {SHAPES.map((shape) => (
                     <button
                       key={shape}
@@ -1353,7 +1354,7 @@ function EditorOverlay({
                     </button>
                   ))}
                 </div>
-                <div className="review-colors">
+                <div className="pc-colors">
                   {COLORS.map((color) => (
                     <button
                       key={color.id}
@@ -1398,7 +1399,7 @@ function EditorOverlay({
                   </p>
                 )}
               </div>
-              <div className="review-fields">
+              <div className="pc-fields">
                 <div>
                   <Label htmlFor="pebble-name">Name</Label>
                   <Input id="pebble-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -1419,7 +1420,7 @@ function EditorOverlay({
             </div>
           </TabsContent>
           <TabsContent value="role">
-            <div className="review-fields">
+            <div className="pc-fields">
               <div>
                 <Label htmlFor="pebble-description">Description</Label>
                 <Textarea
@@ -1442,17 +1443,17 @@ function EditorOverlay({
             </div>
           </TabsContent>
           <TabsContent value="tools">
-            <div className="review-settings-row">
+            <div className="pc-settings-row">
               <Label htmlFor="tool-browser">Browser</Label>
               <Switch id="tool-browser" defaultChecked />
             </div>
-            <div className="review-settings-row">
+            <div className="pc-settings-row">
               <Label htmlFor="tool-files">Files</Label>
               <Switch id="tool-files" defaultChecked />
             </div>
           </TabsContent>
         </Tabs>
-        <div className="review-form-footer">
+        <div className="pc-form-footer">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>

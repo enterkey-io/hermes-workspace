@@ -15,7 +15,7 @@ characters across reads. Dispatch a record as soon as its line is complete.
 | ---------------------- | ------------------------------------------------- |
 | 0.2.4 published source | JSON followed by LF (single newline)              |
 | 0.4.0                  | JSON followed by LF (single newline)              |
-| 0.4.1–0.5.0            | JSON followed by LF LF (compatibility blank line) |
+| 0.4.1–0.7.0            | JSON followed by LF LF (compatibility blank line) |
 
 The installed 0.2.4 probe was reported to observe blank separators. The tagged
 0.2.4 source emits single newlines; that deployment difference has not been
@@ -116,3 +116,28 @@ whether the optional Computer UI is offered.
 The 0.6 Computer capability stays false by default until host acceptance passes.
 The operator-only experimental opt-in is `HERMES_BOT_WEB_EXPERIMENTAL_COMPUTER=1`;
 it does not bypass the native revision/host/lease checks.
+
+## 0.7 organization and search
+
+`workspace.snapshot` adds `organization` (revision, sections, crews) and `crew_chats`
+(Crew identity → native room ID). `organization.get` returns that organization;
+`organization.save` accepts `{organization:{sections,crews},expected_revision}` and
+uses its own compare-and-swap revision. Every known enrolled identity has exactly
+one placement. `organization.chat` accepts `{id,expected_revision,confirm_new}`;
+it returns `ready` with an authoritative native room or `new_chat_required` when
+membership changed. A deterministic room ID prevents an uncertain acknowledgement
+from creating duplicate rooms. Native history is never rewritten by sidebar moves.
+
+`search.query` accepts `{query}` (1–200 characters) and returns at most 100 typed
+hits plus a human-readable coverage/limit summary. Message/file/routine hits include
+stable `bot_id`, `profile` and `item_id`; room-message hits carry the native room
+identity and event ID. `search.context` revalidates the target and returns the exact
+visible saved text, without marking its chat read. Profile targets use
+`{profile,bot_id,kind,item_id,query}`; room targets use
+`{kind:"room-message",room_id,created_at,item_id}`. Search never accepts filesystem
+paths from the browser. Owners can then explicitly open that conversation or its
+Files/Routines tab. Message previews do not pretend that an older result is loaded
+into the current paginated transcript.
+
+The complete 0.7 app and integration are released together. All records retain the
+existing v1 framing, Origin/authentication and owner isolation requirements.

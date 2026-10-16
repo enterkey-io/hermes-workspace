@@ -15,6 +15,7 @@ async function newItem(page: Page, name: string) {
   await page.getByRole('menuitem', { name, exact: true }).click();
 }
 async function accessible(page: Page) {
+  await page.waitForTimeout(200);
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
     .analyze();
@@ -96,8 +97,8 @@ test('editor preserves drafts across events and unrelated saves, resolves confli
   await page.getByRole('button', { name: 'Save handle' }).click();
   await expect(page.getByText('Handle saved.', { exact: true })).toBeVisible();
   await page.getByLabel('Handle', { exact: true }).fill('unsaved');
-  await page.getByRole('button', { name: 'Arlo Bot Chat', exact: true }).click();
-  let dialog = page.getByRole('dialog', { name: 'Unsaved changes' });
+  await page.getByRole('button', { name: 'Close Edit Mica', exact: true }).click();
+  let dialog = page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByLabel('Handle', { exact: true })).toHaveValue('unsaved');
@@ -108,8 +109,8 @@ test('editor preserves drafts across events and unrelated saves, resolves confli
   ).toBeVisible();
   await expect(page.getByLabel('Handle', { exact: true })).toHaveValue('unsaved');
   await expect(page.getByRole('button', { name: 'Save handle' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Arlo Bot Chat', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: 'Unsaved changes' });
+  await page.getByRole('button', { name: 'Close Edit Mica', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ });
   await dialog.getByRole('button', { name: 'Discard changes' }).click();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
 });
@@ -124,18 +125,16 @@ test('sidebar creates and edits crews without changing relationships; fresh and 
   let dialog = page.getByRole('dialog', { name: 'New crew', exact: true });
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Name', { exact: true }).fill('Studio');
-  await dialog.getByLabel('Mica', { exact: false }).check();
-  await dialog.getByRole('button', { name: 'Create crew', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   expect(fixture.state.bots.find((b) => b.profile === 'mica')!.manager).toBe('arlo');
-  await expect(page.getByRole('heading', { name: 'Studio', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Studio .*Open chat$/ })).toBeVisible();
   await page.getByRole('button', { name: 'Actions for Studio', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Edit crew', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: 'Edit crew', exact: true });
-  await expect(dialog.getByLabel('Mica', { exact: false })).toBeChecked();
+  await page.getByRole('menuitem', { name: 'Crew settings', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Crew settings', exact: true });
   await dialog.getByRole('button', { name: 'Remove crew', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Mica Bot Chat', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Mica .*Bot Chat$/ })).toBeVisible();
   await newItem(page, 'New pebble');
   await accessible(page);
   await page.getByRole('button', { name: 'Create new', exact: false }).click();
@@ -145,7 +144,7 @@ test('sidebar creates and edits crews without changing relationships; fresh and 
   await page.getByRole('button', { name: 'Review pebble' }).click();
   await expect(page.getByRole('heading', { name: 'Create pebble', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Approve exact request' }).click();
-  await expect(page.getByRole('button', { name: 'Nova Bot Chat', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Nova .*Bot Chat$/ })).toBeVisible();
   await newItem(page, 'New pebble');
   await page.getByRole('button', { name: 'Add existing', exact: false }).click();
   await expect(
@@ -153,9 +152,7 @@ test('sidebar creates and edits crews without changing relationships; fresh and 
   ).toBeVisible();
   await page.getByLabel('Existing example', { exact: false }).check();
   await page.getByRole('button', { name: 'Add selected pebbles (1)', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Existing example Bot Chat', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Existing example .*Bot Chat$/ })).toBeVisible();
 });
 
 test('attachments are conversation bound, can be removed, send without text, and download in Files', async ({
@@ -172,12 +169,13 @@ test('attachments are conversation bound, can be removed, send without text, and
   });
   await expect(page.locator('.attachment-chips')).toContainText('notes.txt');
   await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled();
-  await page.getByRole('button', { name: 'Mica Bot Chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Mica .*Bot Chat$/ }).click();
   await expect(page.locator('.attachment-chips')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Arlo Bot Chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Arlo .*Bot Chat$/ }).click();
   await expect(page.locator('.attachment-chips')).toContainText('notes.txt');
   await page.getByRole('button', { name: 'Send message' }).click();
   await expect(page.locator('.attachment-chips')).toHaveCount(0);
+  await page.getByRole('button', { name: /Show details/ }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect(page.locator('.file-list')).toContainText('notes.txt');
   const download = page.waitForEvent('download');
@@ -257,7 +255,7 @@ test('small screens keep dialogs bounded, nested unsaved confirmation restores f
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Name', { exact: true }).fill('Draft crew');
   await page.keyboard.press('Escape');
-  const confirm = page.getByRole('dialog', { name: 'Unsaved changes' });
+  const confirm = page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ });
   await expect(confirm).toBeVisible();
   await confirm.getByRole('button', { name: 'Keep editing' }).click();
   await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('Draft crew');
@@ -269,6 +267,7 @@ test('small screens keep dialogs bounded, nested unsaved confirmation restores f
     .getByRole('dialog', { name: 'Unsaved changes' })
     .getByRole('button', { name: 'Discard changes' })
     .click();
+  await page.getByRole('button', { name: 'Close navigation', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
 });
@@ -297,20 +296,21 @@ test('pin feedback is immediate and rolls back on failure; details, scroll motio
   await expect(
     page
       .locator('.pinned-tile')
-      .filter({ has: page.getByRole('button', { name: 'Rowan Bot Chat', exact: true }) }),
+      .filter({ has: page.getByRole('button', { name: /^Rowan .*Bot Chat$/ }) }),
   ).toHaveCount(1);
   await expect(page.locator('.pin-saving')).toBeVisible();
   release();
   await expect(page.locator('.pinned-tile')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: 'Rowan Bot Chat', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Rowan .*Bot Chat$/ })).toBeVisible();
   const log = page.getByRole('log');
   await log.evaluate((n) => {
     n.scrollTop = 0;
     n.dispatchEvent(new Event('scroll'));
   });
-  await page.getByRole('button', { name: 'Hide details', exact: true }).click();
-  await expect(page.locator('.details-panel')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Show details', exact: true }).click();
+  await page.getByRole('button', { name: /Show details/ }).click();
+  await page.getByRole('button', { name: /Hide details/ }).click();
+  await expect(page.locator('.pc-details-slot')).toHaveCSS('width', '0px');
+  await page.getByRole('button', { name: /Show details/ }).click();
   expect(await log.evaluate((n) => n.scrollTop)).toBeLessThan(150);
   const samples = await page.evaluate(async () => {
     const n = document.querySelector<HTMLElement>('[role=log]')!;
@@ -344,11 +344,11 @@ test('mobile browser Back closes the top overlay and keeps the underlying app av
   await installFixture(context);
   await page.setViewportSize({ width: 390, height: 844 });
   await ready(page);
-  await page.getByRole('button', { name: 'Show details' }).click();
-  await expect(page.getByRole('dialog', { name: 'details' })).toBeVisible();
+  await page.getByRole('button', { name: /Show details/ }).click();
+  await expect(page.locator('.pc-details-slot')).toHaveCSS('width', '390px');
   await page.goBack();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Show details' })).toBeFocused();
+  await expect(page.getByRole('button', { name: /Show details/ })).toBeFocused();
   await page.getByRole('button', { name: 'Toggle navigation' }).click();
   await expect(page.getByRole('dialog', { name: 'navigation' })).toBeVisible();
   await page.goBack();
@@ -367,15 +367,22 @@ test('browser Back protects an unsaved Crew then closes only its confirmation', 
   await newItem(page, 'New crew');
   const crew = page.getByRole('dialog', { name: 'New crew', exact: true });
   await crew.getByLabel('Name', { exact: true }).fill('Back draft');
-  await expect(crew.getByRole('button', { name: 'Create crew', exact: true })).toBeInViewport();
+  await expect(crew.getByRole('button', { name: 'Create', exact: true })).toBeInViewport();
   await page.goBack();
-  await expect(page.getByRole('dialog', { name: 'Unsaved changes' })).toBeVisible();
+  await expect(
+    page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ }),
+  ).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole('dialog', { name: 'Unsaved changes' })).toHaveCount(0);
+  await expect(
+    page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ }),
+  ).toHaveCount(0);
   await expect(crew.getByLabel('Name', { exact: true })).toHaveValue('Back draft');
   await page.goBack();
-  await expect(page.getByRole('dialog', { name: 'Unsaved changes' })).toBeVisible();
+  await expect(
+    page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Discard changes' }).click();
+  await page.getByRole('button', { name: 'Close navigation', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
 });
@@ -390,7 +397,7 @@ test('closing a new pebble preserves a creation draft until it is explicitly dis
   await page.getByRole('button', { name: 'Create new', exact: false }).click();
   await page.getByLabel('Name', { exact: true }).fill('Unsaved Nova');
   await page.getByRole('button', { name: 'Close New pebble', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Unsaved changes' });
+  const dialog = page.getByRole('dialog', { name: /Unsaved changes|Discard unsaved changes/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Unsaved Nova');
@@ -419,7 +426,7 @@ test('resting pebbles look away, breathe, track only the hovered row smoothly, t
   await expect.poll(() => body.getAttribute('transform')).not.toBe(before);
   const samples = await page.evaluate(async () => {
     const row = document.querySelector('.pinned-tile')!,
-      svg = row.querySelector('svg')!,
+      svg = row.querySelector('svg.avatar')!,
       box = row.getBoundingClientRect();
     const values: number[] = [];
     row.dispatchEvent(
@@ -458,4 +465,97 @@ test('resting pebbles look away, breathe, track only the hovered row smoothly, t
   await page.locator('.pinned-tile').first().hover();
   await page.waitForTimeout(350);
   expect(await body.getAttribute('transform')).toBe(frozen);
+});
+
+test('chat proportions, restrained header hover, new avatar choices and minimal live activity', async ({
+  page,
+  context,
+}) => {
+  await installFixture(context);
+  await ready(page);
+  const header = page.locator('.chat-title');
+  const base = await header.evaluate((n) => getComputedStyle(n).backgroundColor);
+  await header.hover();
+  await expect(header).toHaveCSS('background-color', base);
+  const user = page.locator('.pc-message.user').first();
+  expect(await user.evaluate((n) => getComputedStyle(n).maxWidth)).toBe('50%');
+  await expect(page.locator('.pc-message.assistant .pc-bubble').first()).toHaveCSS(
+    'background-color',
+    'rgb(32, 32, 34)',
+  );
+  await emit(page, 'message.start');
+  const activity = page.locator('.pc-activity');
+  await expect(activity).toHaveText('Thinking');
+  expect(await activity.evaluate((n) => getComputedStyle(n).animationName)).toContain('shimmer');
+  await emit(page, 'tool.start', { tool: 'terminal' });
+  await expect(activity).toHaveText('Working');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(activity).toHaveCSS('animation-name', 'none');
+  await emit(page, 'message.complete', { status: 'done' });
+  await page.getByLabel('Actions for Mica').click();
+  await page.getByRole('menuitem', { name: 'Edit pebble' }).click();
+  await expect(page.getByRole('group', { name: 'Avatar shape' }).getByRole('button')).toHaveCount(
+    10,
+  );
+  await expect(page.getByRole('group', { name: 'Avatar color' }).getByRole('button')).toHaveCount(
+    12,
+  );
+  await page.getByRole('button', { name: 'cairn', exact: true }).click();
+  await page.getByRole('button', { name: 'Umber', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'cairn', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Umber', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});
+
+test('Crew chat waits for pending membership save and opens native conversation instead of settings', async ({
+  page,
+  context,
+}) => {
+  await installFixture(context);
+  await ready(page);
+  await newItem(page, 'New crew');
+  const editor = page.getByRole('dialog', { name: 'New crew', exact: true });
+  await editor.getByLabel('Name', { exact: true }).fill('Roundtable');
+  await editor.getByRole('button', { name: 'Create', exact: true }).click();
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let saving = false;
+  let opens = 0;
+  await page.route('**/v1/rpc', async (route) => {
+    const data = route.request().postDataJSON();
+    if (data.operation === 'organization.chat') opens++;
+    if (
+      data.operation === 'organization.save' &&
+      data.params.organization.crews[0]?.members.length === 2
+    ) {
+      saving = true;
+      await waiting;
+    }
+    await route.fallback();
+  });
+  try {
+    for (const name of ['Arlo', 'Mica']) {
+      await page.getByLabel(`Actions for ${name}`, { exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Move to crew', exact: true }).hover();
+      await page.getByRole('menuitemcheckbox', { name: 'Roundtable', exact: true }).click();
+    }
+    await expect.poll(() => saving).toBe(true);
+    await page.getByRole('button', { name: /^Roundtable .*Open chat$/ }).click();
+    await page.waitForTimeout(150);
+    expect(opens).toBe(0);
+    release();
+    await expect.poll(() => opens).toBe(1);
+    await expect(page.locator('.chat-title')).toContainText('Roundtable');
+    await expect(page.getByRole('log')).toContainText('I have the notes ready.');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  } finally {
+    release();
+  }
 });

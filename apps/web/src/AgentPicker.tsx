@@ -1,3 +1,5 @@
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 
@@ -100,9 +102,9 @@ export function AgentPicker({
         <div>
           <h2 id="agent-picker-title">Add existing pebbles</h2>
         </div>
-        <button onClick={onClose} disabled={working}>
+        <Button variant="secondary" onClick={onClose} disabled={working}>
           Close
-        </button>
+        </Button>
       </div>
       <p className="field-hint">
         Choose existing Hermes agents. Their personality and memory stay with them.
@@ -123,7 +125,7 @@ export function AgentPicker({
           )}
           <label className="agent-search">
             <span>Find a pebble</span>
-            <input
+            <Input
               ref={search}
               type="search"
               placeholder="Search pebbles…"
@@ -176,10 +178,15 @@ export function AgentPicker({
             </p>
           )}
           <div className="agent-picker-actions">
-            <button onClick={() => void refresh()} disabled={working || loading || !connected}>
+            <Button
+              variant="secondary"
+              onClick={() => void refresh()}
+              disabled={working || loading || !connected}
+            >
               Refresh pebbles
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="default"
               className="primary"
               onClick={() => void add()}
               disabled={!chosen.length || working || loading || !!error || !connected}
@@ -187,7 +194,7 @@ export function AgentPicker({
               {working
                 ? 'Adding selected agents…'
                 : `Add selected pebbles${chosen.length ? ` (${chosen.length})` : ''}`}
-            </button>
+            </Button>
           </div>
         </>
       )}

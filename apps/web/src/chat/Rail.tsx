@@ -1,8 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import { LayoutGroup, motion, useReducedMotion } from 'motion/react';
+import { Search, Plus, X, CircleUserRound, MoreHorizontal } from 'lucide-react';
 import { AgentAvatar } from '../AgentAvatar';
-import { Icon } from './Icon';
 import { Menu } from '../ui/primitives';
 import type { MenuItem } from '../ui/primitives';
+import { IconButton } from '../components/ui/icon-button';
+import { Badge } from '../components/ui/badge';
+import { OrganizationRail, OrganizationDialog } from '../ui/OrganizationRail';
+import { placePebble, placementOf, nudgeItem, canNudgeItem } from '../ui/organization';
+import type { Organization, OrganizationEditor } from '../ui/organization';
 import type { WorkspaceState, WorkspaceBot } from '../workspace';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import type { Activity } from '../avatar-lab/engine';
@@ -85,6 +92,7 @@ export function CrewAvatar({
     </span>
   );
 }
+
 export function Rail({
   bots,
   rooms,
@@ -97,8 +105,6 @@ export function Rail({
   onOpen,
   onRoom,
   onAdd,
-  onNewCrew,
-  onEditCrew,
   onEdit,
   pendingPins,
   onSettings,
@@ -109,6 +115,11 @@ export function Rail({
   onLogout,
   owner,
   onClose,
+  organization,
+  crewChats,
+  onOrganization,
+  onCrew,
+  onSearch,
 }: {
   bots: ChatBot[];
   rooms: Row[];
@@ -121,8 +132,6 @@ export function Rail({
   onOpen: (b: ChatBot) => void;
   onRoom: (r: Row) => void;
   onAdd: () => void;
-  onNewCrew: () => void;
-  onEditCrew: (id: string) => void;
   onEdit: (profile: string) => void;
   pendingPins: Record<string, boolean>;
   onSettings: () => void;
@@ -132,327 +141,288 @@ export function Rail({
   onOrder: (ids: string[]) => void;
   onLogout: () => void;
   owner: boolean;
-  onClose?: () => void;
+  onClose?: (() => void) | undefined;
+  organization: Organization;
+  crewChats: Record<string, string>;
+  onOrganization: Dispatch<SetStateAction<Organization>>;
+  onCrew: (id: string) => void;
+  onSearch: () => void;
 }) {
-  const [query, setQuery] = useState('');
-  const [search, setSearch] = useState(false);
-  const [hidden, setHidden] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  const motion = useRef<HTMLDivElement>(null);
-  const positions = useRef(new Map<string, DOMRect>());
-  useLayoutEffect(() => {
-    const next = new Map<string, DOMRect>();
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    motion.current?.querySelectorAll<HTMLElement>('[data-motion-id]').forEach((node) => {
-      const id = node.dataset.motionId!,
-        bounds = node.getBoundingClientRect(),
-        previous = positions.current.get(id);
-      next.set(id, bounds);
-      if (
-        previous &&
-        !reduce &&
-        (Math.abs(previous.x - bounds.x) > 1 ||
-          Math.abs(previous.y - bounds.y) > 1 ||
-          previous.width !== bounds.width)
-      ) {
-        node.getAnimations().forEach((a) => a.cancel());
-        node.animate(
-          [
-            {
-              transform: `translate(${previous.x - bounds.x}px,${previous.y - bounds.y}px) scale(${previous.width / bounds.width})`,
-              transformOrigin: 'top left',
-            },
-            { transform: 'none', transformOrigin: 'top left' },
-          ],
-          { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' },
-        );
-      }
-    });
-    positions.current = next;
-  }, [
-    bots,
-    workspace?.revision,
-    pinOrder.join(','),
-    JSON.stringify(pendingPins),
-    query,
-    search,
-    hidden,
-  ]);
-  const identity = (b: ChatBot) => workspace?.bots.find((a) => a.profile === b.profile);
-  const pinned = (b: ChatBot) => {
-    const row = identity(b);
-    return row?.pinned || (!row?.pin_configured && workspace?.orchestrator === b.profile);
+  const [hidden, setHidden] = useState(false),
+    [editor, setEditor] = useState<OrganizationEditor | null>(null);
+  const reduced = useReducedMotion();
+  const identity = (bot: ChatBot) => workspace?.bots.find((b) => b.profile === bot.profile);
+  const pinned = (bot: ChatBot) => {
+    const b = identity(bot);
+    return !!b?.pinned || (!b?.pin_configured && workspace?.orchestrator === bot.profile);
   };
-  const matches = (b: ChatBot) =>
-    `${b.name} ${identity(b)?.handle ?? ''} ${identity(b)?.role.title ?? ''}`
-      .toLowerCase()
-      .includes(query.toLowerCase());
   const all =
     hidden && workspace
       ? [
           ...bots,
           ...workspace.bots.filter(
-            (b) => b.managed && b.hidden && !bots.some((a) => a.profile === b.profile),
+            (b) => b.managed && b.hidden && !bots.some((p) => p.profile === b.profile),
           ),
         ]
       : bots;
   const pins = all
-    .filter((b) => !b.hidden && pinned(b) && matches(b))
+    .filter((b) => !b.hidden && pinned(b))
     .sort((a, b) => {
       const ai = pinOrder.indexOf(identity(a)?.id ?? ''),
         bi = pinOrder.indexOf(identity(b)?.id ?? '');
       return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
     });
-  const regular = all.filter((b) => (hidden || !b.hidden) && !pins.includes(b) && matches(b));
-  const sections = [{ id: null, name: 'Pebbles' }, ...(workspace?.teams ?? [])];
-  const avatar = (b: ChatBot, large = false) => (
-    <PebbleAvatar
-      bot={b}
-      workspace={workspace}
-      client={client}
-      state={states[b.profile]}
-      large={large}
-    />
-  );
-  const controls = (b: ChatBot, position?: number) => {
-    const row = identity(b);
-    if (!row) return null;
+  const byId = (id: string) => all.find((b) => identity(b)?.id === id);
+  const face = (id: string, large = false) => {
+    const bot = byId(id);
+    return bot ? (
+      <PebbleAvatar
+        bot={bot}
+        workspace={workspace}
+        client={client}
+        state={states[bot.profile]}
+        large={large}
+      />
+    ) : null;
+  };
+  const pinIds = pins.map((b) => identity(b)!.id);
+  const controls = (bot: ChatBot, index?: number) => {
+    const b = identity(bot);
+    if (!b) return null;
+    const current = placementOf(organization, b.id);
     const items: MenuItem[] = [
       {
-        label: pinned(b) ? 'Unpin' : 'Pin',
-        action: () => onPin(row, !pinned(b)),
-        disabled: !!pendingPins[row.id],
+        label: pinned(bot) ? 'Unpin' : 'Pin',
+        action: () => onPin(b, !pinned(bot)),
+        disabled: !!pendingPins[b.id] || !online,
       },
       { label: 'Edit pebble', action: () => onEdit(b.profile) },
-      { label: b.hidden ? 'Unhide' : 'Hide', action: () => onVisibility(row, !b.hidden) },
+      {
+        label: 'Move to section',
+        action: () => {},
+        items: organization.sections.map((s) => ({
+          label: s.name,
+          checked: current?.kind === 'section' && current.id === s.id,
+          action: () =>
+            onOrganization((org) => placePebble(org, b.id, { kind: 'section', id: s.id })),
+        })),
+      },
+      {
+        label: 'Move to crew',
+        action: () => {},
+        items: organization.crews.map((c) => ({
+          label: c.name,
+          checked: current?.kind === 'crew' && current.id === c.id,
+          action: () => onOrganization((org) => placePebble(org, b.id, { kind: 'crew', id: c.id })),
+        })),
+      },
+      {
+        label: bot.hidden ? 'Unhide' : 'Hide',
+        action: () => onVisibility(b, !bot.hidden),
+        disabled: !online,
+      },
     ];
-    if (b.profile !== 'default' && workspace?.orchestrator !== b.profile)
-      items.push({ label: 'Delete…', action: () => onDelete(row), danger: true });
-    if (position != null && position > 0)
+    if (!pinned(bot))
+      for (const direction of [-1, 1] as const)
+        items.push({
+          label: direction === -1 ? 'Move up' : 'Move down',
+          disabled: !canNudgeItem(organization, { kind: 'pebble', id: b.id }, direction, pinIds),
+          action: () =>
+            onOrganization((org) =>
+              nudgeItem(org, { kind: 'pebble', id: b.id }, direction, pinIds),
+            ),
+        });
+    if (index != null && index > 0)
       items.push({
         label: 'Move earlier',
         action: () => {
-          const ids = pins.map((p) => identity(p)!.id);
-          [ids[position - 1], ids[position]] = [ids[position]!, ids[position - 1]!];
+          const ids = [...pinIds];
+          [ids[index - 1], ids[index]] = [ids[index]!, ids[index - 1]!];
           onOrder(ids);
         },
       });
+    if (b.profile !== 'default' && workspace?.orchestrator !== b.profile)
+      items.push({ label: 'Delete…', action: () => onDelete(b), danger: true, disabled: !online });
     return (
-      <Menu className="pebble-menu" label={`Actions for ${b.name}`} items={items}>
-        <span aria-hidden>···</span>
+      <Menu className="pc-overflow" label={`Actions for ${bot.name}`} items={items}>
+        <MoreHorizontal />
       </Menu>
     );
   };
   return (
     <>
-      <div className="rail-toolbar">
-        <span className="sidebar-title">Pebble Crew</span>
-        <button
-          className="icon-button"
-          aria-label="Search chats"
-          onClick={() => {
-            setSearch(!search);
-            requestAnimationFrame(() => input.current?.focus());
-          }}
-        >
-          <Icon name="search" />
-        </button>
+      <div className="pc-rail-header rail-toolbar">
+        <span className="pc-wordmark">Pebble Crew</span>
+        <IconButton label="Search Pebble Crew" icon={Search} onClick={onSearch} />
         <Menu
           label="New"
           disabled={!online}
           items={[
             { label: 'New pebble', action: onAdd },
-            { label: 'New crew', action: onNewCrew },
+            { label: 'New crew', action: () => setEditor({ kind: 'new-crew' }) },
+            { label: 'New section', action: () => setEditor({ kind: 'new-section' }) },
           ]}
         >
-          <Icon name="plus" />
+          <Plus />
         </Menu>
-        {onClose && (
-          <button className="icon-button" aria-label="Close navigation" onClick={onClose}>
-            <Icon name="close" />
-          </button>
-        )}
+        {onClose && <IconButton label="Close navigation" icon={X} onClick={onClose} />}
       </div>
-      {search && (
-        <input
-          ref={input}
-          className="chat-search"
-          aria-label="Search chats"
-          placeholder="Search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      )}
-      <div className="rail-scroll" ref={motion}>
-        <nav aria-label="Pebbles">
-          {!!pins.length && (
-            <div className="pinned-pebbles">
-              {pins.map((b, i) => (
-                <div
-                  className={`pinned-tile ${selected === b.profile ? 'active' : ''}`}
-                  key={b.id ?? b.profile}
-                >
-                  <button
-                    aria-label={`${b.name} Bot Chat`}
-                    aria-current={selected === b.profile ? 'page' : undefined}
-                    onClick={() => onOpen(b)}
-                    disabled={!online}
+      <div className="pc-rail-scroll rail-scroll">
+        <LayoutGroup id="native-rail">
+          <nav aria-label="Pebbles">
+            {!!pins.length && (
+              <div className="pc-pins pinned-pebbles">
+                {pins.map((b, i) => (
+                  <motion.div
+                    layout="position"
+                    transition={{ duration: reduced ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className={`pc-pin pinned-tile ${selected === b.profile ? 'is-selected' : ''}`}
+                    key={identity(b)?.id ?? b.profile}
                   >
-                    <span className="motion-avatar" data-motion-id={identity(b)?.id}>
-                      {avatar(b, true)}
-                    </span>
-                    <strong>{b.name}</strong>
-                    {pendingPins[identity(b)?.id ?? ''] && (
-                      <span className="pin-saving" role="status">
-                        Saving…
+                    <div className="pc-pin-actions">{controls(b, i)}</div>
+                    <button
+                      className="pc-pin-open"
+                      aria-label={`${b.name} ${identity(b)?.role.title ?? ''} Bot Chat`}
+                      aria-current={selected === b.profile ? 'page' : undefined}
+                      disabled={!online}
+                      onClick={() => onOpen(b)}
+                    >
+                      {face(identity(b)!.id, true)}
+                      <strong>{b.name}</strong>{' '}
+                      {pendingPins[identity(b)?.id ?? ''] && (
+                        <span className="pin-saving sr-only" role="status">
+                          Saving pin…
+                        </span>
+                      )}
+                      {identity(b)?.role.title && (
+                        <Badge variant="secondary" aria-hidden="true">
+                          {identity(b)?.role.title}
+                        </Badge>
+                      )}
+                      {identity(b)?.unread && (
+                        <span className="unread-dot" aria-label="Unread messages" />
+                      )}
+                    </button>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+            <OrganizationRail
+              org={organization}
+              onChange={onOrganization}
+              pebbles={all
+                .filter((b) => !b.hidden)
+                .flatMap((b) => {
+                  const row = identity(b);
+                  return row
+                    ? [
+                        {
+                          id: row.id,
+                          name: b.name,
+                          title: row.role.title,
+                          preview:
+                            b.preview || row.preview || row.role.description || '@' + row.handle,
+                          pinned: pinned(b),
+                        },
+                      ]
+                    : [];
+                })}
+              activeId={
+                all.find((b) => b.profile === selected)?.id ??
+                Object.entries(crewChats).find(([, roomId]) => roomId === selected)?.[0] ??
+                selected ??
+                ''
+              }
+              face={face}
+              onOpenPebble={(id) => {
+                const b = byId(id);
+                if (b && online) onOpen(b);
+              }}
+              onOpenCrew={onCrew}
+              onEditPebble={(id) => {
+                const b = byId(id);
+                if (b) onEdit(b.profile);
+              }}
+              onEditOrganization={setEditor}
+              onPin={(id) => {
+                const b = byId(id),
+                  row = b && identity(b);
+                if (b && row) onPin(row, !pinned(b));
+              }}
+              actions={(id) => {
+                const b = byId(id);
+                return b ? controls(b) : null;
+              }}
+              openLabel={(pebble) => `${pebble.name} ${pebble.title} ${pebble.preview} Bot Chat`}
+            />
+            {hidden &&
+              all
+                .filter((b) => b.hidden)
+                .map((b) => (
+                  <div className="pc-row" key={b.id}>
+                    <span className="pc-row-open">
+                      {face(b.id!)}
+                      <span className="pc-row-copy">
+                        <strong>{b.name}</strong>
+                        {pendingPins[identity(b)?.id ?? ''] && (
+                          <span className="pin-saving sr-only" role="status">
+                            Saving pin…
+                          </span>
+                        )}
+                        <small>Hidden</small>
                       </span>
-                    )}
-                    {identity(b)?.role.title && (
-                      <span className="role-chip">{identity(b)?.role.title}</span>
-                    )}
-                    {identity(b)?.unread && (
-                      <>
-                        <span className="unread-dot" aria-hidden />
-                        <span className="sr-only">Unread messages</span>
-                      </>
-                    )}
-                  </button>
-                  {controls(b, i)}
-                </div>
+                    </span>
+                    {controls(b)}
+                  </div>
+                ))}
+          </nav>
+          <nav className="pc-list" aria-label="Group chats">
+            {rooms.length > 0 && <h2>Group chats</h2>}
+            {rooms
+              .filter((r) => !Object.values(crewChats).includes(String(r.room_id)))
+              .map((r) => (
+                <button
+                  className="pc-crew"
+                  key={String(r.room_id)}
+                  disabled={!online}
+                  onClick={() => onRoom(r)}
+                >
+                  <CrewAvatar room={r} workspace={workspace} client={client} />
+                  <span>
+                    <strong>{String(r.name ?? 'Crew')}</strong>
+                    <small>{String(r.preview ?? 'Group conversation')}</small>
+                  </span>
+                </button>
               ))}
+          </nav>
+          {!all.length && (
+            <div className="rail-empty">
+              <p>No pebbles yet.</p>
+              <button onClick={onAdd}>Add existing agents</button>
             </div>
           )}
-          {sections.map((section) => {
-            const members = regular.filter((b) => (identity(b)?.team ?? null) === section.id);
-            return (
-              (members.length > 0 || section.id != null) && (
-                <section key={section.id ?? 'unsectioned'} className="rail-section">
-                  <div className="crew-heading">
-                    <h2>{section.name}</h2>
-                    {section.id && (
-                      <Menu
-                        label={`Actions for ${section.name}`}
-                        items={[{ label: 'Edit crew', action: () => onEditCrew(section.id!) }]}
-                      >
-                        <span aria-hidden>···</span>
-                      </Menu>
-                    )}
-                  </div>
-                  {members.map((b) => (
-                    <div
-                      key={b.id ?? b.profile}
-                      className={`pebble-row ${selected === b.profile ? 'active' : ''} ${b.hidden ? 'hidden-pebble' : ''}`}
-                    >
-                      <button
-                        className="pebble-open"
-                        aria-label={`${b.name} Bot Chat`}
-                        aria-current={selected === b.profile ? 'page' : undefined}
-                        disabled={!online || !!b.hidden}
-                        onClick={() => onOpen(b)}
-                      >
-                        <span className="motion-avatar" data-motion-id={identity(b)?.id}>
-                          {avatar(b)}
-                        </span>
-                        <span className="pebble-copy">
-                          <span className="pebble-heading">
-                            <strong>{b.name}</strong>
-                            {identity(b)?.role.title && (
-                              <span className="role-chip">{identity(b)?.role.title}</span>
-                            )}
-                          </span>
-                          <span className="chat-preview">
-                            {b.hidden
-                              ? 'Hidden'
-                              : b.preview ||
-                                identity(b)?.preview ||
-                                (!b.canonical
-                                  ? 'Set up Bot Chat'
-                                  : identity(b)?.role.description ||
-                                    b.description ||
-                                    `@${identity(b)?.handle ?? b.profile}`)}
-                          </span>
-                        </span>
-                        {identity(b)?.unread && (
-                          <>
-                            <span className="unread-dot" aria-hidden />
-                            <span className="sr-only">Unread messages</span>
-                          </>
-                        )}
-                      </button>
-                      {controls(b)}
-                    </div>
-                  ))}
-                </section>
-              )
-            );
-          })}
-        </nav>
-        <nav aria-label="Group chats" className="rail-section">
-          {rooms.length > 0 && <h2>Group chats</h2>}
-          {rooms
-            .filter((r) =>
-              String(r.name ?? '')
-                .toLowerCase()
-                .includes(query.toLowerCase()),
-            )
-            .map((r) => (
-              <button
-                className={`crew-row ${selected === r.room_id ? 'active' : ''}`}
-                key={String(r.room_id)}
-                disabled={!online}
-                onClick={() => onRoom(r)}
-              >
-                <CrewAvatar room={r} workspace={workspace} client={client} />
-                <span className="pebble-copy">
-                  <strong>{String(r.name ?? 'Crew')}</strong>
-                  <span className="chat-preview">{String(r.preview ?? 'Group conversation')}</span>
-                </span>
-                {r.unread === true && (
-                  <>
-                    <span className="unread-dot" aria-hidden />
-                    <span className="sr-only">Unread messages</span>
-                  </>
-                )}
-              </button>
-            ))}
-        </nav>
-        {!all.length && (
-          <div className="rail-empty">
-            <p>No pebbles yet.</p>
-            <button onClick={onAdd}>Add existing agents</button>
-          </div>
-        )}
-        {!pins.length &&
-          !regular.length &&
-          !rooms.some((r) =>
-            String(r.name ?? '')
-              .toLowerCase()
-              .includes(query.toLowerCase()),
-          ) &&
-          all.length > 0 && <p className="empty-note">No matches.</p>}
+        </LayoutGroup>
       </div>
-      <footer className="rail-footer">
+      <footer className="pc-rail-footer">
         <Menu
-          className="owner-menu"
           label="Your account"
           upward
           items={[
-            ...(workspace
-              ? [
-                  { label: 'Settings', action: onSettings },
-                  { label: 'Show hidden', checked: hidden, action: () => setHidden(!hidden) },
-                ]
-              : []),
+            { label: 'Settings', action: onSettings },
+            { label: 'Show hidden', checked: hidden, action: () => setHidden(!hidden) },
             { label: owner ? 'Sign out' : 'Disconnect', action: onLogout },
           ]}
         >
-          <span className="owner-mark" aria-hidden>
-            <Icon name="account" />
-          </span>
+          <CircleUserRound />
         </Menu>
-        <span className={`connection-dot ${online ? 'live' : 'lost'}`} aria-hidden />
-        <span className="connection-label">{online ? 'Hermes connected' : 'Reconnecting…'}</span>
+        <span>{online ? 'Hermes connected' : 'Reconnecting…'}</span>
       </footer>
+      <OrganizationDialog
+        editor={editor}
+        org={organization}
+        onChange={onOrganization}
+        onClose={() => setEditor(null)}
+      />
     </>
   );
 }

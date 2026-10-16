@@ -72,13 +72,13 @@ installation.
 
 ## 3. Obtain the immutable combined release
 
-Candidate: `v0.6.0-preview.1`. If these assets are not published, stop and report
+Candidate: `v0.7.0-preview.1`. If these assets are not published, stop and report
 that the candidate is unavailable. Do not substitute main or an API-only package.
 
-- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-manifest.json)
-- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/SHA256SUMS)
-- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-plugin-preview.zip)
-- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.6.0-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-manifest.json)
+- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/SHA256SUMS)
+- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-plugin-preview.zip)
+- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.0-preview.1/workspace-source-preview.zip)
 
 Verify size and SHA-256 against both manifest and checksum file. Reject absolute
 archive paths, traversal, symlinks and entries escaping private staging. The
@@ -198,7 +198,7 @@ with `hermes bot-web setup-link` (use `--renew-setup` only if it expired).
 remaining seconds). Its output contains the private file path, never the secret.
 
 Event parsing and legacy access controls are specified in
-[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.6.0-preview.1/docs/WIRE_PROTOCOL.md).
+[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.7.0-preview.1/docs/WIRE_PROTOCOL.md).
 Never use global revocation for diagnostic cleanup: use DELETE `/v1/connect`
 with the probe's own lease. Global revocation now requires `hermes bot-web revoke
 --all` or the operator-only HTTP body `{"all":true}`.
@@ -231,7 +231,7 @@ If initial setup expires before account creation, run `hermes bot-web setup-link
 --renew-setup` and privately deliver the new link. It refuses to replace a claimed
 owner account. Never delete a claimed account or regenerate keys to repair an update.
 
-## Verify the 0.6 interface update
+## Verify the 0.7 interface update
 
 Do not recreate the owner login, repeat onboarding, add a placeholder, or enroll
 extra profiles to test this update. Preserve the existing primary identity,
@@ -261,7 +261,7 @@ owner who intentionally chooses that topology. Follow `docs/INDEPENDENT_INSTALL.
 and its matching release. This is an advanced alternative, not a requirement for
 the combined plugin.
 
-## 0.6 interface and optional capabilities
+## Interface and optional capabilities
 
 The combined update includes the complete redesigned UI and matching integration.
 Do not update only the static files when enabling Files/Computer. Direct-chat
@@ -275,3 +275,29 @@ It uses native Bot Screen only on supported 0.21.7 Linux hosts with its
 desktop packages configured. Do not install packages or request sudo as a side
 effect of opening the app. Full Linux screen startup remains a host-specific
 acceptance check; ordinary chat does not require it. Never expose a raw VNC port.
+
+## 0.7 sidebar, search and appearance data
+
+Update the complete plugin and prebuilt runtime together. The 0.7 web app requires
+its matching integration; a static-only update is insufficient. Keep the existing
+owner account, cookie keys, private state, login sessions, profiles, model settings,
+ports and HTTPS route. Do not send model prompts as installation probes.
+
+Organization is a separate owner-local presentation record: section and Crew
+order, collapse state and membership. Existing role/team assignments initialize
+it once; moving a sidebar item does not rewrite a profile's role or reporting.
+Opening a Crew with 2–6 available pebbles creates or reuses its native Hermes room.
+A changed membership explicitly asks for a new chat; the previous history remains
+in Group chats. Removing a sidebar Crew does not delete native history.
+
+Search runs on this Hermes host, including visible canonical Bot Chat history,
+routine metadata and supported sent-file text. It does not open or resume sessions,
+advance read cursors, run models or create a transcript index. Limits are shown in
+the search UI. PDF/image/binary content is filename-only; unsupported generated
+outputs and group attachments remain outside this feature. Preserve the owner-local
+file store and presentation database during upgrades and rollback.
+
+Ten shape options and twelve colors are now supported, along with owner photos.
+Existing saved appearances are retained. Do not reset appearance or onboarding to
+expose the new choices. Give the owner their same plain URL after public verification;
+reloading once loads the new assets, with no pairing or new administrator setup.

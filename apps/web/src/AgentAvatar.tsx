@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Star } from 'lucide-react';
 import { AvatarView, AvatarScheduler } from './avatar-lab/renderer';
 import { BODY_PATHS, COLORS, SHAPES } from './avatar-lab/engine';
 import { previewPhoto } from './avatar-lab/photo';
@@ -120,8 +121,8 @@ export function AgentAvatar({
         </>
       )}
       {orchestrator && (
-        <span className="avatar-star" aria-label="Main Pebble">
-          ★
+        <span className="avatar-star" role="img" aria-label="Main Pebble">
+          <Star aria-hidden="true" />
         </span>
       )}
       {look.kind === 'photo' && !image && (

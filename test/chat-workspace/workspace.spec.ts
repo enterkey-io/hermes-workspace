@@ -11,7 +11,7 @@ test('populated production workspace: layout, drafts, scroll, crew authors and r
   await expect(input).toBeEnabled();
   await expect(page.locator('.pinned-tile')).toHaveCount(2);
   await expect(page.locator('.pebble-row')).toHaveCount(10);
-  expect((await page.locator('.composer form').boundingBox())!.height).toBeLessThanOrEqual(56);
+  expect((await page.locator('.pc-composer').boundingBox())!.height).toBeLessThanOrEqual(56);
   await page.screenshot({ path: 'test-results/workspace-desktop.png' });
   const draft = await page.evaluate(() => {
     const css = [...document.styleSheets]
@@ -32,10 +32,10 @@ test('populated production workspace: layout, drafts, scroll, crew authors and r
   await mkdir('.superdesign/tmp', { recursive: true });
   await writeFile('.superdesign/tmp/pebble-crew-chat.html', draft);
   await input.fill('Draft for Arlo');
-  await page.getByRole('button', { name: 'Mica Bot Chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Mica .*Bot Chat$/ }).click();
   await expect(input).toHaveValue('');
   await input.fill('Draft for Mica');
-  await page.getByRole('button', { name: 'Arlo Bot Chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Arlo .*Bot Chat$/ }).click();
   await expect(input).toHaveValue('Draft for Arlo');
   await expect(input).toBeEnabled();
   const log = page.getByRole('log');
@@ -49,10 +49,11 @@ test('populated production workspace: layout, drafts, scroll, crew authors and r
   await expect(log).toContainText('I have the notes ready.');
   await expect(log.locator('.message-author')).toHaveText(['Arlo', 'Mica']);
   await input.fill('Crew draft');
-  await page.getByRole('button', { name: 'Arlo Bot Chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Arlo .*Bot Chat$/ }).click();
   await expect(input).toHaveValue('Draft for Arlo');
   await expect(input).toBeEnabled();
   await expect.poll(() => log.evaluate((n) => n.scrollTop)).toBe(0);
+  await page.getByRole('button', { name: /Show details/ }).click();
   const toggle = page.getByRole('switch', { name: 'Pause Weekly research brief' });
   await toggle.click();
   await expect(page.getByRole('switch', { name: 'Resume Weekly research brief' })).toHaveAttribute(
@@ -65,8 +66,7 @@ test('populated production workspace: layout, drafts, scroll, crew authors and r
   fixture.setApprovals([{ request_id: 'exact-approval', command: 'Review synthetic operation' }]);
   await emit(page, 'approval.request');
   await page.setViewportSize({ width: 720, height: 450 });
-  await page.getByRole('button', { name: 'Approval needed · Review', exact: true }).click();
-  const approvalDialog = page.getByRole('dialog', { name: 'details' });
+  const approvalDialog = page.locator('.details-panel');
   await expect(approvalDialog).toContainText('Review synthetic operation');
   await approvalDialog.getByRole('button', { name: 'Deny', exact: true }).click();
   await expect(approvalDialog.locator('.approval')).toHaveCount(0);
@@ -74,8 +74,8 @@ test('populated production workspace: layout, drafts, scroll, crew authors and r
   await page.setViewportSize({ width: 1912, height: 1121 });
   await page.screenshot({ path: 'test-results/workspace-wide.png' });
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.getByRole('button', { name: 'Show details' }).click();
-  await expect(page.getByRole('dialog', { name: 'details' })).toBeVisible();
+  await page.getByRole('button', { name: /Show details/ }).click();
+  await expect(page.locator('.pc-details-slot')).toHaveCSS('width', '288px');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/workspace-tablet.png' });
@@ -104,26 +104,26 @@ test('live changes reconcile two browsers, protect the selected draft and never 
   await second.goto('/');
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
   await expect(second.getByLabel('Message', { exact: true })).toBeEnabled();
-  const row = page.getByRole('button', { name: 'Mica Bot Chat', exact: true });
+  const row = page.getByRole('button', { name: /^Mica .*Bot Chat$/ });
   await row.click();
   await page.getByLabel('Message', { exact: true }).fill('Private unsent draft');
   fixture.hide('mica');
   await emit(page, 'workspace.changed');
-  await expect(page.getByRole('button', { name: 'Mica Bot Chat', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Mica .*Bot Chat$/ })).toHaveCount(0);
   await expect(page.getByText('Private unsent draft', { exact: true })).toBeVisible();
-  await expect(second.getByRole('button', { name: 'Mica Bot Chat', exact: true })).toHaveCount(0, {
+  await expect(second.getByRole('button', { name: /^Mica .*Bot Chat$/ })).toHaveCount(0, {
     timeout: 6500,
   });
   await page.getByRole('button', { name: 'Your account' }).click();
   await page.getByRole('menuitemcheckbox', { name: 'Show hidden', exact: true }).click();
   await page.getByLabel('Actions for Mica').click();
   await page.getByRole('menuitem', { name: 'Unhide', exact: true }).click();
-  await page.getByRole('button', { name: 'Mica Bot Chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Mica .*Bot Chat$/ }).click();
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue('Private unsent draft');
   fixture.replace('mica');
   await emit(page, 'workspace.changed');
   await expect(page.getByLabel('Message', { exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Mica Bot Chat', exact: true }).click();
+  await page.getByRole('button', { name: /^Mica .*Bot Chat$/ }).click();
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue('');
   await page.getByLabel('Actions for Rowan').click();
   await page.getByRole('menuitem', { name: 'Delete…', exact: true }).click();
@@ -133,7 +133,7 @@ test('live changes reconcile two browsers, protect the selected draft and never 
   await dialog.getByLabel('Confirm profile name').fill('rowan');
   await dialog.getByRole('button', { name: 'Delete permanently' }).click();
   await expect(dialog).toContainText('completed');
-  await expect(page.getByRole('button', { name: 'Rowan Bot Chat', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Rowan .*Bot Chat$/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Close Review deletion' }).click();
   await second.close();
 });
@@ -172,5 +172,5 @@ test('streaming, stop, IME and reconnection preserve drafts without submitting t
   await expect(input).toBeEnabled({ timeout: 10000 });
   await expect(input).toHaveValue('Survives reconnect');
   expect(sends).toBe(1);
-  await expect(page.getByRole('button', { name: 'Quinn Bot Chat', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Quinn .*Bot Chat$/ })).toHaveCount(0);
 });

@@ -12,11 +12,11 @@ system or implemented backlog labels as acceptance of the current experience.
       component, layout, interaction, motion and avatar contracts.
 - [x] Reference: compare the alternatives against the owner's requirements and build
       a concrete interactive reference using the selected real component base.
-- [ ] Implement: migrate production screens in independently reviewable units;
+- [x] Implement: migrate production screens in independently reviewable units;
       remove the replaced controls and CSS rules in each unit.
-- [ ] Scrap: reject any sketch whose implementation needs repeated layout or
+- [x] Scrap: reject any sketch whose implementation needs repeated layout or
       state workarounds; do not layer overrides onto that sketch.
-- [ ] Independent review: exercise the completed build after implementation,
+- [x] Independent review: exercise the completed build after implementation,
       including slow responses, failures, keyboard use and multiple viewports.
 - [ ] Release: publish only after that review's findings are resolved and checked.
 
@@ -81,3 +81,42 @@ covered docked1200px layout, stationary Profile/Role editor, dark account menu,
 Thinking/Working labels, full-width phone details and phone return to chat.
 The shared activity line was observed during its real CSS shimmer, including
 static reduced motion; this verifies the reference, not native run-event mapping.
+
+## Production migration for 0.7
+
+The actual Hermes-backed app now shares the approved reference's shadcn/Radix,
+Lucide, Motion and theme/layout source. Removed the old overlapping stylesheets
+and unused Crew editor. Demo organization data stays in the isolated reference;
+no synthetic workspace is mounted as the production application.
+
+Production work includes owner-local native history/routine/sent-file search,
+independent revisioned sidebar organization, native Crew room creation/reuse,
+integrated details with reading/following preservation, fixed editor/form geometry,
+nested dirty-state and focus handling, direct attachment controls and minimal native
+activity labels. Immediate send metadata and receipt correlation retain render
+identity when history/completion wins the acknowledgement race.
+
+Added Cairn/Seed/Dune/Flint/Drift and Umber/Moss/Ocean/Heather/Sienna. Existing photo
+support and saved appearances remain. Owner bubbles cap at 50%; replies use #202022;
+the header stays transparent and only its arrow moves on hover.
+
+The independent reviewer exercised the actual app and found nine issues; each
+was corrected and rechecked within the recorded scope. The committed review
+checklist preserves the verdict and limits. A subsequent implementer scan added
+explicit text boundaries, a vector Main Pebble badge and distinct landmark labels:
+full settled axe scans of chat and details then reported zero violations. This is
+supporting evidence, not a formal accessibility certification.
+
+Local validation includes 89 TypeScript tests, 177 Python cases in each supported
+runtime, 16 actual chat browser flows, 16 reference flows and 6 avatar flows. Real
+unmodified pinned Hermes 0.21.0/0.21.7 gateways run the deterministic local model,
+including native room creation/reuse, approvals, attachments, canonical continuity,
+Stop and lifecycle reconciliation. Read-only native search probes locate history
+older than the current page and exclude hidden/tool/rewound rows without changing
+the database. Worker auth and combined installed-package restart/update/rollback
+acceptance have separate logs; final release evidence records their outcomes.
+
+Evidence is synthetic and owner-local. Full Linux desktop startup, physical mobile
+keyboards, broader assistive technology and all-device/avatar performance remain
+unverified. Publishing does not activate the owner's remote plugin: the installer
+must use the matching guide, preserve all private state and verify the same URL.

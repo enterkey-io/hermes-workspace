@@ -1,3 +1,5 @@
+import { Input } from './components/ui/input';
+import { Button } from './components/ui/button';
 import { useEffect, useRef, useState } from 'react';
 import { normalizeEndpoint, safeError } from '@hermes-client/core';
 import { pairBrowser } from '@hermes-client/protocol';
@@ -15,8 +17,8 @@ export function FirstRun({
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const active = useRef<AbortController | undefined>(undefined);
-  const installUrl = `https://raw.githubusercontent.com/${release.repository}/main/docs/AGENT_INSTALL.md`;
-  const agentMessage = `Please connect the web app at ${location.origin} to my existing Hermes, following ${installUrl}. Keep the web app on its current host. Install the published integration plugin on my Hermes host, allow exactly this web origin, and give me the private HTTPS connection address. Discover all of my existing Hermes profiles, including agents not yet registered in Bot Mode. Let me choose them through Add existing agents in the app, or ask which existing profiles to enable if preparing them during installation. Use those same profiles and preserve their SOUL, memory, skills, model settings and channel configuration. Do not create a placeholder, clone an agent, or rewrite a personality. Initialize or reuse native Bot Chats only for my selected agents, without sending a model prompt. Keep administrator credentials on the Hermes host and do not modify Hermes core. Verify the live event stream as well as pairing and the roster. Record the installed version and update/rollback method using the guide.`;
+  const installUrl = `https://raw.githubusercontent.com/${release.repository}/${release.tag}/docs/AGENT_INSTALL.md`;
+  const agentMessage = `Please install the Pebble Crew plugin following ${installUrl}. Preserve my Hermes agents and data, set up a supervised service with the guide’s security checks, and give me the private web address and first-use setup link.`;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -91,117 +93,52 @@ export function FirstRun({
     <main className="first-run">
       <header className="first-header">
         <a href="/" className="wordmark">
-          Preview
+          Pebble Crew
         </a>
-        <span>Independent interface for Hermes · Name to be decided</span>
-        <a href="/install">Agent setup guide ↗</a>
       </header>
       {view === 'home' ? (
-        <>
-          <section className="first-hero">
-            <p className="eyebrow">YOUR HERMES, EASIER TO USE</p>
-            <h1>
-              Your agents.
-              <br />
-              One private workspace.
-            </h1>
-            <p className="first-intro">
-              Talk to the bots you already run in Hermes, bring them into a shared room, and follow
-              their work. Your Hermes keeps the conversations and runs the agents.
+        <section className="first-hero">
+          <h1>Install Pebble Crew</h1>
+          <p>
+            Ask your Hermes agent to install the plugin. They’ll give you your app’s private
+            address.
+          </p>
+          <div className="first-actions">
+            <Button onClick={() => void copy(agentMessage)}>
+              {copied ? 'Copied' : 'Copy install instructions'}
+            </Button>
+            <Button variant="secondary" asChild>
+              <a href="/install">Installation guide</a>
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setView('connect');
+              setError('');
+            }}
+          >
+            Connect an existing bridge
+          </Button>
+          {error && (
+            <p className="error" role="alert">
+              {error}
             </p>
-            <div className="first-actions">
-              <a className="button primary" href="/install">
-                Set up with my Hermes agent <span aria-hidden>↗</span>
-              </a>
-              <button
-                onClick={() => {
-                  setView('connect');
-                  setError('');
-                }}
-              >
-                Connect my Hermes
-              </button>
-            </div>
-            <p className="preview-status">
-              The web app is running here. Connect your Hermes to start using your bots.
-            </p>
-          </section>
-          <section className="getting-started" aria-labelledby="start-title">
-            <div>
-              <p className="eyebrow">HOW TO GET STARTED</p>
-              <h2 id="start-title">Let your agent handle the setup.</h2>
-              <p>You don’t need to figure out server settings or find an API key.</p>
-            </div>
-            <ol>
-              <li>
-                <span>01</span>
-                <div>
-                  <h3>Give your agent the setup page</h3>
-                  <p>Send the message below to the Hermes agent you already use.</p>
-                </div>
-              </li>
-              <li>
-                <span>02</span>
-                <div>
-                  <h3>Your agent connects your Hermes</h3>
-                  <p>
-                    Keep this web app here, or host your own copy anywhere. Your agent sets up the
-                    separate Hermes connection and gives you its address.
-                  </p>
-                </div>
-              </li>
-              <li>
-                <span>03</span>
-                <div>
-                  <h3>Connect here and approve this browser</h3>
-                  <p>
-                    The app shows a short code. Ask your agent to approve that code on your server.
-                  </p>
-                </div>
-              </li>
-            </ol>
-          </section>
-          <section className="agent-message">
-            <div>
-              <h2>Send this to your Hermes agent</h2>
-              <button onClick={() => void copy(agentMessage)}>
-                {copied ? 'Copied' : 'Copy message'}
-              </button>
-            </div>
-            <p>{agentMessage}</p>
-            {error && (
-              <p className="error" role="alert">
-                {error}
-              </p>
-            )}
-          </section>
-          <section className="first-capabilities">
-            <article>
-              <h3>Pick up each bot’s conversation</h3>
-              <p>Use Hermes’s existing Bot Chat and history.</p>
-            </article>
-            <article>
-              <h3>Work together in rooms</h3>
-              <p>Hermes runs the discussion and teammate delivery.</p>
-            </article>
-            <article>
-              <h3>Stay in control</h3>
-              <p>Follow progress, answer approvals, and stop a task.</p>
-            </article>
-          </section>
-        </>
+          )}
+        </section>
       ) : (
         <section className="pair-card">
-          <button
+          <Button
+            variant="secondary"
             className="back-button"
             onClick={() => {
               cancel();
               setView('home');
             }}
           >
-            ← Back to introduction
-          </button>
-          <p className="eyebrow">CONNECT DIRECTLY TO YOUR HERMES</p>
+            ← Back
+          </Button>
+
           <h1>{code ? 'Approve this browser.' : 'Connect your Hermes.'}</h1>
           {!code && (
             <>
@@ -217,7 +154,7 @@ export function FirstRun({
               >
                 <>
                   <label htmlFor="workspace-url">Hermes connection address</label>
-                  <input
+                  <Input
                     id="workspace-url"
                     type="url"
                     required
@@ -229,9 +166,9 @@ export function FirstRun({
                     spellCheck={false}
                   />
                 </>
-                <button className="primary" disabled={busy}>
+                <Button variant="default" className="primary" disabled={busy}>
                   {busy ? 'Contacting your Hermes…' : 'Request browser access'}
-                </button>
+                </Button>
               </form>
             </>
           )}
@@ -262,7 +199,9 @@ export function FirstRun({
                 </code>
                 <p>Only approve a code that you see in your own browser.</p>
               </details>
-              <button onClick={cancel}>Cancel request</button>
+              <Button variant="secondary" onClick={cancel}>
+                Cancel request
+              </Button>
             </>
           )}
           {error && (

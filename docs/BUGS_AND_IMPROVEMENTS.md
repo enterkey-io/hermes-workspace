@@ -6,42 +6,35 @@ New reports receive a stable ID; later work updates the existing entry.
 
 ## UI foundation reset — latest 16 October reports
 
-### Follow-up reference refinements
+### 0.7 production implementation
 
-These are working in the isolated reference, not released native app fixes.
+The approved reference now shares its component/layout foundation with the actual
+Hermes-backed app. The independent production review and its limits are recorded
+in [UI_RESET_REVIEW_CHECKLIST.md](UI_RESET_REVIEW_CHECKLIST.md). A release is separate
+from upgrading the owner's remote host and receiving owner acceptance.
 
-| ID     | Owner requirement                                                                | Reference result                                                                                                                                                 |
-| ------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PC-031 | Details belongs to the interface and can stay open; one title toggle.            | Docked desktop/tablet panel, integrated phone details view, no duplicate header settings button.                                                                 |
-| PC-032 | Edit pebble must not jump between Profile, Role and Tools.                       | Stable frame/header/footer; tab body owns scrolling.                                                                                                             |
-| PC-033 | Clicking a Crew opens its chat; settings belongs in its menu.                    | Separate local Crew conversation history/draft, settings in three-dot menu. Native Crew/room binding still open.                                                 |
-| PC-034 | Custom collapsible sections and rearrangement within/between sections and Crews. | + New section, rename/collapse/reorder, move menus and desktop drag; typed identity-preserving local organization. Native membership/persistence migration open. |
-| PC-035 | Account/attachment menu has white edge; scrollbars too prominent.                | Shared popup source explicitly borderless; muted thin scrollbars and transparent tracks.                                                                         |
-| PC-036 | Thinking/Working must be minimal and well checked.                               | One quiet shimmering text label, no dots; observed state progression and fixed status lane, reduced-motion equivalent. Native event mapping remains open.        |
+| ID     | Report                                      | 0.7 implementation and verification                                                                                                                                                            |
+| ------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-025 | Overflow overlaps names or avatars          | Dedicated row column and pin action strip; actual browser menu/pin and rollback checks.                                                                                                        |
+| PC-026 | Search breaks rail and only filters names   | Owner-local overlay searches native visible history, routines and bounded sent-file text; exact-result preview with identity revalidation. Native read-only probes on both supported sources.  |
+| PC-027 | Sent message jumps/remounts                 | Immediate local entry/time, native receipt correlation and stable render key. Completion-before-receipt race has behavioral coverage.                                                          |
+| PC-028 | Timestamp appears late/floats               | Reserved metadata lane and immediate submission time. Native confirmed timestamps retained.                                                                                                    |
+| PC-029 | Copy word clutters metadata                 | Separate accessible Copy icon.                                                                                                                                                                 |
+| PC-030 | Controls lack a shared foundation           | Actual shadcn/Radix controls, shared layout/theme, Lucide and Motion across Settings, Add/Edit, account, requests and connections. Old overlapping CSS removed.                                |
+| PC-031 | Details needs integrated persistent layout  | One animated width reserves the panel and conversation boundary; phone view integrated; anchor/bottom following and focus independently checked. Header hover stays transparent, arrow nudges. |
+| PC-032 | Editor jumps between tabs                   | Fixed frame/header/footer, bounded scrolling body; 320px create form and nested dirty confirmation rechecked.                                                                                  |
+| PC-033 | Crew click opens settings                   | Opens/reuses a native room; settings in overflow. Both pinned Hermes versions pass real native creation/reuse tests.                                                                           |
+| PC-034 | Custom sections and rearrangement           | Independent persisted organization revision, collapsible/reorderable sections, crews, move menus and desktop drag. Profile roles/reporting stay separate.                                      |
+| PC-035 | White menu borders and loud scrollbars      | Shared dark borderless popups; muted thin scrollbars.                                                                                                                                          |
+| PC-036 | Minimal Thinking/Working                    | Native event mapping to one shimmer label, stable lane, reduced-motion alternative; browser state checks.                                                                                      |
+| PC-037 | Add more avatar choices                     | Cairn, Seed, Dune, Flint, Drift; Umber, Moss, Ocean, Heather, Sienna. Native persistence and browser photo/shape checks; static pose atlas.                                                    |
+| PC-038 | Owner messages too wide; replies too bright | Owner bubble maximum50%; pebble fill#202022. Verified in actual app and independent review.                                                                                                    |
 
-PC-024's latest pointer asymmetry is corrected in the shared renderer: gain uses
-equal face-relative distances, independent of the remaining row width. Unit and
-browser checks exercise both directions.
-
-The owner rejected the 0.6.0 interface across its main routes. Reopen the visual
-and interaction acceptance for PC-009, PC-010, PC-012–PC-015, PC-019, PC-021,
-PC-022's composer interaction and PC-024. Their historical implementation notes
-below are not current acceptance. The replacement has an isolated synthetic
-reference and an independent Astra review; **production migration remains open**.
-No issue is closed by the prototype.
-
-| ID     | New report                                                                                          | Current work                                                                                                                              |
-| ------ | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| PC-025 | Ordinary row overflow overlays name/title; pinned overflow overlays the face.                       | Dedicated row column and pin action strip in reference. R03/R04 production gates open.                                                    |
-| PC-026 | Search breaks the rail header and only filters names. Must search system content in an overlay.     | Reference overlay stable. Owner-local history/file-content capability required; R05/R06 open.                                             |
-| PC-027 | Sent messages enter abruptly and remount/reflow on acknowledgement.                                 | Stable render-key/delivery/scroll contracts and reference entry. Native reconciliation and delayed/error cases open; R07.                 |
-| PC-028 | Timestamp appears seconds later and floats awkwardly inside bubble.                                 | Immediate reserved metadata lane in reference. Native confirmation/missing-time/anchor cases open; R08.                                   |
-| PC-029 | Copy word clutters metadata; use a separately placed icon.                                          | Accessible icon in reference. Actual-route clipboard success/failure/touch review open; R09.                                              |
-| PC-030 | Inconsistent rounded tabs, arbitrary divider lines and page controls lack a real shared foundation. | Actual shadcn/Radix, Tailwind, Lucide and Motion installed. Settings, editors and every real route still need migration; R01/R02/R11/R12. |
-
-The full matrix, including avatars and coordinated panel motion, is
-[UI_RESET_REVIEW_CHECKLIST.md](UI_RESET_REVIEW_CHECKLIST.md). The replacement
-design and executable sequence are [UI_SYSTEM_RESET.md](UI_SYSTEM_RESET.md).
+PC-024's shared renderer rests up/right and uses equal face-relative pointer gain,
+near/far eye perspective, easing and body motion. Automated and captured-pose checks
+do not establish all-device animation performance. The full matrix remains in the
+[review checklist](UI_RESET_REVIEW_CHECKLIST.md); no formal accessibility or platform
+certification is claimed. Owner visual acceptance after installation remains open.
 
 ## Historical 16 October 2026 — implementation in the rejected 0.6.0 candidate
 

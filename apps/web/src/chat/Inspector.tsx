@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Tabs } from '../ui/primitives';
 import { Icon } from './Icon';
+import { Switch } from '../components/ui/switch';
 import { FilesPanel } from './FilesPanel';
 import { ComputerPanel } from './ComputerPanel';
 import type { ReactNode } from 'react';
@@ -14,7 +15,6 @@ export function Inspector({
   room,
   workspace,
   client,
-  activity,
   routines,
   children,
   pending,
@@ -23,12 +23,12 @@ export function Inspector({
   onClose,
   sessionId,
   filesVersion,
+  target,
 }: {
   bot?: ChatBot | undefined;
   room?: Row | undefined;
   workspace?: WorkspaceState | undefined;
   client: BotBridgeClient;
-  activity: string;
   routines: Row[];
   children: ReactNode;
   pending: string;
@@ -37,6 +37,7 @@ export function Inspector({
   onClose: () => void;
   sessionId?: string | undefined;
   filesVersion: number;
+  target?: { tab: 'files' | 'routines'; id: string } | undefined;
 }) {
   const [tab, setTab] = useState('routines'),
     [computer, setComputer] = useState(false);
@@ -55,13 +56,27 @@ export function Inspector({
       live = false;
     };
   }, [client, bot?.profile]);
+  useEffect(() => {
+    if (target) setTab(target.tab);
+  }, [target, bot?.profile]);
+  useEffect(() => {
+    if (target?.tab === 'routines' && tab === 'routines')
+      document
+        .querySelector<HTMLElement>(`[data-routine-id="${CSS.escape(target.id)}"]`)
+        ?.scrollIntoView({
+          block: 'center',
+          behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'instant' : 'smooth',
+        });
+  }, [target, tab, routines]);
   const identity = workspace?.bots.find((b) => b.profile === bot?.profile);
   return (
     <>
-      <button className="icon-button details-close" aria-label="Close details" onClick={onClose}>
-        <Icon name="close" />
-      </button>
-      <div className="identity-summary">
+      <header>
+        <button className="icon-button details-close" aria-label="Close details" onClick={onClose}>
+          <Icon name="close" />
+        </button>
+      </header>
+      <div className="pc-details-identity identity-summary">
         {bot ? (
           <PebbleAvatar bot={bot} workspace={workspace} client={client} large />
         ) : room ? (
@@ -77,11 +92,6 @@ export function Inspector({
         )}
       </div>
       <div className="inspector-body">
-        {activity !== 'Ready' && (
-          <p className="live-activity" role="status">
-            {activity}
-          </p>
-        )}
         {children}
         {bot && (
           <>
@@ -99,7 +109,12 @@ export function Inspector({
               {tab === 'computer' ? (
                 <ComputerPanel client={client} profile={bot.profile} name={bot.name} />
               ) : tab === 'files' && sessionId ? (
-                <FilesPanel client={client} sessionId={sessionId} version={filesVersion} />
+                <FilesPanel
+                  client={client}
+                  sessionId={sessionId}
+                  version={filesVersion}
+                  focusId={target?.tab === 'files' ? target.id : undefined}
+                />
               ) : (
                 <div className="routine-list">
                   {routines.map((r) => {
@@ -107,21 +122,17 @@ export function Inspector({
                     const enabled =
                       r.enabled !== false && r.paused !== true && r.state !== 'paused';
                     return (
-                      <div className="routine" key={id}>
+                      <div className="pc-routine routine" key={id} data-routine-id={id}>
                         <div>
                           <strong>{String(r.name ?? 'Routine')}</strong>
                           <p>{String(r.schedule_display ?? r.schedule ?? '')}</p>
                         </div>
-                        <button
-                          role="switch"
-                          aria-checked={enabled}
+                        <Switch
+                          checked={enabled}
                           aria-label={`${enabled ? 'Pause' : 'Resume'} ${String(r.name ?? 'routine')}`}
-                          className="routine-switch"
                           disabled={!!pending}
-                          onClick={() => onToggle(r)}
-                        >
-                          <span />
-                        </button>
+                          onCheckedChange={() => onToggle(r)}
+                        />
                       </div>
                     );
                   })}

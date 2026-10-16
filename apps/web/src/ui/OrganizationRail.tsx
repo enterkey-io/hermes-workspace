@@ -35,6 +35,8 @@ import {
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import {
+  removeCrew,
+  removeSection,
   nudgeItem,
   canNudgeItem,
   nudgeSection,
@@ -45,6 +47,7 @@ import {
   reorderSection,
 } from './organization';
 import type { Organization, OrganizationEditor, Placement, RailDrag } from './organization';
+import { useOverlayHistory } from './overlay-history';
 
 type RailPebble = { id: string; name: string; title: string; preview: string; pinned: boolean };
 type ChangeOrganization = Dispatch<SetStateAction<Organization>>;
@@ -130,7 +133,7 @@ export function PebbleActions({
         <Button
           variant="quiet"
           size="icon-sm"
-          className="review-overflow"
+          className="pc-overflow"
           aria-label={`Actions for ${pebble.name}`}
         >
           <MoreHorizontal />
@@ -192,7 +195,11 @@ export function OrganizationRail({
   onEditPebble,
   onEditOrganization,
   onPin,
+  actions,
+  openLabel,
 }: {
+  actions?: (id: string) => ReactNode;
+  openLabel?: (pebble: RailPebble) => string;
   org: Organization;
   onChange: ChangeOrganization;
   pebbles: RailPebble[];
@@ -250,34 +257,42 @@ export function OrganizationRail({
         layout
         transition={move}
         key={id}
-        className={`review-row pebble-row ${activeId === id ? 'is-selected' : ''}`}
+        className={`pc-row pebble-row ${activeId === id ? 'is-selected' : ''}`}
         draggable
         onDragStartCapture={(event) => drag(event, { kind: 'pebble', id })}
         onDragEnd={() => setOver('')}
         {...targetEvents(target, id)}
       >
         <button
-          className="review-row-open"
+          className="pc-row-open"
           onClick={() => onOpenPebble(id)}
-          aria-label={`Open ${pebble.name}`}
+          aria-label={
+            openLabel?.(pebble) ?? `Open ${pebble.name} ${pebble.title} ${pebble.preview}`
+          }
         >
           {face(id)}
-          <span className="review-row-copy">
+          <span className="pc-row-copy">
             <span>
-              <strong>{pebble.name}</strong>
-              <Badge variant="secondary">{pebble.title}</Badge>
-            </span>
-            <small>{pebble.preview}</small>
+              <strong>{pebble.name}</strong>{' '}
+              <Badge variant="secondary" aria-hidden="true">
+                {pebble.title}
+              </Badge>
+            </span>{' '}
+            <small aria-hidden="true">{pebble.preview}</small>
           </span>
         </button>
-        <PebbleActions
-          pebble={pebble}
-          pinnedIds={pinnedIds}
-          onPin={() => onPin(id)}
-          onEdit={() => onEditPebble(id)}
-          org={org}
-          onChange={onChange}
-        />
+        {actions ? (
+          actions(id)
+        ) : (
+          <PebbleActions
+            pebble={pebble}
+            pinnedIds={pinnedIds}
+            onPin={() => onPin(id)}
+            onEdit={() => onEditPebble(id)}
+            org={org}
+            onChange={onChange}
+          />
+        )}
       </motion.div>
     );
   }
@@ -285,19 +300,19 @@ export function OrganizationRail({
     const crew = org.crews.find((c) => c.id === id);
     if (!crew) return null;
     return (
-      <motion.div layout transition={move} key={id} className="review-crew-group">
+      <motion.div layout transition={move} key={id} className="pc-crew-group">
         <div
-          className={`review-row review-crew-row ${activeId === id ? 'is-selected' : ''}`}
+          className={`pc-row pc-crew-row ${activeId === id ? 'is-selected' : ''}`}
           draggable
           onDragStart={(event) => drag(event, { kind: 'crew', id })}
           {...targetEvents({ kind: 'crew', id })}
         >
           <button
-            className="review-crew"
-            aria-label={`Open ${crew.name} chat`}
+            className="pc-crew"
+            aria-label={`${crew.name} ${crew.members.length} pebbles. Open chat`}
             onClick={() => onOpenCrew(id)}
           >
-            <span className="review-crew-faces">
+            <span className="pc-crew-faces">
               {crew.members.length ? (
                 crew.members.slice(0, 2).map((member) => <span key={member}>{face(member)}</span>)
               ) : (
@@ -305,8 +320,7 @@ export function OrganizationRail({
               )}
             </span>
             <span>
-              <strong>{crew.name}</strong>
-              <small>{crew.members.length} pebbles</small>
+              <strong>{crew.name}</strong> <small>{crew.members.length} pebbles</small>
             </span>
           </button>
           <DropdownMenu>
@@ -314,7 +328,7 @@ export function OrganizationRail({
               <Button
                 variant="quiet"
                 size="icon-sm"
-                className="review-overflow"
+                className="pc-overflow"
                 aria-label={`Actions for ${crew.name}`}
               >
                 <MoreHorizontal />
@@ -382,13 +396,13 @@ export function OrganizationRail({
               exit={{ height: 0 }}
               transition={move}
               style={{ overflow: 'hidden' }}
-              className="review-crew-members"
+              className="pc-crew-members"
               aria-label={`${crew.name} pebbles`}
               {...targetEvents({ kind: 'crew', id })}
             >
               {crew.members.map((member) => row(member, { kind: 'crew', id }))}
               {!crew.members.length && (
-                <p className="review-section-empty">Move a pebble here from its menu.</p>
+                <p className="pc-section-empty">Move a pebble here from its menu.</p>
               )}
             </motion.div>
           )}
@@ -403,13 +417,13 @@ export function OrganizationRail({
           layout
           transition={move}
           key={section.id}
-          className="review-list"
+          className="pc-list"
           aria-label={section.name}
           {...targetEvents({ kind: 'section', id: section.id })}
         >
-          <div className="review-section-header">
+          <div className="pc-section-header">
             <button
-              className="review-section-toggle"
+              className="pc-section-toggle"
               aria-expanded={!section.collapsed}
               onClick={() =>
                 onChange((current) => ({
@@ -424,7 +438,7 @@ export function OrganizationRail({
               <span>{section.name}</span>
             </button>
             <span
-              className="review-section-grip"
+              className="pc-section-grip"
               aria-hidden="true"
               title="Drag section"
               draggable
@@ -437,7 +451,7 @@ export function OrganizationRail({
                 <Button
                   variant="quiet"
                   size="icon-sm"
-                  className="review-overflow"
+                  className="pc-overflow"
                   aria-label={`Actions for ${section.name} section`}
                 >
                   <MoreHorizontal />
@@ -474,7 +488,7 @@ export function OrganizationRail({
                 exit={{ height: 0 }}
                 transition={move}
                 style={{ overflow: 'hidden' }}
-                className="review-section-items"
+                className="pc-section-items"
               >
                 {section.items.map((item) =>
                   item.kind === 'pebble'
@@ -482,7 +496,7 @@ export function OrganizationRail({
                     : crewRow(item.id, section.id),
                 )}
                 {!section.items.length && (
-                  <p className="review-section-empty">Move pebbles or crews here.</p>
+                  <p className="pc-section-empty">Move pebbles or crews here.</p>
                 )}
               </motion.div>
             )}
@@ -506,7 +520,19 @@ export function OrganizationDialog({
 }) {
   const [name, setName] = useState(''),
     [purpose, setPurpose] = useState('');
+  const [original, setOriginal] = useState({ name: '', purpose: '' });
+  const [discard, setDiscard] = useState(false);
   const isCrew = editor?.kind === 'new-crew' || editor?.kind === 'edit-crew';
+  function requestClose() {
+    if (name !== original.name || purpose !== original.purpose) {
+      setDiscard(true);
+      return false;
+    }
+    onClose();
+    return true;
+  }
+  useOverlayHistory(!!editor, requestClose);
+  useOverlayHistory(discard, () => setDiscard(false));
   useEffect(() => {
     if (!editor) return;
     const entity =
@@ -517,6 +543,11 @@ export function OrganizationDialog({
           : undefined;
     setName(entity?.name ?? '');
     setPurpose(entity && 'purpose' in entity ? entity.purpose : '');
+    setOriginal({
+      name: entity?.name ?? '',
+      purpose: entity && 'purpose' in entity ? entity.purpose : '',
+    });
+    setDiscard(false);
   }, [editor]);
   function save() {
     if (!editor || !name.trim()) return;
@@ -571,7 +602,7 @@ export function OrganizationDialog({
     <Dialog
       open={!!editor}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) requestClose();
       }}
     >
       <DialogContent
@@ -583,7 +614,7 @@ export function OrganizationDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="sr-only">
-            Organize this local design preview.
+            Organize your sidebar. Agent profiles and chat history stay intact.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -591,7 +622,7 @@ export function OrganizationDialog({
             event.preventDefault();
             save();
           }}
-          className="review-organization-form"
+          className="pc-organization-form"
         >
           <div>
             <Label htmlFor="organization-name">Name</Label>
@@ -613,7 +644,33 @@ export function OrganizationDialog({
               />
             </div>
           )}
-          <div className="review-form-footer">
+          <div className="pc-form-footer">
+            {editor?.kind === 'edit-crew' && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="danger-text mr-auto"
+                onClick={() => {
+                  onChange((current) => removeCrew(current, editor.id));
+                  onClose();
+                }}
+              >
+                Remove crew
+              </Button>
+            )}
+            {editor?.kind === 'edit-section' && org.sections.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="danger-text mr-auto"
+                onClick={() => {
+                  onChange((current) => removeSection(current, editor.id));
+                  onClose();
+                }}
+              >
+                Remove section
+              </Button>
+            )}
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
@@ -622,6 +679,25 @@ export function OrganizationDialog({
             </Button>
           </div>
         </form>
+        <Dialog open={discard} onOpenChange={setDiscard}>
+          <DialogContent>
+            <DialogTitle>Discard unsaved changes?</DialogTitle>
+            <DialogDescription>Your sidebar changes haven’t been saved.</DialogDescription>
+            <div className="pc-form-footer">
+              <Button variant="secondary" onClick={() => setDiscard(false)}>
+                Keep editing
+              </Button>
+              <Button
+                onClick={() => {
+                  setDiscard(false);
+                  onClose();
+                }}
+              >
+                Discard changes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

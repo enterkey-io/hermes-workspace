@@ -18,8 +18,8 @@ import uuid
 from .operations import InvalidOperation, identifier, fields
 from .native import NativeError
 
-SHAPES = {'pebble', 'beacon', 'petal', 'kite', 'arch'}
-COLORS = {'iris', 'citron', 'clay', 'lagoon', 'rose', 'sky', 'white'}
+SHAPES = {'pebble', 'beacon', 'petal', 'kite', 'arch', 'cairn', 'seed', 'dune', 'flint', 'drift'}
+COLORS = {'iris', 'citron', 'clay', 'lagoon', 'rose', 'sky', 'white', 'umber', 'moss', 'ocean', 'heather', 'sienna'}
 ACTIONS = {'agent.enable', 'agent.create', 'agent.update', 'agent.attach', 'agent.hide', 'agent.delete'}
 
 
@@ -113,7 +113,7 @@ def normalize_photo(data):
 
 
 class WorkspaceService:
-    METHODS = {'crews.save', 'workspace.snapshot', 'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose', 'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
+    METHODS = {'organization.get', 'organization.save', 'organization.chat', 'crews.save', 'workspace.snapshot', 'presentation.read', 'presentation.order', 'agent.pin', 'agent.hide', 'agent.delete', 'agent.propose', 'room.send', 'room.log', 'agent.enable', 'workspace.describe', 'workspace.detect_primary', 'workspace.initialize', 'workspace.welcome', 'workspace.set_orchestrator',
         'bots.update_handle', 'bots.appearance.get', 'bots.appearance.update', 'roles.update', 'teams.save',
         'models.describe', 'agent.model', 'agent.create', 'agent.update', 'agent.attach', 'requests.reconcile', 'requests.list', 'requests.approve', 'requests.deny',
         'connections.add', 'connections.permissions', 'connections.set_key', 'connections.list', 'connections.test', 'services.catalog', 'agent.capabilities'}
@@ -245,6 +245,9 @@ class WorkspaceService:
         self._snapshot = None
         snapshot, profiles = await self.sync(include_model=operation in {'workspace.describe', 'workspace.detect_primary', 'models.describe', 'agent.model', 'agent.create'})
         state = self.store.read()
+        if operation.startswith('organization.'):
+            from .organization import invoke
+            return await invoke(self, operation, params, state)
         if operation == 'crews.save':
             from .crews import save
             return await save(self, params)

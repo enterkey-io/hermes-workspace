@@ -1,3 +1,5 @@
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
 import { useEffect, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { workspaceState } from './workspace';
@@ -90,7 +92,7 @@ export function WorkspaceSetup({
           Handle
           <span className="handle-input">
             <span>@</span>
-            <input
+            <Input
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               required
@@ -119,9 +121,9 @@ export function WorkspaceSetup({
             {error}
           </p>
         )}
-        <button className="primary" disabled={busy || photoBusy || !profile}>
+        <Button variant="default" className="primary" disabled={busy || photoBusy || !profile}>
           {busy ? 'Saving…' : 'Start chatting'}
-        </button>
+        </Button>
       </form>
     </section>
   );
