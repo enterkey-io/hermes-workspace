@@ -22,6 +22,25 @@ const edit: ProfileEdit = {
 };
 
 describe('workspace domain commands', () => {
+  it('keeps tool, model and Main Pebble uncertainty distinct from confirmed saves', async () => {
+    const invoke = vi.fn().mockRejectedValue(new ClientError('REQUEST_TIMEOUT'));
+    const domain = new WorkspaceDomain({ invoke });
+    expect(
+      await domain.attachTools({
+        profile: 'amy',
+        expectedRevision: 5,
+        skills: [],
+        toolsets: ['workspace'],
+      }),
+    ).toMatchObject({ kind: 'uncertain' });
+    expect(await domain.selectModel('amy', 5, 'fingerprint')).toMatchObject({ kind: 'uncertain' });
+    expect(await domain.selectMainPebble('amy', 5)).toMatchObject({ kind: 'uncertain' });
+    expect(invoke).toHaveBeenCalledTimes(3);
+    invoke.mockResolvedValue({ configured: false });
+    expect(await domain.selectModel('amy', 5, 'fingerprint')).toMatchObject({ kind: 'uncertain' });
+    invoke.mockResolvedValue({ configured: true });
+    expect(await domain.selectModel('amy', 5, 'fingerprint')).toMatchObject({ kind: 'confirmed' });
+  });
   it('saves full profile fields and saved-photo intent without a team field or automatic introduction', async () => {
     const invoke = vi.fn().mockResolvedValue({ state: 'completed', profile: 'amy' });
     const domain = new WorkspaceDomain({ invoke });

@@ -33,7 +33,8 @@ export class TranscriptFollow {
   private step = (now: number) => {
     const target = Math.max(0, this.node.scrollHeight - this.node.clientHeight);
     const distance = target - this.node.scrollTop;
-    if (Math.abs(distance) < 1) {
+    // WebKit rounds scrollTop writes; finish before interpolation stops advancing.
+    if (Math.abs(distance) < 4) {
       this.node.scrollTop = target;
       this.written = this.node.scrollTop;
       this.frame = 0;

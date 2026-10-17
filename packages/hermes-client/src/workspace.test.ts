@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { workspaceState } from '../../../apps/web/src/workspace';
+import { decodeWorkspaceSnapshot as workspaceState } from './workspace';
+
+it('accepts native Unicode codepoint limits for previews and role fields', () => {
+  const snapshot = workspaceFixture();
+  const bot = snapshot.bots[0]!;
+  Object.assign(bot, { preview: 'a'.repeat(499) + '😀' });
+  bot.role.title = '😀'.repeat(1000);
+  expect(workspaceState(snapshot).bots[0]!.preview).toHaveLength(501);
+  bot.role.title += 'x';
+  expect(() => workspaceState(snapshot)).toThrow();
+});
 
 export function workspaceFixture() {
   return {

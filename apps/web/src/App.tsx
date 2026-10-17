@@ -39,8 +39,8 @@ import { useOverlayHistory } from './ui/overlay-history';
 import type { OwnerConnection } from './OwnerShell';
 import { WorkspaceSetup } from './WorkspaceSetup';
 
-import { workspaceState } from './workspace';
-import type { WorkspaceState, WorkspaceBot } from './workspace';
+import { decodeWorkspaceSnapshot } from '@hermes-client/protocol';
+import type { WorkspaceSnapshot as WorkspaceState, WorkspaceBot } from '@hermes-client/protocol';
 import type { Activity } from './avatar-lab/engine';
 
 type Row = Record<string, unknown>;
@@ -781,7 +781,12 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         if (connection.supportsWorkspace) {
           const data = object(await connection.invoke('workspace.snapshot', {}));
           if (current.current !== connection) return;
-          const state = workspaceState(data.workspace);
+          const state = decodeWorkspaceSnapshot(data.workspace);
+          if (
+            workspaceRef.current?.id === state.id &&
+            state.revision < workspaceRef.current.revision
+          )
+            return;
           const org = organizationState(data.organization);
           if (
             organizationFlight.current !== connection &&
@@ -1602,8 +1607,14 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         owner={!!owner}
         state={workspace}
         onChange={(state) => {
+          if (
+            workspaceRef.current?.id === state.id &&
+            state.revision < workspaceRef.current.revision
+          )
+            return;
+          workspaceRef.current = state;
           setWorkspace(state);
-          void loadRoster(client).catch(fail);
+          void loadRoster(client, true).catch(fail);
         }}
         onClose={() => setSettings(false)}
       />

@@ -2,7 +2,7 @@ import { APPEARANCE_COLORS, ClientError, SHAPES } from '@hermes-client/core';
 import { record } from './json';
 
 function text(value: unknown, limit: number, blank = true): string {
-  if (typeof value !== 'string' || value.length > limit || (!blank && !value.trim()))
+  if (typeof value !== 'string' || [...value].length > limit || (!blank && !value.trim()))
     throw new ClientError('INVALID_RESPONSE');
   return value;
 }
@@ -111,6 +111,22 @@ export function decodeModelGrant(value: unknown) {
   };
 }
 export type ModelGrant = ReturnType<typeof decodeModelGrant>;
+
+export function decodeAgentCapabilities(value: unknown) {
+  const data = record(value);
+  const capability = (value: unknown) => {
+    const item = record(value);
+    return {
+      name: text(item.name, 256, false),
+      enabled: boolean(item.enabled),
+      ...optional(item, 'label', (v) => text(v, 1000)),
+      ...optional(item, 'description', (v) => text(v, 16_000)),
+      ...optional(item, 'required', boolean),
+    };
+  };
+  return { skills: list(data.skills, capability), toolsets: list(data.toolsets, capability) };
+}
+export type WorkspaceAgentCapabilities = ReturnType<typeof decodeAgentCapabilities>;
 
 export function decodeWorkspaceSnapshot(value: unknown) {
   const data = record(value);

@@ -2,7 +2,7 @@ import { ClientError, safeError } from '@hermes-client/core';
 import type { ErrorCode } from '@hermes-client/core';
 import type { BotBridgeClient } from './bridge';
 import { record } from './json';
-import { decodeRole, decodeWorkspaceSnapshot } from './workspace';
+import { decodeAgentCapabilities, decodeRole, decodeWorkspaceSnapshot } from './workspace';
 import type { Appearance, Role, WorkspaceBot, WorkspaceSnapshot } from './workspace';
 
 export type PhotoEdit = { kind: 'preserve' } | { kind: 'replace'; data: string };
@@ -74,6 +74,63 @@ export class WorkspaceDomain {
 
   async describeWorkspace(): Promise<WorkspaceSnapshot> {
     return decodeWorkspaceSnapshot(await this.bridge.invoke('workspace.describe', {}));
+  }
+
+  async describeAgentCapabilities(profile: string) {
+    return decodeAgentCapabilities(await this.bridge.invoke('agent.capabilities', { profile }));
+  }
+
+  attachTools(edit: {
+    profile: string;
+    expectedRevision: number;
+    skills: string[];
+    toolsets: string[];
+  }) {
+    return write(async () => {
+      const result = record(
+        await this.bridge.invoke('agent.attach', {
+          profile: edit.profile,
+          expected_revision: edit.expectedRevision,
+          skills: edit.skills,
+          toolsets: edit.toolsets,
+        }),
+      );
+      if (result.state !== 'completed') throw new ClientError('INVALID_RESPONSE');
+      return { state: 'completed' as const };
+    });
+  }
+
+  selectModel(profile: string, expectedRevision: number, fingerprint: string) {
+    return write(async () => {
+      const result = record(
+        await this.bridge.invoke('agent.model', {
+          profile,
+          source: 'default',
+          expected: fingerprint,
+          expected_revision: expectedRevision,
+        }),
+      );
+      if (result.configured !== true) throw new ClientError('INVALID_RESPONSE');
+      return { configured: true as const };
+    });
+  }
+
+  selectMainPebble(profile: string, expectedRevision: number) {
+    return write(async () => {
+      const result = record(
+        await this.bridge.invoke('workspace.set_orchestrator', {
+          profile,
+          expected_revision: expectedRevision,
+        }),
+      );
+      if (
+        result.orchestrator !== profile ||
+        !Number.isSafeInteger(result.revision) ||
+        Number(result.revision) <= expectedRevision
+      )
+        throw new ClientError('INVALID_RESPONSE');
+      return { profile, revision: Number(result.revision) };
+    });
   }
 
   onboardExisting(edit: ProfileEdit): Promise<WriteOutcome<ProfileReceipt>> {

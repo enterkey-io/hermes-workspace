@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { transpileModule, ModuleKind, ScriptTarget } from 'typescript';
+import { build } from 'esbuild';
 
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(process.argv[2] ?? '.audit/agent-guards.json');
@@ -37,16 +37,23 @@ try {
   writeFileSync(newPebble, omitted);
   record(
     'synthetic missing reporting control with a comment marker',
-    true,
+    false,
     checkUi(directory).accepted,
-    'Demonstrates the text guard limit. This does not run or challenge the browser persistence test.',
+    'A removed control cannot satisfy the AST composition check through a JSX comment.',
   );
-  const source = readFileSync(join(root, 'apps/web/src/workspace.ts'), 'utf8');
-  const compiled = transpileModule(source, {
-    compilerOptions: { module: ModuleKind.ESNext, target: ScriptTarget.ES2023 },
-  }).outputText;
-  const { workspaceState } = await import(
-    'data:text/javascript;base64,' + Buffer.from(compiled).toString('base64')
+  const compiled = await build({
+    stdin: {
+      contents: "export { decodeWorkspaceSnapshot } from './packages/hermes-client/src/workspace';",
+      resolveDir: root,
+      loader: 'ts',
+    },
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    write: false,
+  });
+  const { decodeWorkspaceSnapshot } = await import(
+    'data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64')
   );
   const malformed = {
     revision: 1,
@@ -64,14 +71,14 @@ try {
   };
   let acceptedMalformed = false;
   try {
-    workspaceState(malformed);
+    decodeWorkspaceSnapshot(malformed);
     acceptedMalformed = true;
   } catch {}
   record(
     'malformed workspace accepted',
-    true,
+    false,
     acceptedMalformed,
-    'Observed boundary gap. No claim that Hermes emitted this payload.',
+    'The decoder rejects the retained malformed snapshot. No claim that Hermes emitted it.',
   );
   const historicalPath = 'apps/web/src/ui-lab/main.tsx';
   const historical = execFileSync('git', ['show', `ac4a881:${historicalPath}`], {
@@ -87,9 +94,7 @@ try {
   const report = {
     baseline: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
     checks,
-    verdict: checks.every((check) => check.matches)
-      ? 'OBSERVATIONS_REPRODUCED'
-      : 'OBSERVATIONS_CHANGED',
+    verdict: checks.every((check) => check.matches) ? 'GUARDS_VERIFIED' : 'OBSERVATIONS_CHANGED',
   };
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, JSON.stringify(report, null, 2) + '\n');

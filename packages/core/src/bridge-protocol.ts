@@ -1,4 +1,4 @@
-import catalog from '../../../plugins/bot-web/protocol-catalog.json';
+import catalog from '../../../plugins/bot-web/protocol-catalog.json' with { type: 'json' };
 import { ClientError } from './errors';
 
 export type BridgeOperation = keyof typeof catalog.operations;

@@ -112,7 +112,12 @@ try {
   );
   await client.connect();
   const outcomes = [];
-  for (const operation of ['agent.onboard', 'bots.profile.update', 'bots.appearance.update']) {
+  for (const operation of [
+    'agent.onboard',
+    'bots.profile.update',
+    'bots.appearance.update',
+    'workspace.initialize',
+  ]) {
     try {
       await client.invoke(operation, { profile: 'synthetic', photo });
       outcomes.push({ operation, completed: true });
@@ -127,16 +132,16 @@ try {
     outcomes,
     requests,
     upstreamCalls,
-    observedMismatch:
-      outcomes[0].completed === false &&
-      outcomes[1].completed === false &&
-      outcomes[2].completed === true &&
-      requests.filter((request) => request.status === 413).length === 2,
+    passed:
+      outcomes.every((outcome) => outcome.completed) &&
+      requests
+        .filter((request) => request.bodyBytes > 65_536)
+        .every((request) => request.route === '/v1/avatar' && request.status === 200),
   };
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
-  if (!report.observedMismatch) process.exitCode = 1;
+  if (!report.passed) process.exitCode = 1;
 } finally {
   await Promise.all([close(front), close(upstream)]);
 }
