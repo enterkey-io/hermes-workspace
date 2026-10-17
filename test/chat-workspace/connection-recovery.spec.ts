@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { installFixture } from './fixtures';
 import { connectionFixture, openConnections } from './connections-fixture';
 
+test.use({ serviceWorkers: 'block' });
+
 test('unsaved connection tools and key survive a new transport lease', async ({
   page,
   context,
