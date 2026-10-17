@@ -91,3 +91,21 @@ test('stream growth leaves a reader who scrolled up in control', async ({ page, 
   );
   expect(await pane.evaluate((node) => node.scrollTop)).toBeCloseTo(100, 0);
 });
+
+test('reduced motion settles at the latest message without an entrance', async ({
+  page,
+  context,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await installFixture(context);
+  await page.goto('/');
+  const input = page.getByLabel('Message', { exact: true });
+  await expect(input).toBeEnabled();
+  await input.fill('A reduced motion message. '.repeat(10));
+  await input.press('Enter');
+  await expect(page.locator('.pc-message.user').last()).toHaveCSS('opacity', '1');
+  const distance = await page
+    .getByRole('log')
+    .evaluate((node) => node.scrollHeight - node.clientHeight - node.scrollTop);
+  expect(Math.abs(distance)).toBeLessThan(2);
+});
