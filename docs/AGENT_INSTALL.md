@@ -188,7 +188,7 @@ their authorization.
 
 For an existing combined-plugin installation, obtain and verify the new combined ZIP as in step 3, back up
 and replace only the installed plugin code (preserving all state). While native
-work is idle, run `hermes bot-web sync-runtime` before `hermes bot-web update`.
+work is idle, run `hermes bot-web sync-runtime --source-package --native-idle` before `hermes bot-web update`.
 The new release's native process must start after the enrolled copies are
 updated; copying files into a running process does not reload its tools.
 Keep the existing origin, ports, owner login, agent
@@ -216,7 +216,8 @@ and enable it natively. Running services keep using their immutable snapshot unt
 activation; preserve private state and native stores.
 
 ```sh
-hermes bot-web sync-runtime
+hermes bot-web runtime-status
+hermes bot-web sync-runtime --source-package --native-idle
 hermes bot-web update
 hermes bot-web verify --public
 ```
@@ -233,7 +234,7 @@ hermes bot-web verify --public
 This preview supports code updates with unchanged owner/workspace data schemas;
 unsupported data migrations are refused. Keep previous snapshots and code backups
 until verification passes. Do not restore native history/personality stores as
-plugin rollback. Run `hermes bot-web sync-runtime` before update activation to
+plugin rollback. Run `hermes bot-web sync-runtime --source-package --native-idle` before update activation to
 update enrolled agents' runtime-only plugin copies; they receive no web bundle.
 If copies were synchronized after activation, restart through the installation's
 existing supervisor while native work is idle, then verify the public route
