@@ -306,12 +306,23 @@ button:disabled {
   color: var(--destructive);
 }
 .banner {
-  padding: 10px 24px;
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  flex-shrink: 0;
   font-size: 12px;
   background: #352323;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+}
+.banner-body {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.banner-body p {
+  line-height: 1.5;
 }
 .banner .icon-button {
   margin-left: auto;
@@ -639,7 +650,7 @@ button:disabled {
   font-weight: 550;
 }
 .product-sheet {
-  width: 304px;
+  width: min(360px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   background: var(--rail);
   border: 0;
@@ -1376,6 +1387,10 @@ button.connection-row:hover {
   gap: 8px;
   font-size: 12px;
   font-weight: 500;
+}
+.reporting-field [data-slot='select-trigger'] {
+  width: 100%;
+  min-width: 0;
 }
 .pebble-profile-fields .appearance-picker {
   grid-column: 1;

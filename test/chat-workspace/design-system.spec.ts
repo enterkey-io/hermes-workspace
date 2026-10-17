@@ -199,38 +199,26 @@ test('tool calls are grouped, empty reasoning rows are omitted, final sidecars a
   page,
   context,
 }) => {
-  await installFixture(context);
-  await page.route('**/v1/rpc', async (route) => {
-    const { operation } = route.request().postDataJSON();
-    if (operation === 'bot.open' || operation === 'chat.history') {
-      await route.fulfill({
-        json: {
-          result: {
-            session_id: 'session-arlo',
-            running: false,
-            messages: [
-              { row_id: 1, role: 'assistant', text: '', reasoning: 'PRIVATE_REASONING' },
-              { row_id: 2, role: 'tool', text: 'Read complete', tool_name: 'read_file' },
-              { row_id: 3, role: 'assistant', text: '' },
-              { row_id: 4, role: 'tool', text: 'Write complete', tool_name: 'write_file' },
-              {
-                row_id: 5,
-                role: 'assistant',
-                text: '',
-                codex_message_items: [
-                  {
-                    type: 'message',
-                    role: 'assistant',
-                    phase: 'final_answer',
-                    content: [{ type: 'output_text', text: 'The final answer.' }],
-                  },
-                ],
-              },
-            ],
+  await installFixture(context, {
+    messages: [
+      { row_id: 1, role: 'assistant', text: '', reasoning: 'PRIVATE_REASONING' },
+      { row_id: 2, role: 'tool', text: 'Read complete', tool_name: 'read_file' },
+      { row_id: 3, role: 'assistant', text: '' },
+      { row_id: 4, role: 'tool', text: 'Write complete', tool_name: 'write_file' },
+      {
+        row_id: 5,
+        role: 'assistant',
+        text: '',
+        codex_message_items: [
+          {
+            type: 'message',
+            role: 'assistant',
+            phase: 'final_answer',
+            content: [{ type: 'output_text', text: 'The final answer.' }],
           },
-        },
-      });
-    } else await route.fallback();
+        ],
+      },
+    ],
   });
   await ready(page);
   const log = page.getByRole('log');

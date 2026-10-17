@@ -6,8 +6,8 @@
   line-height: 1.5;
 }
 .pc-rail {
-  width: 304px;
-  flex: 0 0 304px;
+  width: 352px;
+  flex: 0 0 352px;
   background: var(--rail);
   display: flex;
   flex-direction: column;
@@ -18,7 +18,7 @@
   padding: 0 16px 0 24px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
 }
 .pc-wordmark {
@@ -1055,12 +1055,12 @@
   height: 100dvh;
 }
 .pc-nav-sheet {
-  width: 304px;
+  width: min(360px, calc(100vw - 24px));
 }
 @media (max-width: 1279px) and (min-width: 768px) {
   .pc-rail {
-    width: 280px;
-    flex-basis: 280px;
+    width: 320px;
+    flex-basis: 320px;
   }
 }
 @media (max-width: 767px), (any-pointer: coarse) {
@@ -1138,6 +1138,14 @@
   }
 }
 @media (pointer: coarse) {
+  .pc-rail-header button {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .pc-nav-close {
+    margin-left: 8px;
+  }
   .pc-composer-row button {
     min-width: 44px;
     min-height: 44px;

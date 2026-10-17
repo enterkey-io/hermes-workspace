@@ -41,7 +41,8 @@ async def invoke(service, operation, params, state, profiles):
         if not bot or bot['id'] != params['id']:
             raise InvalidOperation('Agent identity changed')
         return await welcome(service, state, params['profile'])
-    fields(params, ['profile', 'id', 'name', 'handle', 'appearance', 'photo', 'role', 'expected_revision'])
+    fields(params, ['profile', 'id', 'name', 'handle', 'appearance', 'photo', 'role', 'expected_revision']
+           + (['manager'] if isinstance(params, dict) and 'manager' in params else []))
     profile = identifier(params['profile'])
     bot = state['bots'].get(profile)
     if not bot or not bot.get('available') or bot['id'] != params['id']:
@@ -55,8 +56,16 @@ async def invoke(service, operation, params, state, profiles):
     handle = service.handle(state, profiles, profile, params['handle'])
     look = appearance(params['appearance'])
     role = dict(bot['role'])
-    fields(params['role'], ['title', 'description'])
+    role_fields = ['title', 'description']
+    if isinstance(params['role'], dict) and set(params['role']) != set(role_fields):
+        role_fields += ['responsibilities', 'boundaries', 'expectedOutputs']
+    fields(params['role'], role_fields)
     role.update({k: bounded(v, 1000) for k, v in params['role'].items()})
+    if 'manager' in params:
+        bot['manager'] = identifier(params['manager']) if params['manager'] is not None else None
+    if operation == 'agent.onboard':
+        bot['enrolled'] = True
+    service.graph(state)
     if params['photo'] is not None:
         photo = normalize_photo(params['photo'])
         saved = await service.ops.gateway.call('profiles.set_asset', {'name': profile, 'asset': 'avatar', 'data': photo})

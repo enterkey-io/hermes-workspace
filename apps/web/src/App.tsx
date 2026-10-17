@@ -471,7 +471,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       restoreRoom.current = '';
       if (room) {
         autoOpened.current = true;
-        openRoom(room);
+        openRoom(room, { restore: true });
         return;
       }
     }
@@ -480,7 +480,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     if (!bot) return;
     autoOpened.current = true;
     restoreProfile.current = '';
-    void open(bot).then(async () => {
+    void open(bot, { restore: true }).then(async () => {
       if (welcomeProfile.current === bot.profile) {
         welcomeProfile.current = '';
         try {
@@ -675,10 +675,12 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       return;
     }
     if (event.type === 'tool.complete' || event.type === 'message.complete')
-      void loadRoster(connection).catch(fail);
+      void loadRoster(connection).catch((error) => {
+        if (current.current === connection) fail(error);
+      });
     if (event.type === 'bridge.ready') {
       setStreamState('live');
-      setBlocked(false);
+      setBlocked(selected.current?.kind === 'bot' && selectionConnection.current !== connection);
       setActivity('Ready');
       return;
     }
@@ -703,8 +705,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       setBlocked(true);
       setStreamState('lost');
       setActivity('Live updates disconnected');
-      setError('Live updates were interrupted. Reconnecting and checking the conversation…');
       if (ownerRef.current) scheduleReconnect();
+      else setError('Live updates were interrupted. Reopen the connection.');
       return;
     }
     if (!target || target.kind !== 'bot' || event.session_id !== target.sessionId) return;
@@ -919,7 +921,6 @@ export function App({ owner }: { owner?: OwnerConnection }) {
             setStreamState('lost');
             setActivity('Live updates disconnected');
             if (ownerRef.current) {
-              setError('Hermes is temporarily unreachable. Reconnecting automatically…');
               scheduleReconnect();
               return;
             }
@@ -931,34 +932,40 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     } catch (error) {
       connection?.disconnect();
       if (current.current === connection) current.current = undefined;
-      fail(error);
+      if (!ownerRef.current) fail(error);
       throw safeError(error);
     } finally {
       setBusy(false);
     }
   }
 
-  async function open(bot: Bot) {
+  async function open(bot: Bot, { restore = false }: { restore?: boolean } = {}) {
     if (!client || streamState !== 'live' || !bot.canonical) return;
     rememberScroll();
     const generation = ++selectGeneration.current;
-    selected.current = undefined;
-    setSelection(undefined);
-    displayedRead.current = undefined;
-    sendProjection.current = new SendProjection();
-    setMessages([]);
-    setStream('');
-    setApprovals([]);
-    setRoutines([]);
+    if (!restore) {
+      selected.current = undefined;
+      setSelection(undefined);
+      displayedRead.current = undefined;
+      sendProjection.current = new SendProjection();
+      setMessages([]);
+      setStream('');
+      setApprovals([]);
+      setRoutines([]);
+    }
     setError('');
     setAttachmentUncertain(false);
-    setBlocked(false);
+    if (!restore) setBlocked(false);
     setBusy(true);
-    setNav(false);
-    setPickingAgents(false);
-    followLatest.current = true;
-    setShowLatest(false);
-    setDraft(drafts.current.get(`bot:${bot.id ?? bot.profile}`) ?? '');
+    if (!restore) {
+      setNav(false);
+      setPickingAgents(false);
+    }
+    if (!restore) {
+      followLatest.current = true;
+      setShowLatest(false);
+      setDraft(drafts.current.get(`bot:${bot.id ?? bot.profile}`) ?? '');
+    }
     setRemovedDraft('');
     setStopping(false);
     try {
@@ -973,6 +980,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       selected.current = target;
       selectionConnection.current = client;
       setSelection(target);
+      setBlocked(false);
       observedHistory(target, data.messages);
       setMessages(sendProjection.current.project(transcript(data.messages)));
       const saved = scrollPositions.current.get(draftKey(target));
@@ -1022,7 +1030,17 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         setStream(snapshot.inflight ? text(object(snapshot.inflight).assistant) : '');
       }
     } catch (error) {
-      if (generation === selectGeneration.current) fail(error);
+      if (generation === selectGeneration.current && current.current === client) {
+        if (
+          restore &&
+          ownerRef.current &&
+          ['DISCONNECTED', 'REQUEST_FAILED', 'REQUEST_TIMEOUT', 'UNAUTHORIZED'].includes(
+            safeError(error).code,
+          )
+        )
+          scheduleReconnect();
+        else fail(error);
+      }
     } finally {
       if (generation === selectGeneration.current) {
         focusOnReady.current = matchMedia('(pointer: fine)').matches;
@@ -1031,29 +1049,32 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     }
   }
 
-  function openRoom(room: Row) {
+  function openRoom(room: Row, { restore = false }: { restore?: boolean } = {}) {
     rememberScroll();
-    setPickingAgents(false);
+    if (!restore) setPickingAgents(false);
     selectGeneration.current++;
     const target: Selection = { kind: 'room', room };
     selected.current = target;
     selectionConnection.current = client;
     setSelection(target);
-    setDraft(drafts.current.get(draftKey(target)) ?? '');
-    followLatest.current = true;
-    setShowLatest(false);
-    displayedRead.current = undefined;
-    sendProjection.current = new SendProjection();
-    setMessages([]);
-    setStream('');
-    setApprovals([]);
-    setRoutines([]);
+    if (restore) setBlocked(false);
+    if (!restore) {
+      setDraft(drafts.current.get(draftKey(target)) ?? '');
+      followLatest.current = true;
+      setShowLatest(false);
+      displayedRead.current = undefined;
+      sendProjection.current = new SendProjection();
+      setMessages([]);
+      setStream('');
+      setApprovals([]);
+      setRoutines([]);
+    }
     setRunning(false);
     setBusy(false);
     setActivity('Native room driver');
     setAttachmentUncertain(false);
     setError('');
-    setNav(false);
+    if (!restore) setNav(false);
   }
   useEffect(() => {
     if (!client || selection?.kind !== 'room') return;
@@ -1659,22 +1680,24 @@ export function App({ owner }: { owner?: OwnerConnection }) {
                 )}
               </div>
             </header>
-            {(error || (blocked && streamState !== 'opening')) && (
+            {error && (
               <div className="error banner" role="alert">
-                {error || 'Reconnecting to Hermes…'}
-                {attachmentUncertain && (
-                  <span className="attachment-recovery">
-                    <button onClick={() => void checkAttachmentSend()}>Check send outcome</button>
-                    <button onClick={() => void checkAttachmentSend(true)}>
-                      Discard pending files
+                <div className="banner-body">
+                  <p>{error}</p>
+                  {attachmentUncertain && (
+                    <span className="attachment-recovery">
+                      <button onClick={() => void checkAttachmentSend()}>Check send outcome</button>
+                      <button onClick={() => void checkAttachmentSend(true)}>
+                        Discard pending files
+                      </button>
+                    </span>
+                  )}
+                  {streamState === 'lost' && (
+                    <button onClick={owner ? scheduleReconnect : disconnect}>
+                      {owner ? 'Try reconnecting now' : 'Disconnect and reconnect'}
                     </button>
-                  </span>
-                )}
-                {streamState === 'lost' && (
-                  <button onClick={owner ? scheduleReconnect : disconnect}>
-                    {owner ? 'Try reconnecting now' : 'Disconnect and reconnect'}
-                  </button>
-                )}
+                  )}
+                </div>
                 <button
                   className="icon-button"
                   aria-label="Dismiss error"

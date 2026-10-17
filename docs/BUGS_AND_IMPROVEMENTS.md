@@ -4,6 +4,20 @@ Track owner reports here through implementation, verification and release. A
 published fix is separate from updating and verifying the owner's installation.
 New reports receive a stable ID; later work updates the existing entry.
 
+## 0.7.6 setup and return-to-app corrections
+
+| ID     | Report                                                             | Repair and verification                                                                                                                                                                                                                                     |
+| ------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-059 | “Introduce them in chat” is unclear                                | The option reads “Send me a welcome message.” The pebble sends a first message through its native model only when selected; this is separate from enrollment.                                                                                               |
+| PC-060 | Add lacks reporting and detailed role fields                       | Shared reporting and role controls appear in existing-agent setup, new creation and Edit. Full-role saves preserve the native identity and validate the reporting graph before writes. Native acceptance reopens the saved manager and all detailed fields. |
+| PC-061 | Switching away closes setup and makes chat appear to refresh       | Recovery restores transport without navigating away from the active dialog or clearing visible messages. Desktop and phone tests retain draft identity, role and reporting through background/focus and a broken stream.                                    |
+| PC-062 | Sidebar is cramped and New/Close too close                         | Wider responsive rail/sheet, separated header controls and 44px phone targets. Browser checks measure width and spacing and capture both phone layouts.                                                                                                     |
+| PC-063 | Returning produces a false, poorly formatted red disconnect banner | Automatic owner recovery stays in the connection indicator. Real operation errors remain separate and wrap inside an inset notice. Browser checks hold a reconnect open, assert no red banner and retain the same message element.                          |
+
+PC-057's standalone reaction fix is retained. An installed version and an open
+browser can lag a published release; update instructions now require checking
+the served version and reopening the browser once, without clearing login or data.
+
 ## 0.7.5 review corrections
 
 | ID     | Report                                          | Repair and verification                                                                                                                                                                            |

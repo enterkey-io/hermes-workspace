@@ -1,11 +1,14 @@
 import { LoadingBar } from './components/ui/loading-bar';
-import { Textarea } from './components/ui/textarea';
-import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import type { WorkspaceState, WorkspaceBot, Appearance, Role } from './workspace';
-import { PebbleProfileFields, RoleBasics } from './ui/pebble-profile-fields';
+import {
+  PebbleProfileFields,
+  RoleBasics,
+  RoleDetails,
+  ReportingField,
+} from './ui/pebble-profile-fields';
 import { PageHeader, FormSection, Notice, Tabs } from './ui/primitives';
 import { Drawer } from './chat/Drawer';
 import { safeError } from '@hermes-client/core';
@@ -224,7 +227,9 @@ export function PebbleEditor({
                   name,
                   handle,
                   appearance: look,
-                  role: { title: role.title, description: role.description },
+                  role,
+                  manager:
+                    bot.profile === state.orchestrator ? null : manager || state.orchestrator,
                   photo: look.kind === 'photo' ? photo || null : null,
                 },
                 'profile',
@@ -249,6 +254,16 @@ export function PebbleEditor({
                   title={role.title}
                   description={role.description}
                   onChange={(change) => setRole((old) => ({ ...old, ...change }))}
+                />
+                <ReportingField
+                  state={state}
+                  profile={bot.profile}
+                  manager={manager}
+                  onChange={setManager}
+                />
+                <RoleDetails
+                  role={role}
+                  onChange={(patch) => setRole((old) => ({ ...old, ...patch }))}
                 />
               </PebbleProfileFields>
             </div>
@@ -285,61 +300,21 @@ export function PebbleEditor({
                 );
               }}
             >
-              <label>
-                Title
-                <Input
-                  maxLength={1000}
-                  value={role.title}
-                  placeholder="e.g. Chief of Staff"
-                  onChange={(e) => setRole({ ...role, title: e.target.value })}
-                />
-              </label>
-              <label>
-                Description
-                <Textarea
-                  rows={3}
-                  maxLength={1000}
-                  value={role.description}
-                  onChange={(e) => setRole({ ...role, description: e.target.value })}
-                />
-              </label>
-              <details className="form-disclosure">
-                <summary>Responsibilities & boundaries</summary>
-                {(['responsibilities', 'boundaries', 'expectedOutputs'] as const).map((key) => (
-                  <label key={key}>
-                    {
-                      {
-                        responsibilities: 'Responsibilities',
-                        boundaries: 'Boundaries',
-                        expectedOutputs: 'Expected outputs',
-                      }[key]
-                    }
-                    <Textarea
-                      rows={3}
-                      maxLength={1000}
-                      value={role[key]}
-                      onChange={(e) => setRole({ ...role, [key]: e.target.value })}
-                    />
-                  </label>
-                ))}
-              </details>
-              {bot.profile !== state.orchestrator && (
-                <label>
-                  Reports to
-                  <select
-                    value={manager || state.orchestrator || ''}
-                    onChange={(e) => setManager(e.target.value)}
-                  >
-                    {state.bots
-                      .filter((b) => b.enrolled && b.id !== bot.id)
-                      .map((b) => (
-                        <option key={b.id} value={b.profile}>
-                          {b.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              )}
+              <RoleBasics
+                title={role.title}
+                description={role.description}
+                onChange={(patch) => setRole((old) => ({ ...old, ...patch }))}
+              />
+              <ReportingField
+                state={state}
+                profile={bot.profile}
+                manager={manager}
+                onChange={setManager}
+              />
+              <RoleDetails
+                role={role}
+                onChange={(patch) => setRole((old) => ({ ...old, ...patch }))}
+              />
               <div className="form-actions">
                 <Button variant="secondary" disabled={!!busy || !!conflicts.role}>
                   Save role

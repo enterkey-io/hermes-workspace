@@ -44,6 +44,44 @@ class WorkspaceTests(unittest.IsolatedAsyncioTestCase):
         self.store.db.close()
         self.directory.cleanup()
 
+    async def test_onboarding_saves_full_role_and_reporting_before_welcome(self):
+        from unittest.mock import AsyncMock
+        self.native.profiles.append({'name': 'beth', 'is_default': False,
+            'ui_meta': {'hermes-bots': {'title': 'Beth'}},
+            'canonical_session': {'id': 'beth-root'}})
+        current = await self.service.invoke('workspace.describe', {})
+        amy = next(b for b in current['bots'] if b['profile'] == 'amy')
+        role = {'title': 'Researcher', 'description': 'Explores questions',
+                'responsibilities': 'Summarize sources', 'boundaries': 'Ask before publishing',
+                'expectedOutputs': 'A research brief'}
+        self.service.ops.enable_existing = AsyncMock()
+        await self.service.invoke('agent.onboard', {
+            'profile': 'amy', 'id': amy['id'], 'name': 'Amy', 'handle': 'amy',
+            'appearance': amy['appearance'], 'photo': None, 'role': role, 'manager': 'beth',
+            'expected_revision': current['revision']})
+        saved = self.store.read()['bots']['amy']
+        self.assertEqual(saved['manager'], 'beth')
+        self.assertEqual(saved['role'], role)
+        self.service.ops.enable_existing.assert_awaited_once_with('amy')
+        self.assertFalse(any(method == 'prompt.submit' for method, _ in self.native.calls))
+        self.assertEqual(self.native.profiles[1]['ui_meta']['hermes-bots']['workspaceRole'], role)
+
+    async def test_onboarding_rejects_reporting_cycle_before_native_writes(self):
+        from unittest.mock import AsyncMock
+        current = await self.service.invoke('workspace.describe', {})
+        amy = next(b for b in current['bots'] if b['profile'] == 'amy')
+        self.service.ops.enable_existing = AsyncMock()
+        self.native.calls.clear()
+        with self.assertRaises(InvalidOperation):
+            await self.service.invoke('agent.onboard', {
+                'profile': 'amy', 'id': amy['id'], 'name': 'Amy', 'handle': 'amy',
+                'appearance': amy['appearance'], 'photo': None, 'role': amy['role'],
+                'manager': 'amy', 'expected_revision': current['revision']})
+        self.service.ops.enable_existing.assert_not_awaited()
+        self.assertFalse(any(method in {'profiles.configure', 'profiles.set_asset', 'prompt.submit'}
+                             for method, _ in self.native.calls))
+        self.assertEqual(self.store.read()['bots']['amy']['manager'], 'default')
+
 
     async def test_owner_profile_save_keeps_identity_personality_and_unknown_metadata(self):
         state = self.store.read()

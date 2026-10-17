@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { workspaceState } from './workspace';
-import type { WorkspaceBot } from './workspace';
-import { PebbleProfileFields, RoleBasics } from './ui/pebble-profile-fields';
+import type { WorkspaceBot, WorkspaceState, Role } from './workspace';
+import {
+  PebbleProfileFields,
+  RoleBasics,
+  RoleDetails,
+  ReportingField,
+} from './ui/pebble-profile-fields';
 import type { ProfileDraft } from './ui/pebble-profile-fields';
 import { Button } from './components/ui/button';
 import { LoadingBar } from './components/ui/loading-bar';
@@ -10,11 +15,13 @@ import { Notice } from './ui/primitives';
 export function ExistingPebbleSetup({
   client,
   profile,
+  state,
   onDone,
   onDirtyChange,
 }: {
   client: BotBridgeClient;
   profile: string;
+  state: WorkspaceState;
   onDone: (profile: string, introduce: boolean) => Promise<void>;
   onDirtyChange: (dirty: boolean) => void;
 }) {
@@ -33,7 +40,14 @@ export function ExistingPebbleSetup({
     appearance: { kind: 'shape', shape: 'pebble', color: 'iris' },
     photo: '',
   });
-  const [role, setRole] = useState({ title: '', description: '' });
+  const [role, setRole] = useState<Role>({
+    title: '',
+    description: '',
+    responsibilities: '',
+    boundaries: '',
+    expectedOutputs: '',
+  });
+  const [manager, setManager] = useState('');
   useEffect(() => {
     let live = true;
     void client
@@ -57,9 +71,11 @@ export function ExistingPebbleSetup({
             });
           if (first)
             setRole({
+              ...found.role,
               title: found.role.title,
               description: found.role.description || found.description,
             });
+          if (first) setManager(found.manager || next.orchestrator || '');
         }
       })
       .catch(() => {
@@ -82,11 +98,12 @@ export function ExistingPebbleSetup({
         value.handle !== bot.handle ||
         !!value.photo ||
         JSON.stringify(value.appearance) !== JSON.stringify(bot.appearance) ||
-        role.title !== bot.role.title ||
-        role.description !== (bot.role.description || bot.description));
+        JSON.stringify(role) !==
+          JSON.stringify({ ...bot.role, description: bot.role.description || bot.description }) ||
+        manager !== (bot.manager || state.orchestrator || ''));
     onDirtyChange(dirty);
     return () => onDirtyChange(false);
-  }, [bot, value, role, onDirtyChange]);
+  }, [bot, value, role, manager, state.orchestrator, onDirtyChange]);
   async function add() {
     if (busy || !bot || retired) return;
     setBusy(true);
@@ -100,6 +117,7 @@ export function ExistingPebbleSetup({
         appearance: value.appearance,
         photo: value.appearance.kind === 'photo' ? value.photo || null : null,
         role,
+        manager: profile === state.orchestrator ? null : manager || state.orchestrator,
         expected_revision: revision,
       });
       await onDone(profile, introduce);
@@ -138,6 +156,13 @@ export function ExistingPebbleSetup({
             revision={revision}
           >
             <RoleBasics {...role} onChange={(patch) => setRole((r) => ({ ...r, ...patch }))} />
+            <ReportingField
+              state={state}
+              profile={profile}
+              manager={manager}
+              onChange={setManager}
+            />
+            <RoleDetails role={role} onChange={(patch) => setRole((r) => ({ ...r, ...patch }))} />
           </PebbleProfileFields>
         )}
       </div>
@@ -148,7 +173,7 @@ export function ExistingPebbleSetup({
             checked={introduce}
             onChange={(e) => setIntroduce(e.target.checked)}
           />
-          Introduce them in chat
+          Send me a welcome message
         </label>
         <Button disabled={loading || busy || !bot || retired || avatarBusy}>Add pebble</Button>
       </footer>

@@ -152,6 +152,12 @@ existing v1 framing, Origin/authentication and owner isolation requirements.
 `bots.profile.update` and `agent.onboard` require `profile`, its incarnation-bound
 `id`, `expected_revision`, `name`, `handle`, `appearance`, `photo`, and `role`.
 `role` contains `title` and `description`. Advanced role fields remain intact.
+Since 0.7.6, the full five-field role is also accepted, adding `responsibilities`,
+`boundaries` and `expectedOutputs`. An optional `manager` selects the enrolled
+profile this pebble reports to; omitting it preserves the saved relationship.
+Reporting must reach the Main Pebble without a cycle. Validation occurs before
+enrollment or native metadata/asset writes. Partial two-field clients still
+preserve the advanced fields.
 `photo` is null or a supported raster data URL that the bridge decodes and
 reencodes. The existing native profile is never cloned or renamed.
 

@@ -3,10 +3,15 @@ import { ArrowLeft, ChevronRight, UserPlus, Users } from 'lucide-react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
 import { safeError } from '@hermes-client/core';
 import { workspaceState } from './workspace';
-import type { WorkspaceState } from './workspace';
+import type { WorkspaceState, Role } from './workspace';
 import { AgentPicker } from './AgentPicker';
 import { ExistingPebbleSetup } from './ExistingPebbleSetup';
-import { PebbleProfileFields, RoleBasics } from './ui/pebble-profile-fields';
+import {
+  PebbleProfileFields,
+  RoleBasics,
+  RoleDetails,
+  ReportingField,
+} from './ui/pebble-profile-fields';
 import type { ProfileDraft } from './ui/pebble-profile-fields';
 import { PageHeader, Notice } from './ui/primitives';
 import { Button } from './components/ui/button';
@@ -53,7 +58,14 @@ export function NewPebble({
     appearance: { kind: 'shape', shape: 'pebble', color: 'iris' },
     photo: '',
   });
-  const [role, setRole] = useState({ title: '', description: '' }),
+  const [role, setRole] = useState<Role>({
+      title: '',
+      description: '',
+      responsibilities: '',
+      boundaries: '',
+      expectedOutputs: '',
+    }),
+    [manager, setManager] = useState(state.orchestrator || ''),
     [soul, setSoul] = useState(''),
     [handleTouched, setHandleTouched] = useState(false),
     [introduce, setIntroduce] = useState(true),
@@ -87,8 +99,8 @@ export function NewPebble({
     value.handle ||
     value.photo ||
     soul ||
-    role.title ||
-    role.description ||
+    Object.values(role).some(Boolean) ||
+    manager !== (state.orchestrator || '') ||
     value.appearance.shape !== 'pebble' ||
     value.appearance.color !== 'iris'
   );
@@ -129,6 +141,7 @@ export function NewPebble({
       appearance: value.appearance,
       photo: value.appearance.kind === 'photo' ? value.photo || null : null,
       role,
+      manager: manager || next.orchestrator,
       expected_revision: next.revision,
     });
     await onDone(target.profile, introduce);
@@ -189,7 +202,7 @@ export function NewPebble({
           model_fingerprint: model.fingerprint,
           skills: [],
           toolsets: ['workspace', 'skills'],
-          manager: latest.orchestrator,
+          manager: manager || latest.orchestrator,
           team: null,
           expected_revision: latest.revision,
         };
@@ -274,6 +287,7 @@ export function NewPebble({
           key={step.profile}
           client={client}
           profile={step.profile}
+          state={state}
           onDone={onDone}
           onDirtyChange={reportChildDirty}
         />
@@ -313,6 +327,11 @@ export function NewPebble({
                     {...role}
                     onChange={(change) => setRole((old) => ({ ...old, ...change }))}
                   />
+                  <ReportingField state={state} manager={manager} onChange={setManager} />
+                  <RoleDetails
+                    role={role}
+                    onChange={(change) => setRole((old) => ({ ...old, ...change }))}
+                  />
                 </PebbleProfileFields>
                 <details className="form-disclosure">
                   <summary>Model and personality</summary>
@@ -342,7 +361,7 @@ export function NewPebble({
                   checked={introduce}
                   onChange={(e) => setIntroduce(e.target.checked)}
                 />
-                Introduce them in chat
+                Send me a welcome message
               </label>
               <Button
                 disabled={

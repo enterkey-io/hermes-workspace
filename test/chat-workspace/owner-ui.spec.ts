@@ -147,6 +147,15 @@ test('existing agents get identity, appearance and role setup before native enro
   await page.getByLabel('Handle', { exact: true }).fill('hazel');
   await page.getByLabel('Title', { exact: true }).fill('Researcher');
   await page.getByLabel('Description', { exact: true }).fill('Explores useful questions');
+  await page.getByRole('combobox', { name: 'Reports to', exact: true }).click();
+  await page.getByRole('option', { name: 'Mica', exact: true }).click();
+  await page.getByText('Responsibilities & boundaries', { exact: true }).click();
+  await page.getByLabel('Responsibilities', { exact: true }).fill('Research and summarize');
+  await page.getByLabel('Boundaries', { exact: true }).fill('Ask before publishing');
+  await page.getByLabel('Expected outputs', { exact: true }).fill('A concise research brief');
+  await expect(
+    page.getByRole('checkbox', { name: 'Send me a welcome message', exact: true }),
+  ).toBeChecked();
   await page.getByRole('button', { name: 'seed', exact: true }).click();
   await page.getByRole('button', { name: 'Moss', exact: true }).click();
   await page.screenshot({ animations: 'disabled', path: 'test-results/owner-existing-setup.png' });
@@ -156,12 +165,25 @@ test('existing agents get identity, appearance and role setup before native enro
   expect(added.name).toBe('Hazel');
   expect(added.appearance).toEqual({ kind: 'shape', shape: 'seed', color: 'moss' });
   expect(added.role.title).toBe('Researcher');
+  expect(added.manager).toBe('mica');
+  expect(added.role.responsibilities).toBe('Research and summarize');
+  expect(added.role.boundaries).toBe('Ask before publishing');
+  expect(added.role.expectedOutputs).toBe('A concise research brief');
   await expect.poll(() => calls.filter((c) => c.operation === 'agent.welcome').length).toBe(1);
   expect(calls.filter((c) => c.operation === 'agent.onboard')).toHaveLength(1);
   expect(calls.some((c) => c.operation === 'chat.send')).toBe(false);
   await page.reload();
   await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
   expect(calls.filter((c) => c.operation === 'agent.welcome')).toHaveLength(1);
+  await page.getByRole('button', { name: 'Actions for Hazel', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Reports to', exact: true })).toContainText(
+    'Mica',
+  );
+  await page.getByText('Responsibilities & boundaries', { exact: true }).click();
+  await expect(page.getByLabel('Responsibilities', { exact: true })).toHaveValue(
+    'Research and summarize',
+  );
 });
 
 test('Edit uses the same profile controls, persists names and retains all shape/color choices in photo mode', async ({

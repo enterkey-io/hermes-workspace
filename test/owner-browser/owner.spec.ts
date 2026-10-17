@@ -240,6 +240,24 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await page.getByLabel('Handle', { exact: true }).fill('hazel');
   await page.getByLabel('Title', { exact: true }).fill('Researcher');
   await page.getByLabel('Description', { exact: true }).fill('Synthetic existing researcher');
+  await page.getByRole('combobox', { name: 'Reports to', exact: true }).click();
+  await page.getByRole('option', { name: 'Beta', exact: true }).click();
+  await page.getByText('Responsibilities & boundaries', { exact: true }).click();
+  await page.getByLabel('Responsibilities', { exact: true }).fill('Summarize sources');
+  await page.getByLabel('Boundaries', { exact: true }).fill('Ask before publishing');
+  await page.getByLabel('Expected outputs', { exact: true }).fill('A research brief');
+  const beforeSetupRecovery = tickets;
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await expect.poll(() => tickets).toBeGreaterThan(beforeSetupRecovery);
+  await expect(page.getByRole('button', { name: 'Add pebble', exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Hazel');
+  await expect(page.getByRole('combobox', { name: 'Reports to', exact: true })).toContainText(
+    'Beta',
+  );
+  await expect(page.getByLabel('Responsibilities', { exact: true })).toHaveValue(
+    'Summarize sources',
+  );
+  await expect(page.locator('.banner[role="alert"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'seed', exact: true }).click();
   await page.getByRole('button', { name: 'Moss', exact: true }).click();
   await page.screenshot({
@@ -252,6 +270,20 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await expect(page.getByRole('log').locator('.message.user')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('button', { name: /^Hazel .*Bot Chat$/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Actions for Hazel', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Reports to', exact: true })).toContainText(
+    'Beta',
+  );
+  await page.getByText('Responsibilities & boundaries', { exact: true }).click();
+  await expect(page.getByLabel('Responsibilities', { exact: true })).toHaveValue(
+    'Summarize sources',
+  );
+  await expect(page.getByLabel('Boundaries', { exact: true })).toHaveValue('Ask before publishing');
+  await expect(page.getByLabel('Expected outputs', { exact: true })).toHaveValue(
+    'A research brief',
+  );
+  await page.getByRole('button', { name: 'Close Edit Hazel', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByRole('menuitem', { name: 'New pebble', exact: true }).click();
   await page.getByRole('button', { name: 'Create new pebble', exact: true }).click();

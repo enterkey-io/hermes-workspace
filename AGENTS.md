@@ -18,6 +18,8 @@ for native acceptance.
 | A model is told to use a tool it cannot discover        | Reaction guidance checks the native enabled definitions. Native acceptance describes the deferred schema before invoking it, with catalog listings disabled and an existing saved tool selection, on both supported Hermes builds. |
 | Reaction decoration or misplaced mobile menus return | Browser checks assert transparent, borderless and shadowless reactions in normal/selected/hover states, and 44-pixel sidebar menu buttons aligned to row/tile edges on iPhone and Android. Inspect their settled screenshots. |
 | Connections fixtures conceal impossible service states | Use separate OAuth and API-key services. Browser checks cover sign-in refresh, failed key receipts, preservation of unsaved tool edits, guarded navigation and fixed outer scroll position. |
+| Reconnection closes setup or flashes the chat | Transport restoration preserves navigation, drafts and message elements. Shared desktop/phone checks interrupt a real browser stream during both Add flows, retain all fields and assert no transient red banner. |
+| Reporting and detailed roles disappear from Add/Edit | `ReportingField` and `RoleDetails` are required in all profile flows by `check:ui`; browser/native checks verify persistence, and the bridge rejects reporting cycles before native writes. |
 
 For UI changes, run `npm run check`, the relevant production browser flows, and
 inspect settled desktop/phone screenshots. Use the native owner check when a

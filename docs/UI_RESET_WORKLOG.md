@@ -215,3 +215,25 @@ Hermes home using a localhost model. Astra high inspected the actual settled
 screens on desktop and both phone layouts, raised issues, and reviewed the
 corrections with no remaining release blockers. No external design upload or
 owner-host changes occurred. Packaged acceptance and CI are separate gates.
+
+## 0.7.6 setup continuity and reporting
+
+Both setup flows lost their dialog when a recovered connection called the same
+chat-open path used for deliberate navigation. The browser cases reproduced
+that loss against the preceding app. Transport restoration now preserves open
+dialogs, unsaved fields, manager choices, chat elements and drafts. Automatic
+recovery does not generate a red chat error; permanent operation failures are
+still surfaced instead of being retried as a broken connection.
+
+Reporting and full role controls are shared across Add existing, Create and Edit.
+The bridge accepts full roles and optional managers while preserving legacy
+two-field updates. It validates the reporting graph before native changes. Native
+owner acceptance changes a real imported profile's manager and all role fields,
+interrupts setup, and reopens the saved fields after enrollment. It uses a
+disposable home and localhost model and does not alter an owner's personas.
+
+Phone acceptance measures the wider sidebar and separation between New and Close.
+Settled desktop and phone screenshots are inspected locally. The wire contract,
+bug register and structural UI checks cover the controls that were missing.
+Upgrade instructions distinguish downloading a release from activating it and
+verifying the version actually served to the owner.

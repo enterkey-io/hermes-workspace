@@ -1,9 +1,16 @@
 import type { ReactNode } from 'react';
 import type { BotBridgeClient } from '@hermes-client/protocol';
-import type { Appearance } from '../workspace';
+import type { Appearance, Role, WorkspaceState } from '../workspace';
 import { AvatarChooser } from '../AgentAvatar';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 
 export type ProfileDraft = { name: string; handle: string; appearance: Appearance; photo: string };
 export function PebbleProfileFields({
@@ -99,5 +106,81 @@ export function RoleBasics({
         />
       </label>
     </>
+  );
+}
+
+export function ReportingField({
+  state,
+  profile,
+  manager,
+  onChange,
+}: {
+  state: WorkspaceState;
+  profile?: string;
+  manager: string;
+  onChange: (manager: string) => void;
+}) {
+  if (profile === state.orchestrator) return null;
+  const choices = state.bots.filter((bot) => {
+    if (!bot.enrolled || bot.available === false) return false;
+    const visited = new Set<string>();
+    let current: typeof bot | undefined = bot;
+    while (current && !visited.has(current.profile)) {
+      if (current.profile === profile) return false;
+      visited.add(current.profile);
+      current = state.bots.find((b) => b.profile === current?.manager);
+    }
+    return true;
+  });
+  return (
+    <label className="reporting-field">
+      Reports to
+      <Select value={manager || state.orchestrator || ''} onValueChange={onChange}>
+        <SelectTrigger aria-label="Reports to">
+          <SelectValue placeholder="Choose a pebble" />
+        </SelectTrigger>
+        <SelectContent>
+          {choices.map((bot) => (
+            <SelectItem key={bot.id} value={bot.profile}>
+              {bot.name}
+              {bot.profile === state.orchestrator ? ' · Main Pebble' : ''}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </label>
+  );
+}
+
+export function RoleDetails({
+  role,
+  onChange,
+}: {
+  role: Role;
+  onChange: (patch: Partial<Role>) => void;
+}) {
+  return (
+    <details className="form-disclosure">
+      <summary>Responsibilities & boundaries</summary>
+      {(['responsibilities', 'boundaries', 'expectedOutputs'] as const).map((key) => {
+        const label = {
+          responsibilities: 'Responsibilities',
+          boundaries: 'Boundaries',
+          expectedOutputs: 'Expected outputs',
+        }[key];
+        return (
+          <label key={key}>
+            {label}
+            <Textarea
+              aria-label={label}
+              rows={3}
+              maxLength={1000}
+              value={role[key]}
+              onChange={(event) => onChange({ [key]: event.target.value })}
+            />
+          </label>
+        );
+      })}
+    </details>
   );
 }

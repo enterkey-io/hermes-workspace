@@ -74,8 +74,12 @@ export const history = Array.from({ length: 28 }, (_, i) => ({
 }));
 export async function installFixture(
   context: BrowserContext,
-  options: { reactions?: boolean } = {},
+  options: {
+    reactions?: boolean;
+    messages?: (Record<string, unknown> & { row_id: number })[];
+  } = {},
 ) {
+  const messages = options.messages ?? history;
   await context.route(new RegExp('^http://127\\.0\\.0\\.1:(8093|8095|8097)/$'), async (route) => {
     const response = await route.fetch();
     await route.fulfill({
@@ -381,6 +385,7 @@ export async function installFixture(
           handle: params.handle,
           appearance: params.appearance,
           role: { ...bot.role, ...params.role },
+          ...('manager' in params ? { manager: params.manager } : {}),
         },
         operation === 'agent.onboard'
           ? { managed: true, enrolled: true, canonical: true, hidden: false }
@@ -465,7 +470,7 @@ export async function installFixture(
     if (operation === 'bot.open')
       result = {
         session_id: `session-${params.profile}`,
-        messages: history.map((m) => ({
+        messages: messages.map((m) => ({
           ...m,
           display_metadata: { reactions: reactions.get(m.row_id) ?? [] },
         })),
@@ -473,7 +478,7 @@ export async function installFixture(
       };
     if (operation === 'chat.history')
       result = {
-        messages: history.map((m) => ({
+        messages: messages.map((m) => ({
           ...m,
           display_metadata: { reactions: reactions.get(m.row_id) ?? [] },
         })),

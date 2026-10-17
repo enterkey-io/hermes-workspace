@@ -264,7 +264,14 @@ export function Rail({
         >
           <Plus />
         </Menu>
-        {onClose && <IconButton label="Close navigation" icon={X} onClick={onClose} />}
+        {onClose && (
+          <IconButton
+            className="pc-nav-close"
+            label="Close navigation"
+            icon={X}
+            onClick={onClose}
+          />
+        )}
       </div>
       <div className="pc-rail-scroll rail-scroll">
         <LayoutGroup id="native-rail">

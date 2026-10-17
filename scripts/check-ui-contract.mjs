@@ -47,6 +47,11 @@ for (const path of ['NewPebble.tsx', 'ExistingPebbleSetup.tsx', 'PebbleEditor.ts
     read(`apps/web/src/${path}`).includes('PebbleProfileFields'),
     `${path} must use shared profile fields so name, avatar, title and description cannot diverge.`,
   );
+  requireRule(
+    /<ReportingField\b/.test(read(`apps/web/src/${path}`)) &&
+      /<RoleDetails\b/.test(read(`apps/web/src/${path}`)),
+    `${path} must expose shared reporting and detailed role controls.`,
+  );
 }
 if (errors.length) {
   for (const message of errors) console.error(`UI contract: ${message}`);
