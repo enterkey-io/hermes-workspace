@@ -39,3 +39,28 @@ test('unsaved connection tools and key survive a new transport lease', async ({
     path: test.info().outputPath('connection-draft-restored.png'),
   });
 });
+
+test('a changed remote tool policy requires an explicit keep or discard decision', async ({
+  page,
+  context,
+}) => {
+  await installFixture(context);
+  const fixture = await connectionFixture(page);
+  await openConnections(page);
+  await page.locator('.connection-row').filter({ hasText: 'Archive' }).click();
+  await page.getByRole('button', { name: /Tool access/ }).click();
+  await page.getByRole('checkbox', { name: 'document_action_15', exact: true }).check();
+  fixture.policies.set('Archive', ['document_action_1']);
+  await page.evaluate(() => (window as unknown as { __breakStream: () => void }).__breakStream());
+  await expect(page.getByText('Tool access changed elsewhere.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('checkbox', { name: 'document_action_15', exact: true }),
+  ).toBeChecked();
+  await page.getByRole('button', { name: 'Keep my changes', exact: true }).click();
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(
+    page.getByText('Tool access saved. Applies when this pebble restarts.'),
+  ).toBeVisible();
+  expect(fixture.policies.get('Archive')).toEqual(['search_documents', 'document_action_15']);
+});
