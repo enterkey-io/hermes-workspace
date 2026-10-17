@@ -1,7 +1,7 @@
 .pc-shell {
   display: flex;
   height: var(--app-viewport-height, 100dvh);
-  overflow: hidden;
+  overflow: clip;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -90,6 +90,9 @@
   height: 60px;
 }
 .pc-overflow {
+  display: inline-flex;
+  justify-self: end;
+  flex-shrink: 0;
   color: var(--muted-foreground);
   opacity: 0.8;
 }
@@ -383,21 +386,11 @@
   position: relative;
   min-width: 28px;
   height: 24px;
-  padding: 0 5px;
-  border-radius: 8px;
-  background: var(--bubble-owner);
-  box-shadow: 0 0 0 2px var(--background);
-  transition:
-    background-color var(--motion-hover),
-    box-shadow var(--motion-hover);
-}
-.pc-reaction[aria-pressed='true'] {
-  box-shadow:
-    0 0 0 2px var(--background),
-    inset 0 0 0 1px var(--ring);
-}
-.pc-reaction:hover {
-  background: var(--accent);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 18px;
 }
 .pc-reaction:disabled {
   cursor: default;
@@ -1157,6 +1150,10 @@
     min-width: 44px;
     min-height: 44px;
   }
+  .pc-overflow > button {
+    width: 44px;
+    height: 44px;
+  }
   .pc-pin-actions {
     height: 44px;
   }
@@ -1167,11 +1164,12 @@
     opacity: 1;
     pointer-events: auto;
     background: transparent;
-    height: 36px;
+    height: 44px;
+    margin-top: 4px;
   }
-  .pc-message-actions [data-slot='button'] {
+  .pc-message-actions button {
     width: 44px;
-    height: 36px;
+    height: 44px;
   }
 }
 

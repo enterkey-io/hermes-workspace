@@ -189,3 +189,29 @@ Final touch review reproduced a separate 36px jump when the copy-action row
 appeared only after streaming. Copy controls now share the same layout throughout
 the reply, and mobile acceptance measures the complete message row as well as
 the bubble. Touch copy controls remain interactive.
+
+## 0.7.5 Connections and touch review
+
+The owner reported that reaction decoration persisted, Connections remained
+confusing, and mobile overflow buttons sat too far left. The previous broad
+Connections fixture combined OAuth and bearer-key editing, which the native
+service does not support. The new fixtures use separate realistic services.
+
+Connections now separates its compact overview, service editor and catalog.
+It preserves native null-versus-empty tool policies, protects unsaved edits,
+checks save receipts and refreshes sign-in state. API-key saving cannot discard
+a tool draft. Long tool lists preserve profile/service identity and Save access;
+focus cannot scroll the whole app above its fixed Settings header.
+
+Radix replaces the trigger's `data-slot` when composing a dropdown button.
+The old mobile selector therefore missed the real button. Acceptance now measures
+that button's 44px geometry and right-edge alignment instead of trusting the
+wrapper's declared width. Reaction checks assert no border, background or shadow.
+The new checks failed against the preceding built app before the repairs.
+
+Local final checks passed: 95 unit cases, 34 production workspace flows, 18 phone
+WebKit/Chromium flows and the real native owner browser flow in a disposable
+Hermes home using a localhost model. Astra high inspected the actual settled
+screens on desktop and both phone layouts, raised issues, and reviewed the
+corrections with no remaining release blockers. No external design upload or
+owner-host changes occurred. Packaged acceptance and CI are separate gates.

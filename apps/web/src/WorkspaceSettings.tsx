@@ -6,10 +6,10 @@ import type { BotBridgeClient } from '@hermes-client/protocol';
 import { workspaceState } from './workspace';
 import type { WorkspaceState, WorkspaceBot } from './workspace';
 import { OwnerAccount } from './OwnerAccount';
-import { ConnectionCard } from './ConnectionCard';
+import { ConnectionsPanel } from './connections/ConnectionsPanel';
 import { RequestReview } from './chat/RequestReview';
 import { PebbleEditor } from './PebbleEditor';
-import { PageHeader, Notice, FormSection, Tabs } from './ui/primitives';
+import { PageHeader, Notice, Tabs } from './ui/primitives';
 type Row = Record<string, unknown>;
 export function WorkspaceSettings({
   client,
@@ -20,8 +20,10 @@ export function WorkspaceSettings({
   initialTab = 'account',
   initialProfile,
   onDirtyChange,
+  onNavigate,
 }: {
   onDirtyChange: (dirty: boolean) => void;
+  onNavigate: (action: () => void) => void;
   owner?: boolean;
   initialTab?: 'agents' | 'requests' | 'connections' | 'account';
   initialProfile?: string | undefined;
@@ -47,9 +49,7 @@ export function WorkspaceSettings({
     [notice, setNotice] = useState(''),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(false);
-  const [requests, setRequests] = useState<Row[]>([]),
-    [servers, setServers] = useState<Row[]>([]),
-    [catalog, setCatalog] = useState<Row[]>([]);
+  const [requests, setRequests] = useState<Row[]>([]);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     let live = true;
@@ -75,28 +75,6 @@ export function WorkspaceSettings({
         }
       };
       void load();
-    } else if (tab === 'connections' && profile) {
-      setServers([]);
-      setCatalog([]);
-      setLoading(true);
-      void Promise.all([
-        client.invoke('connections.list', { profile }),
-        client.invoke('services.catalog', { profile }),
-      ])
-        .then(([a, b]) => {
-          if (!live) return;
-          const list = (a as { servers: Row[] }).servers,
-            recipes = (b as { servers: Row[] }).servers;
-          if (!Array.isArray(list) || !Array.isArray(recipes)) throw new Error();
-          setServers(list);
-          setCatalog(recipes);
-        })
-        .catch(() => {
-          if (live) setError('Connections could not be loaded.');
-        })
-        .finally(() => {
-          if (live) setLoading(false);
-        });
     } else setLoading(false);
     return () => {
       live = false;
@@ -153,9 +131,13 @@ export function WorkspaceSettings({
       </section>
     );
   }
+  const connectionBots = state.bots.filter((b) => b.enrolled && b.available !== false);
+  const connectionProfile = connectionBots.some((b) => b.profile === profile)
+    ? profile
+    : (connectionBots[0]?.profile ?? '');
   return (
     <section className="settings-panel entity-page" aria-label="Settings">
-      <PageHeader title="Settings" onClose={onClose} />
+      <PageHeader title="Settings" onClose={() => onNavigate(onClose)} />
       <Tabs
         tabs={[
           ...(owner ? [{ id: 'account', label: 'Account' }] : []),
@@ -163,7 +145,7 @@ export function WorkspaceSettings({
           { id: 'requests', label: 'Requests' },
         ]}
         value={tab}
-        onChange={(id) => setTab(id as typeof tab)}
+        onChange={(id) => onNavigate(() => setTab(id as typeof tab))}
       >
         {error && (
           <Notice error>
@@ -204,85 +186,21 @@ export function WorkspaceSettings({
             ))}
           </>
         )}
-        {tab === 'connections' && (
-          <div className="connections-panel">
-            <label className="scope-field">
-              Pebble
-              <select value={profile} onChange={(e) => setProfile(e.target.value)}>
-                {state.bots
-                  .filter((b) => b.available !== false)
-                  .map((b) => (
-                    <option key={b.id} value={b.profile}>
-                      {b.name} · @{b.handle}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            {!loading && !error && (
-              <>
-                <FormSection title="Connected services">
-                  {!servers.length && (
-                    <p className="empty-note">No services connected to this pebble.</p>
-                  )}
-                  {servers.map((s) => (
-                    <ConnectionCard
-                      key={`${profile}:${String(s.name)}`}
-                      client={client}
-                      profile={profile}
-                      server={s}
-                    />
-                  ))}
-                </FormSection>
-                <FormSection title="Add a connection">
-                  <div className="service-grid">
-                    {catalog.map((s) => (
-                      <article className="service-card" key={String(s.name)}>
-                        <div>
-                          <h3>{String(s.name)}</h3>
-                          <p>{String(s.description ?? '')}</p>
-                        </div>
-                        {['http', 'sse', 'streamable-http'].includes(String(s.transport)) ||
-                        s.installed ? (
-                          <Button
-                            variant="secondary"
-                            disabled={busy || servers.some((x) => x.name === s.name)}
-                            onClick={async () => {
-                              const target = profile;
-                              setBusy(true);
-                              setError('');
-                              try {
-                                await client.invoke('connections.add', {
-                                  profile: target,
-                                  recipe: s.name,
-                                  name: s.name,
-                                  expected_revision: state.revision,
-                                });
-                                setRefresh((x) => x + 1);
-                              } catch {
-                                setError(
-                                  'This service needs setup in Hermes before it can be added.',
-                                );
-                              } finally {
-                                setBusy(false);
-                              }
-                            }}
-                          >
-                            {servers.some((x) => x.name === s.name) ? 'Added' : 'Add service'}
-                          </Button>
-                        ) : (
-                          <span className="field-hint">Set up in Hermes first</span>
-                        )}
-                      </article>
-                    ))}
-                  </div>
-                  {!catalog.length && (
-                    <p className="empty-note">No additional services available.</p>
-                  )}
-                </FormSection>
-              </>
-            )}
-          </div>
-        )}
+        {tab === 'connections' &&
+          (connectionProfile ? (
+            <ConnectionsPanel
+              key={connectionProfile}
+              client={client}
+              bots={connectionBots}
+              profile={connectionProfile}
+              revision={state.revision}
+              onProfile={setProfile}
+              onNavigate={onNavigate}
+              onDirtyChange={onDirtyChange}
+            />
+          ) : (
+            <p className="connections-empty">No pebbles available</p>
+          ))}
       </Tabs>
     </section>
   );

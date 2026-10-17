@@ -1546,6 +1546,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const settingsContent = workspace ? (
     <Suspense fallback={<LoadingBar active label="Loading Settings" />}>
       <WorkspaceSettings
+        onNavigate={navigate}
         key={`${settingsTab}:${editProfile ?? ''}`}
         onDirtyChange={onDirtyChange}
         initialTab={settingsTab}

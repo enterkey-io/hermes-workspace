@@ -52,7 +52,7 @@ test('shared design system: account settings, connections, requests, editor and 
   await accessible(page);
   await page.screenshot({ animations: 'disabled', path: 'test-results/settings-account.png' });
   await page.getByRole('tab', { name: 'Connections', exact: true }).click();
-  await expect(page.getByText('No services connected to this pebble.')).toBeVisible();
+  await expect(page.getByText('No connections', { exact: true })).toBeVisible();
   await accessible(page);
   await page.getByRole('tab', { name: 'Requests', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'No requests' })).toBeVisible();

@@ -4,6 +4,19 @@ Track owner reports here through implementation, verification and release. A
 published fix is separate from updating and verifying the owner's installation.
 New reports receive a stable ID; later work updates the existing entry.
 
+## 0.7.5 review corrections
+
+| ID     | Report                                          | Repair and verification                                                                                                                                                                            |
+| ------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-057 | Reactions still have a border/background        | Standalone emoji overlaps the bubble's lower-left edge. Desktop and phone checks assert no border, background or shadow, including selected/hover states. The invisible touch area remains usable. |
+| PC-058 | Sidebar pebble menus sit too far left on mobile | The real Radix trigger fills its 44px action column. Phone checks measure row/tile edge alignment, viewport collision bounds and focus return for regular and pinned pebbles.                      |
+
+Astra high reviewed the production desktop, iPhone and Android screenshots and
+Connections state handling. Its draft-preservation, stale-sign-in-status and
+scroll-context findings were repaired and reviewed again. CI retains synthetic
+UI screenshots on successful and failed runs for subsequent review. This does
+not establish owner acceptance or testing on a physical phone.
+
 ## Owner corrections after 0.7.0
 
 ### Mobile, activity and Connections — 0.7.2 candidate
@@ -13,7 +26,7 @@ New reports receive a stable ID; later work updates the existing entry.
 | PC-052 | Focusing the phone composer zooms and breaks the layout                  | Shared mobile field sizes are at least 16px. The chat follows the visual viewport during keyboard resize/pan, preserves pinch zoom and drafts, and stays above safe-area insets. Add WebKit/iPhone and Chromium/Android checks to CI. Physical iOS keyboard acceptance remains separate from emulation. |
 | PC-053 | Activity always says Thinking; replies and timestamps jump on completion | Render actual native status and readable tool activity. Stream through the same message component, reserve the footer from the first chunk, and retain bubble identity using Hermes' final row receipt. Keep optimistic send time when a native receipt temporarily omits it.                           |
 | PC-054 | Move menus are blank when no destinations exist                          | Shared menus show a disabled None item at 50% opacity; native placement menus use the same empty state.                                                                                                                                                                                                 |
-| PC-055 | Connections is poorly formatted                                          | Add responsive service cards, a bounded profile selector, aligned actions, expandable credential fields and structured tool permissions. Browser checks cover real production components with synthetic service fixtures.                                                                               |
+| PC-055 | Connections is poorly formatted                                          | 0.7.5 replaces expanded service cards with a compact overview, focused service details and a separate searchable catalog. Realistic OAuth/API-key cases cover failed saves, sign-in refresh, unsaved tool edits, guarded navigation and fixed mobile headers.                                           |
 | PC-056 | Installable PWA and pebble app icon                                      | Package manifest, Apple touch icon, maskable icon and original SVG/PNG artwork. Serve correct MIME types from the owner app. Cache only public offline artwork; verify installation metadata and offline recovery without caching owner data.                                                           |
 
 The owner rejected the 0.7.0 experience. Its earlier review did not establish

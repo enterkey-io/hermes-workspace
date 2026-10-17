@@ -727,196 +727,269 @@ button:disabled {
 .connections-panel {
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  max-width: 760px;
-}
-.connections-panel > .form-section {
-  margin: 0;
-}
-.scope-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 360px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-.scope-field select {
-  width: 100%;
-  color: var(--foreground);
-}
-.connections-panel .form-section-heading {
-  margin-bottom: 14px;
-}
-.connection-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 20px;
-  border-radius: 14px;
-  background: var(--card);
+  gap: 20px;
   min-width: 0;
 }
-.connection-card + .connection-card {
-  margin-top: 12px;
+.connections-panel > .loading-track {
+  margin-block: -10px;
 }
-.connection-summary {
+.connections-scope {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 48px;
+  flex-shrink: 0;
+  background: var(--background);
+  padding-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
-}
-.connection-icon {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 12px;
-  background: var(--secondary);
   color: var(--muted-foreground);
+  font-size: 12px;
 }
-.connection-icon svg {
-  width: 20px;
-  height: 20px;
+.connections-scope [data-slot='select-trigger'] {
+  width: min(100%, 280px);
+  min-width: 0;
+  color: var(--foreground);
 }
-.connection-identity {
-  flex: 1;
+.connections-heading,
+.connection-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   min-width: 0;
 }
-.connection-summary h3,
-.service-card h3 {
-  font-size: 14px;
+.connections-heading h2,
+.connections-view-title,
+.connection-detail-header h2 {
+  font-size: 17px;
   font-weight: 550;
   overflow-wrap: anywhere;
 }
-.connection-summary p,
-.service-card p,
-.connection-card small {
+.connections-back[data-slot='button'] {
+  justify-content: flex-start;
+  align-self: flex-start;
+  height: 28px;
+  padding: 0;
   font-size: 12px;
-  color: var(--muted-foreground);
-  line-height: 1.5;
 }
-.connection-state {
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.connection-actions,
-.connection-auth-flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-.connection-auth-flow > p {
-  flex-basis: 100%;
-}
-.connection-key summary {
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--muted-foreground);
-}
-.connection-card .connection-key-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
-  margin-top: 14px;
-}
-.connection-card .connection-tools {
-  gap: 16px;
-}
-.connection-tools fieldset {
-  display: grid;
-  gap: 14px;
-  min-width: 0;
-}
-.connection-tools legend {
-  margin-bottom: 16px;
-}
-.connection-tools .capability-choice {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.capability-choice input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  margin-top: 3px;
-  flex-shrink: 0;
-  accent-color: var(--ring);
-}
-.capability-choice span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 13px;
-}
-.capability-choice small {
-  display: block;
-  margin-top: 3px;
-}
-.connection-tools > button {
-  justify-self: start;
-}
-.service-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-  gap: 12px;
-}
-.service-card {
+.connection-list,
+.connection-catalog {
   display: flex;
   flex-direction: column;
-  align-items: start;
-  gap: 18px;
-  padding: 20px;
-  border-radius: 14px;
-  background: var(--card);
+  gap: 4px;
+}
+.connection-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 68px;
+  padding: 12px 10px;
+  margin: 0 -10px;
+  min-width: 0;
+  border-radius: 8px;
+  text-align: left;
+  transition: background-color var(--motion-hover);
+}
+button.connection-row:hover {
+  background: var(--surface-hover);
+}
+.connection-row > svg {
+  width: 20px;
+  height: 20px;
+  color: var(--muted-foreground);
+}
+.connection-row > svg:last-child {
+  width: 16px;
+  height: 16px;
+}
+.connection-row > span {
   min-width: 0;
 }
-.service-card > div {
-  flex: 1;
-}
-.service-card p {
-  margin-top: 6px;
+.connection-row strong,
+.connection-tool strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
-.connection-card > [role='status'] {
+.connection-row small {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.connection-added,
+.connection-status-text {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.connection-status-text[data-connected='true'] {
+  color: #95baa5;
+}
+.connections-search {
+  position: relative;
+}
+.connections-search > svg {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+}
+.connections-search [data-slot='input'] {
+  padding-left: 38px;
+}
+.connections-empty {
+  padding: 20px 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.connection-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.connection-detail-header {
+  position: sticky;
+  top: 48px;
+  z-index: 1;
+  background: var(--background);
+  padding-block: 8px;
+}
+.connection-tool-save {
+  position: sticky;
+  bottom: 0;
+  padding-block: 12px;
+  background: var(--background);
+}
+.connection-detail > .loading-track {
+  margin-block: -12px;
+}
+.connection-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.connection-section h3,
+.connection-disclosure strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.connection-detail-actions,
+.connection-sign-in {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.connection-credential form,
+.connection-tools form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.connection-credential > [data-slot='button'] {
+  padding: 0;
+  height: 28px;
+  font-size: 12px;
+}
+.connection-credential label {
+  font-size: 12px;
+}
+.connection-disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  text-align: left;
+}
+.connection-disclosure small,
+.connection-tools p,
+.connection-tool small,
+.connection-tool code {
+  display: block;
   font-size: 12px;
   color: var(--muted-foreground);
+  margin-top: 4px;
   overflow-wrap: anywhere;
+}
+.connection-disclosure > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+  transition: transform var(--motion-hover);
+}
+.connection-disclosure > svg[data-open='true'] {
+  transform: rotate(180deg);
+}
+.connection-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.connection-tools > [data-slot='button'] {
+  align-self: flex-start;
+}
+.connection-tools fieldset {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.connection-tools label.connection-tool {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.connection-tool [data-slot='checkbox'] {
+  margin-top: 3px;
+}
+.connection-tool > span {
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .connections-heading {
+    gap: 8px;
+  }
+  .connection-row {
+    column-gap: 10px;
+  }
+  .connection-row [data-slot='button'] {
+    padding-inline: 10px;
+    max-width: 132px;
+    height: auto;
+    min-height: 36px;
+    white-space: normal;
+  }
+  .connections-scope [data-slot='select-trigger'] {
+    flex: 1;
+    width: 0;
+  }
 }
 .pc-message-meta time {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-@media (max-width: 767px) {
-  .connection-card,
-  .service-card {
-    padding: 16px;
-  }
-  .connection-summary {
-    flex-wrap: wrap;
-  }
-  .connection-card .connection-key-form {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: start;
-  }
-  .connection-key-form > label {
-    width: 100%;
-  }
-}
-.connection-card pre,
 .request-review pre {
   max-height: 240px;
   overflow: auto;
   font-size: 12px;
   white-space: pre-wrap;
 }
+
 .approval > div {
   display: flex;
   gap: 8px;

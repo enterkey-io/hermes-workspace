@@ -16,6 +16,8 @@ for native acceptance.
 | Mobile fixes pass checks but text is still misaligned   | Phone browser checks compare the composer field and send-control centers, not just viewport containment. Inspect the settled iPhone and Android screenshots. |
 | Committed replies pop or duplicate a live turn          | `SendProjection` preserves displayed timestamps. Reaction events update addressed rows directly; polling cannot replace the transcript during a live turn. Browser checks exercise reaction arrival during streaming and stable touch controls at completion. |
 | A model is told to use a tool it cannot discover        | Reaction guidance checks the native enabled definitions. Native acceptance describes the deferred schema before invoking it, with catalog listings disabled and an existing saved tool selection, on both supported Hermes builds. |
+| Reaction decoration or misplaced mobile menus return | Browser checks assert transparent, borderless and shadowless reactions in normal/selected/hover states, and 44-pixel sidebar menu buttons aligned to row/tile edges on iPhone and Android. Inspect their settled screenshots. |
+| Connections fixtures conceal impossible service states | Use separate OAuth and API-key services. Browser checks cover sign-in refresh, failed key receipts, preservation of unsaved tool edits, guarded navigation and fixed outer scroll position. |
 
 For UI changes, run `npm run check`, the relevant production browser flows, and
 inspect settled desktop/phone screenshots. Use the native owner check when a
