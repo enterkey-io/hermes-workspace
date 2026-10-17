@@ -79,6 +79,19 @@ class RuntimeLifecycleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'incomplete'):
             host.runtime_evidence(destination)
 
+    def test_native_managed_profile_without_a_runtime_can_be_provisioned(self):
+        import shutil
+        self.install(self.source)
+        shutil.rmtree(self.paths['beta'])
+        self.assertEqual(next(row for row in host.runtime_status(self.state, source=self.source)['profiles'] if row['profile'] == 'beta')['state'], 'not-installed')
+        with contextlib.redirect_stdout(io.StringIO()):
+            result = setup.sync_runtime(native_idle=True)
+        row = next(row for row in result['profiles'] if row['profile'] == 'beta')
+        self.assertTrue(result['complete'])
+        self.assertIsNone(row['before_sha256'])
+        self.assertIsNone(row['backup'])
+        self.assertEqual(host.runtime_evidence(self.paths['beta'])['sha256'], result['source']['sha256'])
+
     def test_partial_sync_receipt_backup_retry_and_active_source(self):
         target = self.install(self.source)
         tool = target / 'runtime.py'
@@ -178,6 +191,20 @@ class RuntimeLifecycleTests(unittest.TestCase):
             self.assertTrue(all(host.runtime_evidence(path)['sha256'] == result['source']['sha256']
                                 for path in self.paths.values()))
 
+    def test_sync_from_real_pre_contract_release_restores_legacy_payload(self):
+        active = self.install(self.source)
+        for name in ('runtime-contract.json', 'protocol-catalog.json'):
+            (active / name).unlink()
+        legacy = host.runtime_evidence(active)
+        self.assertEqual(legacy['contract'], 'legacy-b642cce')
+        with contextlib.redirect_stdout(io.StringIO()):
+            result = setup.sync_runtime(native_idle=True)
+        self.assertTrue(result['complete'])
+        for destination in self.paths.values():
+            self.assertFalse((destination / 'runtime-contract.json').exists())
+            self.assertFalse((destination / 'protocol-catalog.json').exists())
+            self.assertEqual(host.runtime_evidence(destination)['sha256'], legacy['sha256'])
+
     def test_linked_runtime_and_backup_contents_are_refused(self):
         self.install(self.source)
         link = self.paths['alpha'] / 'extra-link'
@@ -212,6 +239,28 @@ class RuntimeLifecycleTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'identity is unverified'):
                 host.enrolled_runtime_paths()
             self.assertFalse((self.root / 'alpha/.pebble-crew-identity').exists())
+
+    def test_home_alias_is_normalized_but_linked_plugin_directory_is_refused(self):
+        patch.stopall()
+        patch('bot_web.workspace.workspace_path', return_value=self.workspace).start()
+        alias = self.root / 'home-alias'
+        alias.symlink_to(self.root, target_is_directory=True)
+        profiles = types.ModuleType('hermes_cli.profiles')
+        profiles.get_profile_dir = lambda name: alias if name == 'default' else alias / name
+        db = sqlite3.connect(self.workspace)
+        db.execute('CREATE TABLE workspace(id INTEGER PRIMARY KEY, data TEXT)')
+        db.execute('INSERT INTO workspace VALUES(1,?)', (json.dumps({'bots': {'alpha': {'enrolled': True}, 'default': {'enrolled': True}}}),))
+        db.commit()
+        db.close()
+        self.workspace.chmod(0o600)
+        with patch.dict(sys.modules, {'hermes_cli.profiles': profiles}):
+            self.assertEqual(host.enrolled_runtime_paths()['alpha'], self.paths['alpha'])
+            self.assertEqual(host.enrolled_runtime_paths()['default'], self.root / 'plugins/bot-web')
+            import shutil
+            shutil.rmtree(self.paths['alpha'].parent)
+            self.paths['alpha'].parent.symlink_to(self.source, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, 'plugin directory is linked'):
+                host.enrolled_runtime_paths()
 
 
 if __name__ == '__main__':

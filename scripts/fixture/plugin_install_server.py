@@ -161,6 +161,35 @@ def main():
         assert result.returncode == 0, result.stderr[-2000:]
         return json.loads(result.stdout)
 
+    def historical_rollback_release():
+        """Exact pre-contract Python payload with this archive's web assets/dependencies."""
+        value = json.loads((state / 'install.json').read_text())
+        source = state / 'releases' / value['previous_release']
+        target = directory / 'legacy-rollback-staging'
+        shutil.copytree(source, target, symlinks=True)
+        metadata = json.loads((target / 'release.json').read_text())
+        metadata['version'] = '0.7.6'
+        names = list(metadata['files'])
+        for name in names:
+            if name.startswith('web-runtime/'):
+                continue
+            if name in {'runtime-contract.json', 'protocol-catalog.json'}:
+                (target / name).unlink()
+                del metadata['files'][name]
+                continue
+            old = subprocess.run(['git', 'show', 'b642ccef86511814223e9c4443fc48f639965b47:plugins/bot-web/' + name],
+                cwd=project, capture_output=True, timeout=30)
+            assert old.returncode == 0, 'Historical runtime source is unavailable; fetch repository history before acceptance'
+            (target / name).write_bytes(old.stdout)
+            metadata['files'][name] = hashlib.sha256(old.stdout).hexdigest()
+        identity = hashlib.sha256(json.dumps(metadata['files'], sort_keys=True).encode()).hexdigest()[:24]
+        (target / 'release.json').write_text(json.dumps(metadata))
+        target.chmod(0o700)
+        target.rename(state / 'releases' / identity)
+        value['previous_release'] = identity
+        (state / 'install.json').write_text(json.dumps(value))
+        return identity
+
     runtime_paths = {}
     runtime_original = {}
     protected_files = {}
@@ -252,13 +281,18 @@ def main():
                     checks['public_https_cli_stream_and_heartbeat'] = result['ready']
                 elif self.path == '/rollback':
                     turns = Model.turns
+                    legacy = historical_rollback_release()
                     cli('rollback')
                     restored = cli('sync-runtime', '--native-idle')
                     assert restored['complete']
+                    checks['rollback_copies_exact_pre_contract_runtime'] = all(
+                        not (path / 'runtime-contract.json').exists() and not (path / 'protocol-catalog.json').exists()
+                        for path in runtime_paths.values())
                     checks['rollback_restores_actual_runtime_tool_marker'] = all(
                         tool_marker(path) == runtime_original[name] for name, path in runtime_paths.items())
                     checks['rollback_runs_zero_model_turns'] = Model.turns == turns
                     current = json.loads((state / 'install.json').read_text())['active_release']
+                    assert current == legacy
                     checks['explicit_rollback_restores_previous_release'] = current != active
                     checks['rollback_preserves_login_keys'] = hashlib.sha256(settings.read_bytes()).hexdigest() == key_digest
                     active = current

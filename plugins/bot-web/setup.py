@@ -162,31 +162,37 @@ def sync_runtime(*, native_idle=False, source_package=False):
         try:
             for profile, destination in host.enrolled_runtime_paths().items():
                 row = {'profile': profile, 'destination': str(destination), 'source_sha256': report['source']['sha256'],
-                       'before_sha256': host.runtime_evidence(destination)['sha256'], 'backup': None,
+                       'before_sha256': host.runtime_evidence(destination)['sha256'] if destination.exists() else None, 'backup': None,
                        'status': 'pending', 'loaded': 'unknown'}
                 report['profiles'].append(row)
                 if destination.resolve() in {source.resolve(), package}:
                     row['status'] = 'source-package-preserved'
                     continue
-                if destination.is_symlink() or not destination.is_dir():
-                    raise ValueError('Refusing a missing or linked runtime directory')
+                if destination.is_symlink() or (destination.exists() and not destination.is_dir()):
+                    raise ValueError('Refusing an invalid or linked runtime directory')
                 temporary = destination.with_name('.bot-web-next')
                 previous = destination.with_name('.bot-web-previous')
                 if any(path.exists() or path.is_symlink() for path in (temporary, previous)):
                     raise ValueError('An earlier runtime update needs reconciliation')
                 if any(path.is_symlink() for path in destination.rglob('*')):
                     raise ValueError('Refusing linked files in a runtime backup')
-                backup = receipt_root / profile
-                shutil.copytree(destination, backup)
-                for path in [backup, *backup.rglob('*')]:
-                    path.chmod(0o700 if path.is_dir() else 0o600)
-                row['backup'] = str(backup)
+                if destination.exists():
+                    backup = receipt_root / profile
+                    shutil.copytree(destination, backup)
+                    for path in [backup, *backup.rglob('*')]:
+                        path.chmod(0o700 if path.is_dir() else 0o600)
+                    row['backup'] = str(backup)
+                destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
                 host.atomic_write(receipt_root / 'receipt.json', report)
                 try:
-                    copy_payload(source, temporary)
+                    if report['source']['contract'] == 'legacy-b642cce':
+                        copy_payload(source, temporary, legacy_runtime=True)
+                    else:
+                        copy_payload(source, temporary)
                     if host.runtime_evidence(temporary)['sha256'] != report['source']['sha256']:
                         raise ValueError('Staged runtime differs from its source')
-                    os.replace(destination, previous)
+                    if destination.exists():
+                        os.replace(destination, previous)
                     os.replace(temporary, destination)
                 except BaseException:
                     if temporary.exists():
@@ -198,7 +204,8 @@ def sync_runtime(*, native_idle=False, source_package=False):
                 row['status'] = 'copied'
                 row['after_sha256'] = host.runtime_evidence(destination)['sha256']
                 host.atomic_write(receipt_root / 'receipt.json', report)
-                shutil.rmtree(previous)
+                if previous.exists():
+                    shutil.rmtree(previous)
             report['complete'] = True
         except BaseException:
             if report['profiles'] and report['profiles'][-1]['status'] == 'pending':

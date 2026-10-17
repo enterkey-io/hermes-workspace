@@ -22,7 +22,9 @@ MAX_PAYLOAD_BYTES = 100_000_000
 
 def state_dir():
     from .setup import config_path
-    return config_path().parent / "web"
+    config = config_path()
+    # Canonicalize the trusted Hermes home, retaining checks on integration-owned children.
+    return config.parent.parent.resolve() / config.parent.name / "web"
 
 
 def private_dir(path):
@@ -297,8 +299,11 @@ def enrolled_runtime_paths():
         if not isinstance(profile, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', profile):
             raise ValueError('Invalid enrolled profile identity')
         home = Path(get_profile_dir(profile))
-        if not home.is_dir() or home.is_symlink():
+        if not home.is_dir() or (profile != 'default' and home.is_symlink()):
             raise ValueError('Enrolled profile home is missing or linked')
+        if (home / 'plugins').is_symlink():
+            raise ValueError('Enrolled plugin directory is linked')
+        home = home.resolve()
         if bot.get('native_incarnation'):
             marker = home / '.pebble-crew-identity'
             if marker.is_symlink() or not marker.is_file() or marker.stat().st_size > 512 or marker.stat().st_nlink != 1:
@@ -326,6 +331,10 @@ def runtime_status(directory=None, *, source=None):
         result['active_host'] = {'release': value['active_release'], 'sha256': actual,
             'integrity': actual[:24] == value['active_release'], 'runtime': runtime_evidence(active)}
     for profile, path in enrolled_runtime_paths().items():
+        if not path.exists() and not path.is_symlink():
+            result['profiles'].append({'profile': profile, 'path': str(path), 'state': 'not-installed',
+                'sha256': None, 'contract': None, 'loaded': 'unknown'})
+            continue
         try:
             evidence = runtime_evidence(path)
         except (OSError, ValueError) as error:
@@ -338,6 +347,9 @@ def runtime_status(directory=None, *, source=None):
 def preflight_runtimes(source):
     host = runtime_evidence(source)
     for profile, path in enrolled_runtime_paths().items():
+        # A native managed bot may never have opened through this integration.
+        if not path.exists() and not path.is_symlink():
+            continue
         try:
             runtime = runtime_evidence(path)
         except (OSError, ValueError) as error:
