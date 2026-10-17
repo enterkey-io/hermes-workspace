@@ -32,14 +32,15 @@ import type { Organization, OrganizationState } from './ui/organization';
 import type { SetStateAction } from 'react';
 import { SearchOverlay } from './chat/SearchOverlay';
 import { SendProjection } from './chat/send-projection';
+import { TranscriptFollow } from './chat/viewport-motion';
 import { toolActivity } from './chat/activity';
 import { reactionReceipt } from './chat/reactions';
 import { useOverlayHistory } from './ui/overlay-history';
 import type { OwnerConnection } from './OwnerShell';
 import { WorkspaceSetup } from './WorkspaceSetup';
 
-import { workspaceState } from './workspace';
-import type { WorkspaceState, WorkspaceBot } from './workspace';
+import { decodeWorkspaceSnapshot } from '@hermes-client/protocol';
+import type { WorkspaceSnapshot as WorkspaceState, WorkspaceBot } from '@hermes-client/protocol';
 import type { Activity } from './avatar-lab/engine';
 
 type Row = Record<string, unknown>;
@@ -233,6 +234,8 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   const mutationQueue = useRef(Promise.resolve());
   const scrollAnimation = useRef<(() => void) | undefined>(undefined);
   const scrollAnimating = useRef(false);
+  const transcriptFollow = useRef<TranscriptFollow | undefined>(undefined);
+  const transcriptContext = useRef('');
   const detailsAnchor = useRef<{ id: string; offset: number } | undefined>(undefined);
 
   const [routinePending, setRoutinePending] = useState('');
@@ -496,17 +499,30 @@ export function App({ owner }: { owner?: OwnerConnection }) {
   }, [client, streamState, busy, workspace, bots, rooms]);
   useLayoutEffect(() => {
     const pane = transcriptPane.current;
-    if (pane && followLatest.current && !pickingAgents && !scrollAnimating.current)
-      pane.scrollTop = pane.scrollHeight;
-  }, [messages, stream, pickingAgents, running]);
+    if (!pane || pickingAgents) return;
+    if (transcriptFollow.current?.node !== pane) {
+      transcriptFollow.current?.cancel();
+      transcriptFollow.current = new TranscriptFollow(pane);
+      transcriptContext.current = '';
+    }
+    const key = selection ? draftKey(selection) : '';
+    const opening = key !== transcriptContext.current;
+    transcriptContext.current = key;
+    if (followLatest.current && !scrollAnimating.current) {
+      if (opening) transcriptFollow.current.snap();
+      else transcriptFollow.current.follow();
+    }
+  }, [messages, stream, pickingAgents, running, selection, settings]);
   useLayoutEffect(() => {
     const pane = transcriptPane.current;
     if (!pane) return;
     const observer = new ResizeObserver(() => {
       if (followLatest.current && !pickingAgents && !scrollAnimating.current)
-        pane.scrollTop = pane.scrollHeight;
+        transcriptFollow.current?.follow();
     });
     observer.observe(pane);
+    const content = pane.querySelector('.pc-messages');
+    if (content) observer.observe(content);
     return () => observer.disconnect();
   }, [client, selection, pickingAgents, settings]);
   useLayoutEffect(() => {
@@ -593,11 +609,18 @@ export function App({ owner }: { owner?: OwnerConnection }) {
       document.querySelector<HTMLElement>('.chat-title')?.focus({ preventScroll: true });
     }
   }, [settings]);
-  useEffect(() => () => scrollAnimation.current?.(), []);
+  useEffect(
+    () => () => {
+      scrollAnimation.current?.();
+      transcriptFollow.current?.cancel();
+    },
+    [],
+  );
   function jumpToLatest() {
     const pane = transcriptPane.current;
     if (!pane) return;
     scrollAnimation.current?.();
+    transcriptFollow.current?.cancel();
     scrollAnimating.current = true;
     scrollAnimation.current = scrollToLatest(
       pane,
@@ -758,7 +781,12 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         if (connection.supportsWorkspace) {
           const data = object(await connection.invoke('workspace.snapshot', {}));
           if (current.current !== connection) return;
-          const state = workspaceState(data.workspace);
+          const state = decodeWorkspaceSnapshot(data.workspace);
+          if (
+            workspaceRef.current?.id === state.id &&
+            state.revision < workspaceRef.current.revision
+          )
+            return;
           const org = organizationState(data.organization);
           if (
             organizationFlight.current !== connection &&
@@ -1579,8 +1607,14 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         owner={!!owner}
         state={workspace}
         onChange={(state) => {
+          if (
+            workspaceRef.current?.id === state.id &&
+            state.revision < workspaceRef.current.revision
+          )
+            return;
+          workspaceRef.current = state;
           setWorkspace(state);
-          void loadRoster(client).catch(fail);
+          void loadRoster(client, true).catch(fail);
         }}
         onClose={() => setSettings(false)}
       />
@@ -1711,13 +1745,23 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               aria-live={pickingAgents ? undefined : 'off'}
               onWheel={() => {
                 detailsAnchor.current = undefined;
+                transcriptFollow.current?.cancel();
               }}
               onTouchStart={() => {
                 detailsAnchor.current = undefined;
               }}
+              onTouchMove={() => transcriptFollow.current?.cancel()}
+              onKeyDown={(event) => {
+                if (
+                  ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)
+                )
+                  transcriptFollow.current?.cancel();
+              }}
               onScroll={(event) => {
                 if (pickingAgents) return;
                 const pane = event.currentTarget;
+                if (transcriptFollow.current?.ownsScroll || scrollAnimating.current) return;
+                transcriptFollow.current?.cancel();
                 followLatest.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 96;
                 setShowLatest(!followLatest.current);
                 rememberScroll();
@@ -1725,6 +1769,7 @@ export function App({ owner }: { owner?: OwnerConnection }) {
               }}
             >
               <Transcript
+                conversationKey={selection ? draftKey(selection) : ''}
                 onReact={
                   client.supportsReactions && streamState === 'live' ? reactToMessage : undefined
                 }

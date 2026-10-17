@@ -145,12 +145,23 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
   await page.getByRole('menuitem', { name: 'Edit pebble', exact: true }).click();
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 16;
+    canvas.width = canvas.height = 512;
     const context = canvas.getContext('2d')!;
-    context.fillStyle = '#d9d1ff';
-    context.fillRect(0, 0, 16, 16);
+    const image = context.createImageData(512, 512);
+    let seed = 123456;
+    for (let i = 0; i < image.data.length; i += 4) {
+      for (let c = 0; c < 3; c++) {
+        seed ^= seed << 13;
+        seed ^= seed >>> 17;
+        seed ^= seed << 5;
+        image.data[i + c] = seed & 255;
+      }
+      image.data[i + 3] = 255;
+    }
+    context.putImageData(image, 0, 0);
     return canvas.toDataURL('image/png').split(',')[1]!;
   });
+  expect(Buffer.byteLength(png)).toBeGreaterThan(65_536);
   await page.getByRole('button', { name: 'Photo', exact: true }).click();
   await page.getByLabel('Choose photo').setInputFiles({
     name: 'synthetic.png',
@@ -161,7 +172,13 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
     'aria-pressed',
     'true',
   );
+  const savedPhoto = page.waitForRequest(
+    (request) =>
+      request.url().endsWith('/v1/avatar') &&
+      request.postDataJSON().operation === 'bots.profile.update',
+  );
   await page.getByRole('button', { name: 'Save profile', exact: true }).click();
+  expect(Buffer.byteLength((await savedPhoto).postData()!)).toBeGreaterThan(65_536);
   await expect(
     page
       .getByRole('navigation', { name: 'Pebbles', includeHidden: true })

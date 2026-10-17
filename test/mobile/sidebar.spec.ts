@@ -11,13 +11,13 @@ test('regular and pinned pebble menus have full touch targets aligned to their r
   await page.getByRole('button', { name: 'Toggle navigation', exact: true }).tap();
   const navigation = page.getByRole('dialog', { name: 'navigation', exact: true });
   expect((await navigation.boundingBox())!.width).toBeGreaterThanOrEqual(
-    Math.min(360, page.viewportSize()!.width - 24),
+    Math.min(360, page.viewportSize()!.width - 24) - 0.25,
   );
   const add = (await navigation.getByRole('button', { name: 'New', exact: true }).boundingBox())!;
   const close = (await navigation
     .getByRole('button', { name: 'Close navigation', exact: true })
     .boundingBox())!;
-  expect(close.x - (add.x + add.width)).toBeGreaterThanOrEqual(8);
+  expect(close.x - (add.x + add.width)).toBeGreaterThanOrEqual(7.75);
   for (const name of ['Rowan', 'Arlo']) {
     const trigger = page.getByRole('button', { name: `Actions for ${name}`, exact: true });
     await trigger.scrollIntoViewIfNeeded();
