@@ -26,8 +26,14 @@ test('touch reaction picker stays inside the screen and works without hover', as
   expect((await choice.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await page.screenshot({ animations: 'disabled', path: info.outputPath('reaction-picker.png') });
   await choice.tap();
+  await expect(menu).toBeHidden();
   const chip = row.getByRole('button', { name: '🎉 · You', exact: true });
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  const bubble = (await row.locator('.pc-bubble').boundingBox())!;
+  const overlap = (await chip.boundingBox())!;
+  expect(overlap.y).toBeLessThan(bubble.y + bubble.height);
+  expect(overlap.y + overlap.height).toBeGreaterThan(bubble.y + bubble.height);
+  expect(overlap.height).toBeLessThan(30);
   await page.screenshot({ animations: 'disabled', path: info.outputPath('reaction-saved.png') });
   await chip.tap();
   await expect(chip).toHaveCount(0);

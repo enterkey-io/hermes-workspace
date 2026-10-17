@@ -7,11 +7,13 @@ export class SendProjection {
     { renderKey: string; timestamp: string | number | undefined }
   >();
   reply = this.newReply();
+  replying = false;
   private newReply() {
     return { renderKey: `reply-${crypto.randomUUID()}`, timestamp: new Date().toISOString() };
   }
   beginReply() {
     this.reply = this.newReply();
+    this.replying = true;
   }
   completeReply(nativeId: unknown) {
     if (typeof nativeId === 'number' || typeof nativeId === 'string')
@@ -45,6 +47,7 @@ export class SendProjection {
     return this.project(this.latest);
   }
   project(incoming: ChatMessage[], complete = false): ChatMessage[] {
+    if (complete) this.replying = false;
     this.latest = incoming;
     const pending = this.pending;
     let rows = incoming;
@@ -66,7 +69,7 @@ export class SendProjection {
     return rows.map((m) => {
       const alias = m.id ? this.aliases.get(m.id) : undefined;
       return alias
-        ? { ...m, renderKey: alias.renderKey, timestamp: m.timestamp ?? alias.timestamp }
+        ? { ...m, renderKey: alias.renderKey, timestamp: alias.timestamp ?? m.timestamp }
         : m;
     });
   }

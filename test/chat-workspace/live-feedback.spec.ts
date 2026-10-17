@@ -2,6 +2,56 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { installFixture, emit, history } from './fixtures';
 
+test('a reaction arriving during a streamed reply never projects partial native history twice', async ({
+  page,
+  context,
+}) => {
+  await installFixture(context);
+  await page.goto('/');
+  await expect(page.getByLabel('Message', { exact: true })).toBeEnabled();
+  await emit(page, 'message.start');
+  await emit(page, 'message.delta', { text: 'Still writing this reply.' });
+  let historyReads = 0;
+  await page.route('**/v1/rpc', async (route) => {
+    if (route.request().postDataJSON().operation !== 'chat.history') return route.fallback();
+    historyReads++;
+    await route.fulfill({
+      json: {
+        result: {
+          messages: [
+            ...history,
+            {
+              row_id: 901,
+              role: 'assistant',
+              text: 'Still writing this reply.',
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        },
+      },
+    });
+  });
+  await emit(page, 'message.reaction', {
+    row_id: 24,
+    reactions: [{ emoji: '👍', author: 'agent' }],
+  });
+  await expect(
+    page.locator('[data-message-id="24"]').getByRole('button', { name: '👍 · Arlo' }),
+  ).toBeVisible();
+  expect(historyReads).toBe(0);
+  await expect(
+    page.locator('.pc-bubble').filter({ hasText: 'Still writing this reply.' }),
+  ).toHaveCount(1);
+  await emit(page, 'message.complete', {
+    status: 'done',
+    persisted_turn: { final_assistant_row_id: 901 },
+  });
+  await expect(page.locator('[data-message-id="901"]')).toBeVisible();
+  await expect(
+    page.locator('.pc-bubble').filter({ hasText: 'Still writing this reply.' }),
+  ).toHaveCount(1);
+});
+
 test('native activity describes the work and a reply keeps its bubble and footer when committed', async ({
   page,
   context,

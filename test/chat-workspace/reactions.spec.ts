@@ -40,6 +40,15 @@ test('reactions can be added, replaced, removed and restored without sending a m
   await page.getByRole('menuitem', { name: 'React with laugh', exact: true }).click();
   await expect(row.getByRole('button', { name: '❤️ · You', exact: true })).toHaveCount(0);
   await expect(row.getByRole('button', { name: '😂 · You', exact: true })).toBeVisible();
+  const bubble = (await row.locator('.pc-bubble').boundingBox())!;
+  const reactions = (await row.locator('.pc-reactions').boundingBox())!;
+  expect(reactions.x - bubble.x).toBeGreaterThan(0);
+  expect(reactions.x - bubble.x).toBeLessThan(24);
+  expect(reactions.y).toBeLessThan(bubble.y + bubble.height);
+  expect(reactions.y + reactions.height).toBeGreaterThan(bubble.y + bubble.height);
+  expect((await row.getByRole('button', { name: '😂 · You' }).boundingBox())!.height).toBeLessThan(
+    30,
+  );
   await page.reload();
   await expect(row.getByRole('button', { name: '😂 · You', exact: true })).toBeVisible();
   await row.getByRole('button', { name: '😂 · You', exact: true }).click();

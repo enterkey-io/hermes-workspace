@@ -18,6 +18,16 @@ it('a native receipt without a timestamp keeps the visible send time', () => {
     '2026-10-16T17:00:00Z',
   );
 });
+
+it('keeps the streamed time when Hermes commits a different completion time', () => {
+  const view = new SendProjection();
+  view.beginReply();
+  const timestamp = view.reply.timestamp;
+  view.completeReply(9);
+  expect(
+    view.project([{ id: '9', role: 'assistant', text: 'Done', timestamp: 1 }], true)[0]?.timestamp,
+  ).toBe(timestamp);
+});
 it('keeps one bubble and its render identity when history beats a delayed receipt', () => {
   const view = new SendProjection(),
     pending = {

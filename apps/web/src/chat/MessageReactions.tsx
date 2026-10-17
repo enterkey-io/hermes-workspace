@@ -16,10 +16,12 @@ export function ReactionPicker({
   id,
   reactions,
   onReact,
+  disabled = false,
 }: {
   id: string;
   reactions: MessageReaction[];
   onReact: ReactionAction;
+  disabled?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -38,7 +40,7 @@ export function ReactionPicker({
           variant="quiet"
           size="icon-sm"
           aria-label="React to message"
-          disabled={pending}
+          disabled={disabled || pending}
         >
           <SmilePlus />
         </Button>

@@ -37,11 +37,13 @@ test('composer focus uses readable text without disabling user zoom or overflowi
   expect(viewport).not.toMatch(/user-scalable\s*=\s*no|maximum-scale\s*=\s*1(?:\D|$)/);
   await input.tap();
   await input.fill('A mobile message');
+  const field = (await input.boundingBox())!;
   const send = (await page
     .getByRole('button', { name: 'Send message', exact: true })
     .boundingBox())!;
   expect(send.width).toBeGreaterThanOrEqual(44);
   expect(send.height).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(field.y + field.height / 2 - (send.y + send.height / 2))).toBeLessThan(1);
   await contained(page);
   await page.screenshot({ animations: 'disabled', path: info.outputPath('phone-composer.png') });
   await page.getByRole('button', { name: 'Send message', exact: true }).tap();
@@ -87,6 +89,8 @@ test('stream completion keeps the whole touch message row in place', async ({
   const live = page.locator('.pc-message.streaming');
   await expect(live).toBeVisible();
   const element = (await live.elementHandle())!;
+  const controls = await live.locator('.pc-message-actions').innerHTML();
+  const time = await live.locator('time').textContent();
   const before = (await live.boundingBox())!.height;
   await page.screenshot({
     animations: 'disabled',
@@ -100,7 +104,7 @@ test('stream completion keeps the whole touch message row in place', async ({
           result: {
             messages: [
               ...history,
-              { row_id: 901, role: 'assistant', text: reply, timestamp: new Date().toISOString() },
+              { row_id: 901, role: 'assistant', text: reply, timestamp: '2026-10-16T01:01:00Z' },
             ],
           },
         },
@@ -115,6 +119,10 @@ test('stream completion keeps the whole touch message row in place', async ({
   await expect(saved).toBeVisible();
   expect(await element.evaluate((node) => node.isConnected)).toBe(true);
   expect((await saved.boundingBox())!.height).toBeCloseTo(before, 0);
+  expect(await saved.locator('time').textContent()).toBe(time);
+  expect(await saved.locator('.pc-message-actions button').count()).toBe(2);
+  // Completion may enable the reaction button, but must not introduce another control.
+  expect((controls.match(/<button/g) ?? []).length).toBe(2);
   await page.screenshot({
     animations: 'disabled',
     scale: 'css',

@@ -80,38 +80,49 @@ export function Transcript({
             key={m.renderKey ?? m.id ?? `pending-${i}`}
           >
             {label && <p className="pc-date date-divider">{group}</p>}
-            <article className={`pc-bubble message ${m.role}`}>
-              {crew && m.role === 'assistant' && (
-                <strong className="message-author">
-                  {m.author ? authorName(m.author) : live ? title : 'Crew member'}
-                </strong>
-              )}
-              {m.role === 'tool' && <small className="message-author">Tool</small>}
-              {m.text.trim() &&
-                (m.role === 'user' ? <p>{m.text}</p> : <MessageBody text={m.text} />)}
-              {m.files?.map((file) => (
-                <button className="message-file" key={file.id} onClick={() => onDownloadFile(file)}>
-                  {file.name} ↓
-                </button>
-              ))}
-              <div className="pc-message-meta message-meta">
-                {date && (
-                  <time dateTime={date.toISOString()}>
-                    {date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                  </time>
+            <div className="pc-bubble-wrap">
+              <article className={`pc-bubble message ${m.role}`}>
+                {crew && m.role === 'assistant' && (
+                  <strong className="message-author">
+                    {m.author ? authorName(m.author) : live ? title : 'Crew member'}
+                  </strong>
                 )}
-              </div>
-            </article>
-            <MessageReactions
-              id={m.id ?? ''}
-              reactions={m.reactions ?? []}
-              agentName={title}
-              onReact={react}
-            />
+                {m.role === 'tool' && <small className="message-author">Tool</small>}
+                {m.text.trim() &&
+                  (m.role === 'user' ? <p>{m.text}</p> : <MessageBody text={m.text} />)}
+                {m.files?.map((file) => (
+                  <button
+                    className="message-file"
+                    key={file.id}
+                    onClick={() => onDownloadFile(file)}
+                  >
+                    {file.name} ↓
+                  </button>
+                ))}
+                <div className="pc-message-meta message-meta">
+                  {date && (
+                    <time dateTime={date.toISOString()}>
+                      {date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                    </time>
+                  )}
+                </div>
+              </article>
+              <MessageReactions
+                id={m.id ?? ''}
+                reactions={m.reactions ?? []}
+                agentName={title}
+                onReact={react}
+              />
+            </div>
             {(m.text.trim() || m.files?.length) && (
               <div className="pc-message-actions">
-                {react && m.id && (
-                  <ReactionPicker id={m.id} reactions={m.reactions ?? []} onReact={react} />
+                {!crew && onReact && m.id && (
+                  <ReactionPicker
+                    id={m.id}
+                    reactions={m.reactions ?? []}
+                    onReact={onReact}
+                    disabled={!react}
+                  />
                 )}
                 {m.text.trim() && <CopyMessage text={m.text} />}
               </div>

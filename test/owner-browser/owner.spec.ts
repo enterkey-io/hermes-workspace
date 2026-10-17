@@ -312,6 +312,12 @@ test('private first use, native onboarding, idle keepalive, reconnection, settin
     path: 'test-results/native-reactions-desktop.png',
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(async () => {
+      const input = (await page.getByLabel('Message', { exact: true }).boundingBox())!;
+      return input.y + input.height;
+    })
+    .toBeLessThanOrEqual(844);
   await page.screenshot({
     animations: 'disabled',
     path: 'test-results/native-reactions-phone.png',

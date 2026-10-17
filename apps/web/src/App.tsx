@@ -616,17 +616,25 @@ export function App({ owner }: { owner?: OwnerConnection }) {
 
   async function refreshHistory(connection: BotBridgeClient, target: Selection, complete = false) {
     if (target.kind !== 'bot' || selectionConnection.current !== connection) return;
+    // Native history can already contain a partial turn. Keep it out of the
+    // committed transcript while its streamed presentation is still visible.
+    if (sendProjection.current.replying && !complete) return;
     const terminalEpoch = runEpoch.current;
     const generation = ++historyGeneration.current;
     const data = object(await connection.invoke('chat.history', { session_id: target.sessionId }));
     if (current.current === connection && selected.current === target) {
-      observedHistory(target, data.messages);
-      if (generation === historyGeneration.current)
+      if (
+        generation === historyGeneration.current &&
+        terminalEpoch === runEpoch.current &&
+        (!sendProjection.current.replying || complete)
+      ) {
+        observedHistory(target, data.messages);
         setMessages(sendProjection.current.project(transcript(data.messages), complete));
-      if (complete && terminalEpoch === runEpoch.current) {
-        setStream('');
-        setRunning(false);
-        setStopping(false);
+        if (complete) {
+          setStream('');
+          setRunning(false);
+          setStopping(false);
+        }
       }
     }
     const saved = scrollPositions.current.get(draftKey(target));
@@ -703,8 +711,10 @@ export function App({ owner }: { owner?: OwnerConnection }) {
     eventVersion.current++;
     const payload = event.payload ?? {};
     if (event.type === 'message.reaction') {
-      reactionReceipt(payload);
-      await refreshHistory(connection, target);
+      const result = reactionReceipt(payload);
+      setMessages((old) =>
+        old.map((m) => (m.id === result.id ? { ...m, reactions: result.reactions } : m)),
+      );
     }
     if (event.type === 'message.start') {
       runEpoch.current++;
