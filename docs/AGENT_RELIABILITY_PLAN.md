@@ -1,6 +1,6 @@
 # Make Pebble Crew safer for agent contributions
 
-Audit date: 17 October 2026. Source baseline: `c5a9268`. This is an implementation plan, not a claim that the defects below are repaired.
+Audit date: 17 October 2026. Source baseline: `c5a9268`. The audit observations below describe that baseline. The implementation is in the 0.7.7 preview candidate; verification is recorded in [the bug register](BUGS_AND_IMPROVEMENTS.md) and release evidence.
 
 The recurring failures have several causes. A separate review implementation hid production differences. Forms shared their controls but kept separate state and save logic. Changing a transport client could reset an editor. Operation routing and response shapes were repeated across languages. Earlier checks established narrower behavior than the release descriptions implied.
 
@@ -132,7 +132,7 @@ Its exact existing-agent recovery journey passed once on desktop Chromium and on
 
 The independent final review found a missing fresh-host prerequisite in the skill. Browser installation commands now match CI. The exercised machine already had npm dependencies and browser binaries, so fresh-host provisioning remains untested.
 
-Reproduce the source/route observations from the repo root with `node scripts/audit-agent-guards.mjs` and `node scripts/audit-photo-routing.mjs`. The route probe opens only synthetic loopback listeners. Success means the baseline observation reproduced, not that the defect is fixed. The production Connections journey and screenshots are retained in the ignored local `.audit/` directory. Sanitized results are in [the audit evidence](audits/2026-10-17-agent-reliability.json).
+The original sanitized baseline is in [the audit evidence](audits/2026-10-17-agent-reliability.json). `node scripts/audit-agent-guards.mjs` and `node scripts/audit-photo-routing.mjs` now assert the repaired behavior: malformed snapshots and comment-only controls are rejected, historical broken sources fail, and all four detailed-photo operations reach the bounded avatar route. The route probe uses synthetic loopback listeners. These checks complement native acceptance; they do not establish owner deployment or visual acceptance.
 
 ## Source coverage and remaining limits
 
@@ -144,4 +144,4 @@ The installed pstack model sheet still has its routing hook off, as recorded in 
 
 PC-051 remains open for fresh custom-provider profile creation on the older Hermes build. The legacy reaction CI job is not full legacy profile-creation acceptance. Owner-host supervision/restart behavior, physical phones and complete native photo persistence were not re-certified by this audit.
 
-The plan's cross-judge flagged missing role/team preservation, route-inventory completeness, backwards compatibility and loaded-runtime uncertainty. The selected plan addresses those limits explicitly. Production implementation and release are still pending.
+The plan's cross-judge flagged missing role/team preservation, route-inventory completeness, backwards compatibility and loaded-runtime uncertainty. The implementation retains separate role/team writes, a complete routing inventory, legacy small-request routes and explicit loaded-runtime uncertainty. Independent code review additionally found and repaired legacy copying, Unicode length, delayed snapshot and transient profile-refresh defects. The owner's installed service is not changed by these local gates.

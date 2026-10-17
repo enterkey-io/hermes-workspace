@@ -47,6 +47,9 @@ active host digest, package digest, enrolled-copy digests and declared runtime
 contracts. It does not publish profile inventory through public version metadata.
 Loaded runtime remains `unknown`; even matching disk digests do not establish
 what an existing native process imported.
+An enrolled native bot may have no integration runtime yet. Status reports
+`not-installed`; synchronization can provision that absent copy. An existing
+partial or unknown copy requires inspection and is never treated as absent.
 
 Before maintenance, wait for native work to finish and stop profile processes.
 `--native-idle` records the operator's confirmation, not observed process state.
@@ -73,3 +76,6 @@ Before publishing a newly built combined package, set `HERMES_NATIVE_ROOT` and
 disposable home and rejects failed acceptance or a changed archive digest. It
 writes `artifacts/installed-package-acceptance.json`; it never publishes a release
 or changes an owner's installation. CI runs the same command after packaging.
+The historical Python-runtime rollback check needs repository history containing
+`b642ccef86511814223e9c4443fc48f639965b47`. It uses that exact Python payload with
+the candidate's web assets and dependencies; it does not certify the old web UI.

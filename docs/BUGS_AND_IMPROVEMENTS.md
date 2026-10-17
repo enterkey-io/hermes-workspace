@@ -4,16 +4,30 @@ Track owner reports here through implementation, verification and release. A
 published fix is separate from updating and verifying the owner's installation.
 New reports receive a stable ID; later work updates the existing entry.
 
-## Open findings from the 17 October reliability audit
+## 0.7.7 reliability and message motion
 
-These are local audit findings, not completed repairs. See the
-[implementation plan](AGENT_RELIABILITY_PLAN.md) for ownership changes and gates.
+See the [implementation plan](AGENT_RELIABILITY_PLAN.md) for the retained baseline
+and verification limits. These changes require updating the installed plugin;
+local acceptance is separate from the owner's deployment.
 
-| ID     | Finding                                                           | Evidence and next step                                                                                                                                                                                                                         |
-| ------ | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PC-064 | Connections loses unsaved tool access after transport restoration | Reproduced in the production web build using the existing bridge fixture. A new lease clears a checked tool and disables Save. Separate draft ownership from remote refresh and add a user-path regression test.                               |
-| PC-065 | Detailed photos fail full-profile Add/Edit requests               | The actual client/proxy sends a synthetic 512px PNG through the 65,536-byte RPC route and returns 413 for `agent.onboard` and `bots.profile.update`. Coordinate the client, proxy and Python routing contract, then verify native persistence. |
-| PC-066 | Workspace boundary accepts malformed nested data as typed state   | The real parser accepts string appearance/role, numeric manager and missing identity fields. Decode the complete claimed shape before UI state replacement. Malformed native output has not been observed.                                     |
+| ID     | Finding                                                           | Evidence and next step                                                                                                                                                                                                                                                                                    |
+| ------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-064 | Connections loses unsaved tool access after transport restoration | Feature-owned edit reducer retains tool choices and transient key text across a new lease; divergent saved policies require an explicit decision. Desktop/iPhone/Android recovery tests exercise the production screens.                                                                                  |
+| PC-065 | Detailed photos fail full-profile Add/Edit requests               | One inert catalog supplies client, Node proxy and Python operation routing/body limits. All four photo-bearing operations use `/v1/avatar`, with bounded legacy RPC compatibility. Native owner acceptance saves a detailed 512px image above 64 KiB, switches to a shape, then restores the saved photo. |
+| PC-066 | Workspace boundary accepts malformed nested data as typed state   | Complete network decoding precedes UI replacement. Retained malformed snapshots are rejected; valid native Unicode lengths and optional/null fields remain supported. No malformed owner-host response has been observed.                                                                                 |
+| PC-067 | New messages pop into view and move the conversation in one frame | New bubbles enter once under stable receipt keys; one viewport follower eases toward growing content. Real-frame desktop/phone checks cover user and first reply insertion, manual scroll and reduced motion. Existing completion/reaction checks retain DOM, timestamp and control placement.            |
+
+Add, import and Edit share profile ownership and conflict rules. Delayed older
+snapshots cannot replace newer edits. Tools retain unsaved choices on reconnect;
+uncertain writes require review rather than automatic replay. AST checks require
+real screen composition and supported profile-domain imports.
+
+Runtime status is owner-local disk evidence; loaded native code remains unknown.
+Synchronization records private per-profile receipts/backups, supports native
+managed profiles with no prior integration copy, and preserves a failed/partial
+result. Final-package acceptance includes changed tool definitions and historical
+Python-runtime rollback, with current packaged web assets. Update checks do not
+run models or edit personas.
 
 ## 0.7.6 setup and return-to-app corrections
 

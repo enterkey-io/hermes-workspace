@@ -10,8 +10,8 @@ Open Your account, Settings, Connections. Choose a service to view its details. 
 
 ## Driving it with Playwright
 
-Run `CI=1 npx playwright test --config playwright.chat.config.ts connections.spec.ts`. Run `CI=1 npx playwright test --config playwright.mobile.config.ts connections.spec.ts` for iPhone WebKit and Android Chromium. The existing fixture uses separate OAuth and API-key services. Check affirmative save receipts, cancellation, focus return and unsaved-policy preservation through discovery and guarded navigation.
+Run `CI=1 npx playwright test --config playwright.chat.config.ts connections.spec.ts connection-recovery.spec.ts`. Run `CI=1 npx playwright test --config playwright.mobile.config.ts connections.spec.ts connection-recovery.spec.ts` for iPhone WebKit and Android Chromium. The existing fixture uses separate OAuth and API-key services. Check affirmative save receipts, cancellation, focus return and unsaved-policy preservation through discovery and guarded navigation.
 
 ## Gotchas
 
-An unsaved Connections tool edit is currently discarded by replacing the transport client. Existing connection tests cover ordinary navigation and refresh, but not that restoration path. Retain this as an open defect until a user-path regression test proves preservation through a broken stream. Do not claim all settings drafts survive because Add-flow tests pass.
+Recovery tests replace the transport lease while a custom tool and key text are unsaved. A divergent remote policy must offer an explicit keep/discard decision. Key text stays transient. Ordinary Add-flow survival is not proof of Connections policy ownership; run these specific journeys.

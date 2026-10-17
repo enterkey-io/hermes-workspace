@@ -47,7 +47,7 @@ Keep command output in a task-specific log under `test-results/verification/` or
 
 Record the source revision, build/release, command, result and evidence paths. Browser emulation does not prove a physical keyboard, mobile Safari or all-device performance. Native synthetic proof does not establish an owner's ingress or restart behavior. Review metadata from the served owner URL before attributing an owner report to current source, using no credentials or private API data.
 
-Fault probes in `scripts/audit-agent-guards.mjs` and `scripts/audit-photo-routing.mjs` describe known baseline observations. Their success means the observation reproduced, not that the defect is fixed. They are not release gates.
+Counterexample checks in `scripts/audit-agent-guards.mjs` and `scripts/audit-photo-routing.mjs` now assert the repaired behavior, retaining the historical broken UI sources as negative controls. They complement the real browser/native gates. The final archive must pass `scripts/verify-release.mjs` unchanged before publication; its historical Python rollback fixture needs repository history containing `b642ccef86511814223e9c4443fc48f639965b47`.
 
 ## Cleanup
 
