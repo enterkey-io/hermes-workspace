@@ -1220,16 +1220,13 @@ export function App({ owner }: { owner?: OwnerConnection }) {
         if (fileIds.length) setFilesVersion((v) => v + 1);
         setDraft('');
       }
-    } catch (error) {
+    } catch {
       if (owns()) {
         setBlocked(true);
         setDraft(message);
       }
       if (owns() && fileIds.length) setAttachmentUncertain(true);
-      if (owns())
-        setError(
-          `${safeError(error).message} The send outcome is uncertain. Reconnect and inspect history before another send.`,
-        );
+      if (owns()) setError('Your message may not have been sent. Reopen this chat to check.');
     } finally {
       if (generation === selectGeneration.current && current.current === connection) {
         focusOnReady.current = true;
