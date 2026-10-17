@@ -72,13 +72,13 @@ installation.
 
 ## 3. Obtain the immutable combined release
 
-Candidate: `v0.7.3-preview.1`. If these assets are not published, stop and report
+Candidate: `v0.7.4-preview.1`. If these assets are not published, stop and report
 that the candidate is unavailable. Do not substitute main or an API-only package.
 
-- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.3-preview.1/workspace-manifest.json)
-- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.3-preview.1/SHA256SUMS)
-- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.3-preview.1/workspace-plugin-preview.zip)
-- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.3-preview.1/workspace-source-preview.zip)
+- [Manifest](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.4-preview.1/workspace-manifest.json)
+- [SHA256SUMS](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.4-preview.1/SHA256SUMS)
+- [Complete plugin](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.4-preview.1/workspace-plugin-preview.zip)
+- [Source](https://github.com/enterkey-io/pebble-crew/releases/download/v0.7.4-preview.1/workspace-source-preview.zip)
 
 Verify size and SHA-256 against both manifest and checksum file. Reject absolute
 archive paths, traversal, symlinks and entries escaping private staging. The
@@ -187,8 +187,11 @@ their authorization.
 ## Updates and rollback
 
 For an existing combined-plugin installation, obtain and verify the new combined ZIP as in step 3, back up
-and replace only the installed plugin code (preserving all state), then run
-`hermes bot-web update`. Keep the existing origin, ports, owner login, agent
+and replace only the installed plugin code (preserving all state). While native
+work is idle, run `hermes bot-web sync-runtime` before `hermes bot-web update`.
+The new release's native process must start after the enrolled copies are
+updated; copying files into a running process does not reload its tools.
+Keep the existing origin, ports, owner login, agent
 bindings and supervisor. Run `hermes bot-web verify --public` through the existing
 HTTPS route; no new setup link, login creation or pairing is required. If the
 owner has not claimed the initial login, retrieve its still-valid private link
@@ -198,7 +201,7 @@ with `hermes bot-web setup-link` (use `--renew-setup` only if it expired).
 remaining seconds). Its output contains the private file path, never the secret.
 
 Event parsing and legacy access controls are specified in
-[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.7.3-preview.1/docs/WIRE_PROTOCOL.md).
+[the wire protocol](https://github.com/enterkey-io/pebble-crew/blob/v0.7.4-preview.1/docs/WIRE_PROTOCOL.md).
 Never use global revocation for diagnostic cleanup: use DELETE `/v1/connect`
 with the probe's own lease. Global revocation now requires `hermes bot-web revoke
 --all` or the operator-only HTTP body `{"all":true}`.
@@ -208,6 +211,7 @@ and enable it natively. Running services keep using their immutable snapshot unt
 activation; preserve private state and native stores.
 
 ```sh
+hermes bot-web sync-runtime
 hermes bot-web update
 hermes bot-web verify --public
 ```
@@ -224,8 +228,11 @@ hermes bot-web verify --public
 This preview supports code updates with unchanged owner/workspace data schemas;
 unsupported data migrations are refused. Keep previous snapshots and code backups
 until verification passes. Do not restore native history/personality stores as
-plugin rollback. After successful activation, use `hermes bot-web sync-runtime`
-to update enrolled agents' runtime-only plugin copies; they receive no web bundle.
+plugin rollback. Run `hermes bot-web sync-runtime` before update activation to
+update enrolled agents' runtime-only plugin copies; they receive no web bundle.
+If copies were synchronized after activation, restart through the installation's
+existing supervisor while native work is idle, then verify the public route
+again. Do not leave already imported tool code running and call the update done.
 
 If initial setup expires before account creation, run `hermes bot-web setup-link
 --renew-setup` and privately deliver the new link. It refuses to replace a claimed
