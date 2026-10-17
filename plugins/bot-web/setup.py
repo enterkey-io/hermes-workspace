@@ -148,7 +148,10 @@ def sync_runtime():
         if destination.is_symlink():
             raise ValueError('Refusing to replace a linked plugin directory')
         if destination.exists():
-            import hermes_yaml as yaml
+            try:
+                import hermes_yaml as yaml
+            except ImportError:
+                import yaml
             manifest = yaml.safe_load((destination / 'plugin.yaml').read_text())
             if manifest.get('name') != 'bot-web':
                 raise ValueError('Refusing to replace unrelated plugin code')

@@ -40,9 +40,16 @@ async def exercise(root, home, port):
         await service.invoke('workspace.initialize', {'profile': detection['profile'], 'handle': 'aurora',
             'appearance': {'kind': 'shape', 'shape': 'pebble', 'color': 'iris'}, 'photo': None,
             'expected_revision': detection['revision']})
+        # Existing installs can already have the plugin enabled while their saved
+        # CLI tool selection predates a new capability. Reopening must reconcile it.
+        configured = yaml.safe_load((home / 'config.yaml').read_text())
+        configured['platform_toolsets'] = {'cli': ['terminal']}
+        configured['tools'] = {'tool_search': {'listing': 'off'}}
+        (home / 'config.yaml').write_text(yaml.safe_dump(configured))
         sid = (await ops.invoke('bot.open', {'profile': detection['profile']}))['session_id']
         saved = yaml.safe_load((home / 'config.yaml').read_text())
         assert saved['display']['message_reactions'] is True
+        assert saved['platform_toolsets']['cli'] == ['terminal', 'workspace']
         assert not (yaml.safe_load((home / 'profiles/alpha/config.yaml').read_text()).get('display') or {}).get('message_reactions')
         for key in ('model', 'providers', 'toolsets', 'approvals'):
             assert saved[key] == original_config[key], key
@@ -63,6 +70,8 @@ async def exercise(root, home, port):
         user = next(m for m in messages if m.get('role') == 'user' and m.get('text') == 'nativereaction')
         assert any(r.get('emoji') == '👍' and r.get('author') == 'agent' for r in user.get('display_metadata', {}).get('reactions', [])), {'tools': sorted(Model.tools_seen), 'results': Model.tool_results, 'messages': messages}
         assert Model.emitted_reaction, Model.tools_seen
+        assert Model.reaction_schema_received or 'pebble_react' in Model.tools_seen
+        assert Model.reaction_discovery_guided or 'pebble_react' in Model.tools_seen
         reply = next(m for m in reversed(messages) if m.get('role') == 'assistant' and m.get('text'))
         before = Model.turns
         receipt = await ops.invoke('chat.react', {'session_id': sid, 'row_id': reply['row_id'], 'emoji': '❤️'})
@@ -81,6 +90,12 @@ async def exercise(root, home, port):
             pass
         else:
             raise AssertionError('Native reaction accepted a nonexistent message')
+        assert soul.read_bytes() == original_soul
+        await gateway.stop()
+        from bot_web.setup import sync_runtime
+        before = Model.turns
+        sync_runtime()
+        assert Model.turns == before
         assert soul.read_bytes() == original_soul
         print(json.dumps({'supported_revision': gateway.build['revision'], 'native_agent_reaction': True,
             'native_user_feedback_received': True, 'reactions_do_not_start_model_turns': True,

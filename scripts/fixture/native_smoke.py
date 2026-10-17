@@ -32,6 +32,9 @@ class Model(BaseHTTPRequestHandler):
     emitted_approval = False
     emitted_attachment = False
     emitted_reaction = False
+    reaction_describe_requested = False
+    reaction_schema_received = False
+    reaction_discovery_guided = False
     saw_attachment = False
     approval_target = ""
     slow_started = threading.Event()
@@ -74,6 +77,11 @@ class Model(BaseHTTPRequestHandler):
         def can_call(name):
             return name in tool_names or 'tool_call' in tool_names
         Model.tool_results = [m.get('content') for m in data.get('messages', []) if m.get('role') == 'tool']
+        if Model.reaction_describe_requested and any(
+            'pebble_react' in str(result) and 'parameters' in str(result)
+            for result in Model.tool_results
+        ):
+            Model.reaction_schema_received = True
         if any('PEBBLE_FIXTURE_FILE_INPUT' in str(m.get('content')) for m in data.get('messages', []) if m.get('role') == 'tool'):
             Model.saw_attachment = True
         import re
@@ -85,8 +93,13 @@ class Model(BaseHTTPRequestHandler):
             and can_call('message_agent'))
         approval = ("nativeapproval" in str(latest_user.get("content")) and not Model.emitted_approval
             and can_call('terminal'))
-        reaction = ('nativereaction' in str(latest_user.get('content')) and not Model.emitted_reaction
-            and can_call('pebble_react'))
+        wants_reaction = 'nativereaction' in str(latest_user.get('content')) and not Model.emitted_reaction
+        if wants_reaction and 'pebble_react' not in tool_names:
+            Model.reaction_discovery_guided = any('tool_describe(names=["pebble_react"])' in str(m.get('content')) for m in data.get('messages', []))
+        discover_reaction = (wants_reaction and 'pebble_react' not in tool_names
+            and not Model.reaction_describe_requested and 'tool_describe' in tool_names
+            and 'pebble_react' in json.dumps(data))
+        reaction = (wants_reaction and ('pebble_react' in tool_names or Model.reaction_schema_received))
         if 'nativefeedback' in str(latest_user.get('content')):
             # The reply only acknowledges feedback actually present in the model input.
             text = 'Native feedback received' if any('[The user reacted ❤️' in str(m.get('content')) for m in data.get('messages', [])) else 'Native feedback missing'
@@ -96,7 +109,12 @@ class Model(BaseHTTPRequestHandler):
             text = "Slow fixture reply"
         message = {"role": "assistant", "content": text}
         finish = "stop"
-        if reaction:
+        if discover_reaction:
+            Model.reaction_describe_requested = True
+            message = {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'fixture-reaction-describe',
+                'type': 'function', 'function': {'name': 'tool_describe', 'arguments': json.dumps({'names': ['pebble_react']})}}]}
+            finish = 'tool_calls'
+        elif reaction:
             Model.emitted_reaction = True
             name, arguments = 'pebble_react', {'emoji': '👍'}
             message = {'role': 'assistant', 'content': None, 'tool_calls': [{'id': 'fixture-reaction', 'type': 'function', 'function': {'name': name, 'arguments': json.dumps(arguments)}}]}
@@ -134,7 +152,7 @@ class Model(BaseHTTPRequestHandler):
         self.end_headers()
         if data.get("stream"):
             delta = {"role": "assistant", "content": text}
-            if handoff or approval or attachment or reaction:
+            if handoff or approval or attachment or reaction or discover_reaction:
                 delta = {"role": "assistant", "tool_calls": [{"index": 0, **message["tool_calls"][0]}]}
             for delta, reason in [(delta, None), ({}, finish)]:
                 chunk = {**output, "object": "chat.completion.chunk", "choices": [{"index": 0,

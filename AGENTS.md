@@ -13,6 +13,9 @@ for native acceptance.
 | Sections mix crews with pebbles or empty headings appear | Built-in section IDs have fixed names and allowed item kinds in both organization domains. Empty built-ins are omitted; custom sections remain drop targets. Domain and browser checks cover these rules. |
 | Handles and reorder menu clutter return                  | Whole rows/tiles/section headers drag; keyboard reordering uses Alt+Arrow. `check:ui` rejects exposed grip controls and reorder menu items.                                                               |
 | UI tests pass while real agent setup fails               | The `native-owner` CI job runs the actual owner app and bridge against pinned Hermes in a disposable home. Do not substitute mock-only checks for this gate.                                              |
+| Mobile fixes pass checks but text is still misaligned   | Phone browser checks compare the composer field and send-control centers, not just viewport containment. Inspect the settled iPhone and Android screenshots. |
+| Committed replies pop or duplicate a live turn          | `SendProjection` preserves displayed timestamps. Reaction events update addressed rows directly; polling cannot replace the transcript during a live turn. Browser checks exercise reaction arrival during streaming and stable touch controls at completion. |
+| A model is told to use a tool it cannot discover        | Reaction guidance checks the native enabled definitions. Native acceptance describes the deferred schema before invoking it, with catalog listings disabled and an existing saved tool selection, on both supported Hermes builds. |
 
 For UI changes, run `npm run check`, the relevant production browser flows, and
 inspect settled desktop/phone screenshots. Use the native owner check when a

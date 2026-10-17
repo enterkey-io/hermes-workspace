@@ -49,7 +49,8 @@ SUPPORTED_BUILDS = [{'version': '0.21.0',
             '../tools/react_to_message_tool.py': '7ec695caadde5479519d6a61b3e8ab9bf7dfd36befdf4e1722e3a5a26ef49fcf',
             '../tools/desktop_ui.py': 'eb196c21ddbb55f49fe68d37cb6655487cb22668a628f8fe167da9f59958386b',
             'methods_config_set.py': None,
-            'session_notifications.py': None}},
+            'session_notifications.py': None,
+            '../model_tools.py': '5227bfe30f7c3f6eb20d064f648420138031e038d38eac2829d25b749739ad11'}},
  {'version': '0.21.7',
   'revision': 'af0cd4df34c73e41bcfcfa46c4081d1d83bdc81a',
   'server_requests': True,
@@ -93,7 +94,8 @@ SUPPORTED_BUILDS = [{'version': '0.21.0',
             '../tools/react_to_message_tool.py': 'ed463604f5b2745a3bd9be943cf2678ad86bec39522fef7180da3cfced64f1cf',
             '../tools/desktop_ui.py': '85f98b129953caea991d0b9630d433aef825a543671b6345bbb992b88d6e0f94',
             'methods_config_set.py': '82d5776f2b376112a257bafef642cd6fefdbe4c46d874a52afed27d7c3f2bcf3',
-            'session_notifications.py': '3db259fe8d5bbd0a8a9cd5b455304d37f4d434befbaf4e28d41918e8854e65d3'}}]
+            'session_notifications.py': '3db259fe8d5bbd0a8a9cd5b455304d37f4d434befbaf4e28d41918e8854e65d3',
+            '../model_tools.py': '872ca571c17379c8df19c0bcf639919bb0cb3a2706efc08e4dc6a1f3d8789662'}}]
 
 def inspect_native_adapter():
     try:

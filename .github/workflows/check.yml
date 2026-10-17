@@ -60,3 +60,20 @@ jobs:
           name: native-owner-ui-failure
           path: test-results/owner
           retention-days: 7
+  native-reactions-legacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: enterkey-io/hermes-agent
+          ref: 29112bef099274229cadff79cdff7bf7b99c4b77
+          path: native-hermes
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: python -m venv "$RUNNER_TEMP/hermes-legacy-env"
+      - run: '"$RUNNER_TEMP/hermes-legacy-env/bin/pip" install uv -e ./native-hermes -r test/plugin/requirements.txt'
+      - run: '"$RUNNER_TEMP/hermes-legacy-env/bin/python" scripts/fixture/reactions_smoke.py'

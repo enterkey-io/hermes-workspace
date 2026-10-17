@@ -2,6 +2,28 @@
 import json
 
 
+def runtime_guidance(platform):
+    """Advertise only an enabled capability, including its native discovery path."""
+    from hermes_cli.config import load_config_readonly
+    if (load_config_readonly().get('display') or {}).get('message_reactions') is not True:
+        return ''
+    from tui_gateway import server
+    from model_tools import get_tool_definitions
+    # The older pinned adapter has no separate disabled-toolsets loader.
+    disabled = server._load_disabled_toolsets() if hasattr(server, '_load_disabled_toolsets') else None
+    tools = get_tool_definitions(enabled_toolsets=server._load_enabled_toolsets(platform),
+        disabled_toolsets=disabled, quiet_mode=True,
+        skip_tool_search_assembly=True)
+    if not any(t.get('function', {}).get('name') == 'pebble_react' for t in tools):
+        return ''
+    return ('In this direct Pebble Crew chat you can send emoji reactions using pebble_react. '
+        'Hermes may defer plugin tools: if pebble_react is not in your top-level tools, '
+        'load it with tool_describe(names=["pebble_react"]), then invoke it through tool_call '
+        'using that tool\'s advertised schema. It is not missing just because it is deferred. '
+        'The emoji argument is required; omit target fields to react to the latest user message. '
+        'React naturally without narrating the reaction. Owner reactions arrive as native feedback on the next user turn.')
+
+
 def emoji(value, *, clear=False):
     # Bound untrusted input; accept Unicode emoji sequences, including joined and
     # skin-tone variants, without a duplicate emoji database in the integration.

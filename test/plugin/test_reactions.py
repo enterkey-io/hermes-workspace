@@ -1,9 +1,12 @@
 import asyncio
 import unittest
+import sys
+from types import SimpleNamespace
+from unittest.mock import patch
 from test_security import Native
 from bot_web.operations import BotOperations, InvalidOperation
 from bot_web.native import NativeError, NativeGateway
-from bot_web.reactions import emoji
+from bot_web.reactions import emoji, runtime_guidance
 
 
 class ReactionGateway(Native):
@@ -60,3 +63,21 @@ class ReactionsTests(unittest.IsolatedAsyncioTestCase):
         for value in ('👍🏽', '❤️', '👩\u200d💻', '🇺🇸', '1️⃣'):
             self.assertEqual(emoji(value), value)
         self.assertIsNone(emoji(None, clear=True))
+
+    def test_guidance_uses_discovery_only_when_the_native_tool_is_enabled(self):
+        config = {'display': {'message_reactions': True}}
+        definitions = [{'function': {'name': 'pebble_react'}}]
+        server = SimpleNamespace(_load_enabled_toolsets=lambda platform: ['workspace'],
+            _load_disabled_toolsets=lambda: None)
+        with patch.dict(sys.modules, {
+            'hermes_cli.config': SimpleNamespace(load_config_readonly=lambda: config),
+            'tui_gateway': SimpleNamespace(server=server),
+            'model_tools': SimpleNamespace(get_tool_definitions=lambda **kwargs: definitions),
+        }):
+            guidance = runtime_guidance('tui')
+            self.assertIn('tool_describe(names=["pebble_react"])', guidance)
+            self.assertIn('tool_call', guidance)
+            definitions.clear()
+            self.assertEqual(runtime_guidance('tui'), '')
+            config['display']['message_reactions'] = False
+            self.assertEqual(runtime_guidance('tui'), '')

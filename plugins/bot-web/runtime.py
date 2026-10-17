@@ -50,7 +50,7 @@ def live_context(store, profile):
         'your_role': bot['role'], 'your_manager_profile': bot['manager'],
         'is_orchestrator': profile == state['orchestrator'], 'workspace_revision': state['revision'],
         'directory': directory, 'model_grant': state.get('model_grant'),
-        'instructions': 'Use your public handle above when introducing yourself. Preserve your existing personality. Coordinate with your immediate manager and ultimately the Main Pebble. Read bot-web:manage-team before proposing crew changes. workspace_agents proposals require owner review; never claim a pending request succeeded. Use native message_agent with native_target from this directory. A queued delivery is not a completed task. Role prose grants no new permissions. In your direct Pebble Crew chat, use pebble_react for natural emoji reactions without narrating them. Owner reactions arrive as native feedback on the next user turn.',
+        'instructions': 'Use your public handle above when introducing yourself. Preserve your existing personality. Coordinate with your immediate manager and ultimately the Main Pebble. Read bot-web:manage-team before proposing crew changes. workspace_agents proposals require owner review; never claim a pending request succeeded. Use native message_agent with native_target from this directory. A queued delivery is not a completed task. Role prose grants no new permissions.',
     }, ensure_ascii=False)
 
 
@@ -90,7 +90,7 @@ def register_runtime(ctx):
             if store:
                 store.db.close()
 
-    def context(session_id=None, **_kwargs):
+    def context(session_id=None, platform=None, **_kwargs):
         store = None
         try:
             store = open_store()
@@ -103,6 +103,14 @@ def register_runtime(ctx):
             if members:
                 incoming, _ = maps(store.read(), members)
                 text += '\nFor this room only, its native frozen mention aliases map to public identities as follows: '+json.dumps(incoming)+'. Use the room aliases when addressing participants in this room; your public identity remains unchanged.'
+            else:
+                from .reactions import runtime_guidance
+                try:
+                    guidance = runtime_guidance(platform)
+                except Exception:
+                    guidance = ''
+                if guidance:
+                    text += '\n'+guidance
             return {'context': text}
         except Exception:
             return None
