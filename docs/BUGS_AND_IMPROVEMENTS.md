@@ -4,6 +4,17 @@ Track owner reports here through implementation, verification and release. A
 published fix is separate from updating and verifying the owner's installation.
 New reports receive a stable ID; later work updates the existing entry.
 
+## Open findings from the 17 October reliability audit
+
+These are local audit findings, not completed repairs. See the
+[implementation plan](AGENT_RELIABILITY_PLAN.md) for ownership changes and gates.
+
+| ID     | Finding                                                           | Evidence and next step                                                                                                                                                                                                                         |
+| ------ | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-064 | Connections loses unsaved tool access after transport restoration | Reproduced in the production web build using the existing bridge fixture. A new lease clears a checked tool and disables Save. Separate draft ownership from remote refresh and add a user-path regression test.                               |
+| PC-065 | Detailed photos fail full-profile Add/Edit requests               | The actual client/proxy sends a synthetic 512px PNG through the 65,536-byte RPC route and returns 413 for `agent.onboard` and `bots.profile.update`. Coordinate the client, proxy and Python routing contract, then verify native persistence. |
+| PC-066 | Workspace boundary accepts malformed nested data as typed state   | The real parser accepts string appearance/role, numeric manager and missing identity fields. Decode the complete claimed shape before UI state replacement. Malformed native output has not been observed.                                     |
+
 ## 0.7.6 setup and return-to-app corrections
 
 | ID     | Report                                                             | Repair and verification                                                                                                                                                                                                                                     |
