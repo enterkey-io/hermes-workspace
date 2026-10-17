@@ -33,7 +33,7 @@ export class TranscriptFollow {
   private step = (now: number) => {
     const target = Math.max(0, this.node.scrollHeight - this.node.clientHeight);
     const distance = target - this.node.scrollTop;
-    // WebKit rounds scrollTop writes; finish before interpolation stops advancing.
+    // Settle tiny residual offsets without a long animation tail.
     if (Math.abs(distance) < 4) {
       this.node.scrollTop = target;
       this.written = this.node.scrollTop;
@@ -43,7 +43,11 @@ export class TranscriptFollow {
     }
     const elapsed = this.previous ? Math.min(48, now - this.previous) : 16;
     this.previous = now;
-    this.node.scrollTop += distance * (1 - Math.exp(-elapsed / 58));
+    const advance = Math.min(
+      Math.abs(distance),
+      Math.max(1, Math.abs(distance) * (1 - Math.exp(-elapsed / 58))),
+    );
+    this.node.scrollTop += Math.sign(distance) * advance;
     this.written = this.node.scrollTop;
     this.frame = requestAnimationFrame(this.step);
   };

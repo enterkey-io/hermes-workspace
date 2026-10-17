@@ -60,12 +60,17 @@ test('new user messages and first reply text move the viewport through intermedi
   const agent = await readFrames(page);
   expect(new Set(agent.map((frame) => Math.round(frame.top))).size).toBeGreaterThan(3);
   expect(agent.some((frame) => frame.opacity < 0.95)).toBe(true);
-  const last = agent.at(-1)!;
-  expect(Math.abs(last.top - last.target)).toBeLessThan(2);
   await info.attach('message-motion-frames', {
     body: JSON.stringify({ user, agent }),
     contentType: 'application/json',
   });
+  await expect
+    .poll(() =>
+      page
+        .getByRole('log')
+        .evaluate((node) => Math.abs(node.scrollHeight - node.clientHeight - node.scrollTop)),
+    )
+    .toBeLessThan(2);
   await page.screenshot({
     animations: 'disabled',
     path: info.outputPath('message-motion-settled.png'),
